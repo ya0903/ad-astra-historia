@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "paths": {
+      "@ad-astra/shared": ["../shared/index.ts"],
+      "@ad-astra/shared/*": ["../shared/*"]
+    }
+  },
+  "include": ["src"]
+}
