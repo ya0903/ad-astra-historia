@@ -29,7 +29,7 @@ export const COUNTRY_COLOURS: Record<string, string> = {
   ETH: '#92400e', SOM: '#1f2937', KEN: '#064e3b', TZA: '#1a1a2e',
   UGA: '#365314', MOZ: '#5b21b6', ZAF: '#0c4a6e', ZWE: '#7f1d1d',
   ZMB: '#422006', AGO: '#0d9488', COD: '#b45309', COG: '#1e3a8a',
-  GAB: '#6b21a8', GHA: '#166534', CIV: '#be185d', SEN: '#0891b2',
+  GAB: '#166534', GHA: '#be185d', CIV: '#0891b2', SEN: '#6b21a8',
   AUS: '#f97316', NZL: '#3b82f6', PNG: '#22c55e', FJI: '#eab308',
   // USSR (used in 1945/1960s eras)
   SUN: '#7f1d1d',
