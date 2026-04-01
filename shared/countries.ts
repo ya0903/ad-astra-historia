@@ -41,7 +41,7 @@ export const COUNTRY_COLOURS: Record<string, string> = {
   CSK: '#1d4ed8',
 }
 
-export const ERA_START_DATES: Record<string, string> = {
+export const ERA_START_DATES: Record<Era, string> = {
   '1945': '1945-09-02',
   '1960s': '1960-01-01',
   '1990s': '1991-01-01',

@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import { fileURLToPath } from 'url'
 import { aiRouter } from './routes/ai.js'
 import { createSavesRouter } from './routes/saves.js'
 import { gameRouter } from './routes/game.js'
@@ -26,7 +27,7 @@ export function createApp(options: AppOptions = {}) {
 }
 
 // Only start server when run directly (not during tests)
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const PORT = process.env.PORT ?? 3001
   createApp().listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
