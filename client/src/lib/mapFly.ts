@@ -320,9 +320,32 @@ const CITY_CENTRES: Record<string, [number, number, number]> = {
   brussels: [4.4, 50.8, 9],
 }
 
-/** Returns [lng, lat] for a city name (case-insensitive substring match), or null */
-export function getCityCentre(name: string): [number, number] | null {
+// Disambiguates city names that exist in multiple countries.
+// Key: ISO_A3 → map of ambiguous lowercase city name → [lng, lat]
+const COUNTRY_CITY_OVERRIDES: Record<string, Record<string, [number, number]>> = {
+  PAK: {
+    hyderabad: [68.4, 25.4],   // Hyderabad, Sindh — not Hyderabad, India
+  },
+  IND: {
+    hyderabad: [78.5, 17.4],   // Hyderabad, Telangana
+  },
+}
+
+/** Returns [lng, lat] for a city name (case-insensitive substring match), or null.
+ *  Pass countryId (ISO_A3) to resolve ambiguous names like Hyderabad correctly. */
+export function getCityCentre(name: string, countryId?: string): [number, number] | null {
   const lower = name.toLowerCase()
+
+  // Country-specific override takes priority for ambiguous names
+  if (countryId) {
+    const overrides = COUNTRY_CITY_OVERRIDES[countryId.toUpperCase()]
+    if (overrides) {
+      for (const [key, coords] of Object.entries(overrides)) {
+        if (lower.includes(key)) return coords
+      }
+    }
+  }
+
   for (const [key, coords] of Object.entries(CITY_CENTRES)) {
     if (lower.includes(key)) return [coords[0], coords[1]]
   }
