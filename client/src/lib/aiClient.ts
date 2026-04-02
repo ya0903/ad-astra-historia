@@ -13,7 +13,7 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
         'x-api-key': config.apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model: config.model, max_tokens: 1200, system, messages }),
+      body: JSON.stringify({ model: config.model, max_tokens: 4096, system, messages }),
     })
     if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`)
     const data = await res.json() as { content: Array<{ text: string }> }
@@ -30,7 +30,7 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
       headers,
       body: JSON.stringify({
         model: config.model,
-        max_tokens: 1200,
+        max_tokens: 4096,
         messages: [{ role: 'system', content: system }, ...messages],
       }),
     })
@@ -50,7 +50,7 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.content }],
           })),
-          generationConfig: { maxOutputTokens: 1024 },
+          generationConfig: { maxOutputTokens: 4096 },
         }),
       }
     )

@@ -263,6 +263,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         toCity: b.toCity ?? '',
         fromCoords: b.fromCoords!,
         toCoords: b.toCoords!,
+        waypoints: b.waypoints,
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
@@ -333,10 +334,17 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         const targetIso = r.focusIso ?? pid
         const bp = r.buildProject
 
-        if (RAIL_INFRA.has(bp.type) && bp.fromCity && bp.toCity) {
-          // Rail line — resolve endpoint coords
-          const fromCoords = getCityCentre(bp.fromCity) ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
-          const toCoords = getCityCentre(bp.toCity) ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
+        if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
+          // Rail line — resolve waypoints for all stops
+          const citiesList: string[] = bp.cities?.length
+            ? bp.cities
+            : [bp.fromCity!, bp.toCity!].filter(Boolean)
+          const fallback = getCountryCentre(targetIso) ?? getCountryCentre(pid) ?? [0, 0] as [number, number]
+          const waypoints = citiesList
+            .map(c => getCityCentre(c) ?? fallback)
+            .map(c => [c[0], c[1]] as [number, number])
+          const fromCoords = waypoints[0] ?? (fallback as [number, number])
+          const toCoords = waypoints[waypoints.length - 1] ?? (fallback as [number, number])
           newBuilds.push({
             id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             type: bp.type,
@@ -345,10 +353,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
             totalWeeks: weeks,
             startDate: s.currentDate,
             countryId: targetIso,
-            fromCity: bp.fromCity,
-            toCity: bp.toCity,
-            fromCoords: fromCoords ? [fromCoords[0], fromCoords[1]] : undefined,
-            toCoords: toCoords ? [toCoords[0], toCoords[1]] : undefined,
+            fromCity: citiesList[0],
+            toCity: citiesList[citiesList.length - 1],
+            fromCoords,
+            toCoords,
+            cities: citiesList,
+            waypoints,
           })
         } else {
           // Point infrastructure — prefer explicit city field, then parse from name
@@ -460,6 +470,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         toCity: b.toCity ?? '',
         fromCoords: b.fromCoords!,
         toCoords: b.toCoords!,
+        waypoints: b.waypoints,
         type: 'domestic_hsr' as RailType,
       }))
     return {

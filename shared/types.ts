@@ -36,6 +36,7 @@ export interface RailLine {
   toCity: string
   fromCoords: [number, number]
   toCoords: [number, number]
+  waypoints?: [number, number][]  // full multi-city route coords in order
   type: RailType
 }
 
@@ -181,6 +182,8 @@ export interface BuildProject {
   toCity?: string
   fromCoords?: [number, number]
   toCoords?: [number, number]
+  cities?: string[]              // all stops for multi-city rail routes
+  waypoints?: [number, number][] // resolved coords for all cities in order
 }
 
 // ── Research ──────────────────────────────────────────────────────────────────
@@ -242,7 +245,7 @@ export interface ActionResult {
   empireName?: string          // if conquest/expansion occurred, suggest a new empire name
   annexedCountry?: string      // ISO_A3 of any annexed country
   focusIso?: string            // ISO_A3 to fly map camera to
-  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string } // triggers a build queue entry
+  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] } // triggers a build queue entry
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
 }

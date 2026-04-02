@@ -41,13 +41,16 @@ export default function RailLayer() {
           id: r.id,
           geometry: {
             type: 'LineString',
-            coordinates: [r.fromCoords, r.toCoords],
+            coordinates: r.waypoints ?? [r.fromCoords, r.toCoords],
           },
           properties: {
             id: r.id,
             type: r.type,
             fromCity: r.fromCity,
             toCity: r.toCity,
+            label: r.waypoints && r.waypoints.length > 2
+              ? `${r.fromCity} → … → ${r.toCity}`
+              : `${r.fromCity} → ${r.toCity}`,
           },
         })),
       }
@@ -82,13 +85,13 @@ export default function RailLayer() {
     const onMouseMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       if (!e.features?.length) return
       map.getCanvas().style.cursor = 'pointer'
-      const props = e.features[0].properties as { fromCity: string; toCity: string; type: string }
+      const props = e.features[0].properties as { fromCity: string; toCity: string; type: string; label: string }
       if (!popupRef.current) {
         popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
       }
       popupRef.current
         .setLngLat(e.lngLat)
-        .setHTML(`<div style="color:#fff;background:#1e293b;padding:4px 8px;border-radius:4px;font-size:12px"><b>${props.fromCity} → ${props.toCity}</b><br/>${props.type}</div>`)
+        .setHTML(`<div style="color:#fff;background:#1e293b;padding:4px 8px;border-radius:4px;font-size:12px"><b>${props.label ?? `${props.fromCity} → ${props.toCity}`}</b><br/>${props.type}</div>`)
         .addTo(map)
     }
 
