@@ -27,7 +27,7 @@ const DIFFICULTIES: { label: string; value: Difficulty; description: string }[] 
 ]
 
 function configLabel(c: AIConfig) {
-  let name = c.provider
+  let name: string = c.provider
   if (c.provider === 'custom') {
     try { name = c.baseUrl ? new URL(c.baseUrl).hostname : 'Custom' } catch { name = c.baseUrl || 'Custom' }
   }
