@@ -233,6 +233,14 @@ export interface GameAction {
   interpreted?: string
 }
 
+export interface WorldEvent {
+  headline: string              // e.g. "Kurdistan declares independence"
+  narrative: string             // 2 sentence description
+  affectedCountry?: string      // ISO_A3 of country most affected
+  newNation?: string            // name of newly formed country (if applicable)
+  annexedRegion?: string        // province/region name that gains independence
+}
+
 export interface ActionResult {
   actionId: string
   outcome: 'success' | 'partial' | 'failure'
@@ -245,7 +253,8 @@ export interface ActionResult {
   countryReactions?: Array<{ country: string; stance: 'positive' | 'negative' | 'neutral'; quote: string }>
   domesticReaction?: string
   empireName?: string          // if conquest/expansion occurred, suggest a new empire name
-  annexedCountry?: string      // ISO_A3 of any annexed country
+  annexedCountry?: string      // ISO_A3 of entire sovereign country brought under control
+  annexedRegion?: string       // province/state name when taking sub-national territory (e.g. "Kashmir", "Crimea")
   focusIso?: string            // ISO_A3 to fly map camera to
   buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }  // single build (legacy)
   buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }> // multiple builds from one action
@@ -269,6 +278,8 @@ export interface GameState {
   playerCountryId: string
   empireName?: string          // set when player has expanded into an empire
   controlledCountries?: string[] // ISO_A3 of countries under player control
+  controlledRegions?: Array<{ name: string; adm0_a3: string }> // sub-national provinces/regions under control
+  worldEvents?: WorldEvent[]   // random world events that have occurred
   difficulty: Difficulty
   countries: Record<string, Country>
   infrastructureMap: Infrastructure[]

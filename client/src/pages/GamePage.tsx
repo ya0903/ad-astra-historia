@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGameStore, useConfigStore, useMapStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -11,7 +11,7 @@ import CheatMenu from '../components/CheatMenu'
 import TechTreePanel from '../components/TechTreePanel'
 import LorePanel from '../components/LorePanel'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
-import type { ActionResult } from '@ad-astra/shared/types'
+import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 
 // ── Categories ───────────────────────────────────────────────────────────────
 
@@ -171,6 +171,7 @@ export default function GamePage() {
   const [suggestError, setSuggestError] = useState('')
   const [jumpError, setJumpError] = useState('')
   const [loreOpen, setLoreOpen] = useState(false)
+  const [dismissedWorldEvent, setDismissedWorldEvent] = useState<string | null>(null)
   const [timelineIdx, setTimelineIdx] = useState<number | null>(null)
 
   // Backslash key toggles cheat menu
@@ -264,7 +265,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>"}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.
@@ -278,11 +279,17 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
 2-3 countryReactions from realistic neighbours/rivals.`
 
-      const raw = await callAI(config, system, [{ role: 'user', content: prompt }], true)
+      // Random world event — chance scales with jump period
+      const worldEventChance = period === 'year' ? 0.40 : period === 'month' ? 0.10 : 0.03
+      const rollWorldEvent = Math.random() < worldEventChance
 
-      let parsed: { results: ActionResult[] }
+      const raw = await callAI(config, system, [{ role: 'user', content: prompt + (rollWorldEvent
+        ? `\n\nAlso include a top-level "worldEvent" field (outside "results") with a random independent geopolitical event that occurs this ${period} — something the player did NOT cause. Could be a independence movement succeeding, a coup, a civil war ending, a new nation forming, a surprise election result, etc. Choose something plausible for the ${gameState.era} era. Format: {"headline":"...","narrative":"2 sentences","affectedCountry":"<ISO_A3>","newNation":"<optional>","annexedRegion":"<optional province name>"}`
+        : '') }], true)
+
+      let parsed: { results: ActionResult[]; worldEvent?: WorldEvent }
       try {
-        parsed = JSON.parse(repairJson(raw)) as { results: ActionResult[] }
+        parsed = JSON.parse(repairJson(raw)) as { results: ActionResult[]; worldEvent?: WorldEvent }
       } catch (parseErr) {
         console.error('AI response parse failed:', parseErr, '\nRaw:', raw)
         throw new Error(`AI response couldn't be parsed. Try again or use fewer actions at once.`)
@@ -294,7 +301,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
         throw new Error('AI returned no results. Try again or use fewer actions at once.')
       }
 
-      applyResults(clampedResults, period)
+      applyResults(clampedResults, period, parsed.worldEvent)
       if (clampedResults.length > 0) setTimelineIdx(0)
       const focusTarget = parsed.results?.find(r => r.focusIso)?.focusIso
       if (focusTarget && mapInstance) {
@@ -336,6 +343,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
   const timelineResult = timelineIdx !== null ? lastResults[timelineIdx] : null
   const lore = gameState.lore ?? []
+  const latestWorldEvent = (gameState.worldEvents ?? []).slice(-1)[0] ?? null
 
   return (
     <div className="h-screen w-screen flex bg-[#060d1a] text-white overflow-hidden relative">
@@ -650,6 +658,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap>
           <CountryLayer />
+          <ProvincesLayer />
           <BiomesLayer />
           <RiversLayer />
           <CountryLabelOverlay />
@@ -792,6 +801,21 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors font-semibold">
                 Next Event →
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── World event toast ── */}
+        {latestWorldEvent && latestWorldEvent.headline !== dismissedWorldEvent && (
+          <div className="absolute top-16 right-4 z-20 w-72 bg-[#070d1c] border border-amber-600/40 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8 bg-amber-950/30">
+              <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold">World Event</p>
+              <button onClick={() => setDismissedWorldEvent(latestWorldEvent.headline)}
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">✕</button>
+            </div>
+            <div className="px-4 py-3">
+              <h3 className="text-sm font-bold text-amber-200 leading-snug">{latestWorldEvent.headline}</h3>
+              <p className="text-xs text-gray-400 leading-relaxed mt-1.5">{latestWorldEvent.narrative}</p>
             </div>
           </div>
         )}

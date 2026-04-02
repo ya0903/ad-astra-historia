@@ -98,7 +98,7 @@ interface GameStoreState {
   removePendingAction: (id: string) => void
   updatePendingAction: (id: string, text: string) => void
   clearPendingActions: () => void
-  applyResults: (results: ActionResult[], advancePeriod: 'week' | 'month' | 'year') => void
+  applyResults: (results: ActionResult[], advancePeriod: 'week' | 'month' | 'year', worldEvent?: import('@ad-astra/shared/types').WorldEvent) => void
   setEmpireName: (name: string) => void
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
@@ -308,7 +308,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     return { state: { ...store.state, pendingActions: [] } }
   }),
 
-  applyResults: (results, advancePeriod) => set(store => {
+  applyResults: (results, advancePeriod, worldEvent) => set(store => {
     if (!store.state) return {}
     const s = store.state
     const pid = s.playerCountryId
@@ -398,6 +398,18 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       statDeltas: r.statDeltas ?? {},
     }))
 
+    if (worldEvent) {
+      newLoreEntries.push({
+        id: `lore-world-${Date.now()}`,
+        date: s.currentDate,
+        title: `[World Event] ${worldEvent.headline}`,
+        narrative: worldEvent.narrative,
+        tags: ['world_event'],
+        involvedCountries: worldEvent.affectedCountry ? [worldEvent.affectedCountry] : [],
+        statDeltas: {},
+      })
+    }
+
     return {
       isJumping: false,
       state: {
@@ -420,6 +432,14 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           if (r.annexedCountry && !acc.includes(r.annexedCountry)) return [...acc, r.annexedCountry]
           return acc
         }, s.controlledCountries ?? []),
+        controlledRegions: results.reduce((acc, r) => {
+          if (r.annexedRegion && r.focusIso) {
+            const entry = { name: r.annexedRegion, adm0_a3: r.focusIso }
+            if (!acc.some(x => x.name === r.annexedRegion && x.adm0_a3 === r.focusIso)) return [...acc, entry]
+          }
+          return acc
+        }, s.controlledRegions ?? []),
+        worldEvents: worldEvent ? [...(s.worldEvents ?? []), worldEvent] : (s.worldEvents ?? []),
       },
     }
   }),

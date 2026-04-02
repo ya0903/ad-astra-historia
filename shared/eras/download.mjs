@@ -78,6 +78,10 @@ const BIOMES_URL =
 const OCEAN_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_ocean.geojson'
 
+// 50m admin-1 provinces/states — for sub-national territory control
+const PROVINCES_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson'
+
 try {
   // Countries
   let countriesData = null
@@ -144,13 +148,22 @@ try {
     await downloadFile(OCEAN_URL, oceanPath, 'ocean.geojson (110m ocean polygons)')
   }
 
+  // Provinces
+  const provincesPath = join(__dirname, 'provinces.geojson')
+  if (existsSync(provincesPath)) {
+    console.log(`provinces.geojson already exists (${featureCount(provincesPath)} features) — skipping.`)
+  } else {
+    await downloadFile(PROVINCES_URL, provincesPath, 'provinces.geojson (50m admin-1 states/provinces)')
+  }
+
   console.log('\nAll files ready.')
-  console.log('  Countries: modern.geojson + era copies (110m, for game data)')
-  console.log('  Borders:   borders.geojson (50m, for map rendering)')
-  console.log('  Cities:    cities.geojson (10m populated places)')
-  console.log('  Rivers:    rivers.geojson (50m rivers)')
-  console.log('  Biomes:    biomes.geojson (10m geographic regions)')
-  console.log('  Ocean:     ocean.geojson (110m ocean polygons)')
+  console.log('  Countries:  modern.geojson + era copies (110m, for game data)')
+  console.log('  Borders:    borders.geojson (50m, for map rendering)')
+  console.log('  Cities:     cities.geojson (10m populated places)')
+  console.log('  Rivers:     rivers.geojson (50m rivers)')
+  console.log('  Biomes:     biomes.geojson (10m geographic regions)')
+  console.log('  Ocean:      ocean.geojson (110m ocean polygons)')
+  console.log('  Provinces:  provinces.geojson (50m admin-1 states/provinces)')
 } catch (err) {
   console.error('Error:', err.message)
   process.exit(1)
