@@ -54,17 +54,32 @@ function clamp(v: number, min: number, max: number) { return Math.max(min, Math.
 
 // ── JSON repair — fixes common LLM output issues ──────────────────────────────
 function repairJson(raw: string): string {
+  // Strip markdown code fences (```json … ```)
+  let s = raw.replace(/^```(?:json)?\s*/gm, '').replace(/^```\s*$/gm, '').trim()
+
   // Extract the outermost {...} block
-  const start = raw.indexOf('{')
-  const end = raw.lastIndexOf('}')
+  const start = s.indexOf('{')
+  const end   = s.lastIndexOf('}')
   if (start === -1 || end === -1) throw new Error('No JSON object found in AI response')
-  let s = raw.slice(start, end + 1)
-  // Replace single-quoted strings with double-quoted
-  s = s.replace(/([{,\s])'/g, '$1"').replace(/'([:\s,}\]])/g, '"$1')
+  s = s.slice(start, end + 1)
+
+  // Fix single-quoted PROPERTY NAMES only: {'key': → {"key":
+  // This is safe because JSON keys never contain apostrophes.
+  // The old approach (`([{,\s])'` + `'([:\s,}\]])`) was converting apostrophes
+  // inside narrative text (e.g. "Pakistan's army", "rebels' weapons") into `"`
+  // which corrupted the JSON mid-string.
+  s = s.replace(/'([^'\n\r]{0,80})'(\s*:)/g, '"$1"$2')
+
+  // Fix single-quoted simple VALUES (no internal single quotes) after : [ ,
+  s = s.replace(/([:,\[]\s*)'([^'{}[\]\n\r]*?)'/g,
+    (_, prefix, content) => prefix + '"' + content.replace(/"/g, '\\"') + '"')
+
   // Remove trailing commas before } or ]
   s = s.replace(/,(\s*[}\]])/g, '$1')
-  // Replace Python-style None/True/False
+
+  // Python-style literals
   s = s.replace(/\bNone\b/g, 'null').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false')
+
   return s
 }
 
