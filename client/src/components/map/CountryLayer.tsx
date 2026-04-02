@@ -124,6 +124,28 @@ function abbreviateName(raw: string): string {
   return name
 }
 
+// ── Label placement overrides ─────────────────────────────────────────────────
+
+const LABEL_ANGLE_OVERRIDES: Record<string, number> = {
+  // Wide/flat countries — force horizontal
+  BRA: 0, RUS: 0, CHN: 0, USA: 0, CAN: 0, AUS: 0,
+  KAZ: 0, IDN: 0, MLI: 0, NER: 0, TCD: 0, ETH: 0,
+  AGO: 0, DZA: 0, IRN: 0, PER: 0, COD: 0, SDN: 0,
+  ZMB: 0, MOZ: 0, MWI: 0, TZA: 0, KEN: 0, NGA: 0,
+  COL: 0, VEN: 0, SAU: 0, IRQ: 0, TUR: 0, PAK: 0,
+  // Elongated countries — use a natural slant
+  NOR: -55, SWE: -25, CHL: -70,
+}
+
+const LABEL_POSITION_OVERRIDES: Record<string, [number, number]> = {
+  // [lng, lat] override for label centroid
+  NOR: [10.5, 62.5],   // South of Norway
+  RUS: [55.0, 62.0],   // Western Russia
+  CAN: [-96.0, 60.0],  // Central Canada
+  USA: [-98.0, 39.5],  // Central USA
+  AUS: [134.0, -27.0], // Central Australia
+}
+
 // ── Build label point features ────────────────────────────────────────────────
 
 function buildLabelPoints(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
@@ -143,15 +165,18 @@ function buildLabelPoints(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCo
     const lr = largestRing(feature.geometry as GeoJSON.Geometry)
     if (!lr) continue
     const props = feature.properties as Record<string, unknown>
+    let iso = (props?.ISO_A3 ?? props?.ADM0_A3 ?? '') as string
+    if (!iso || iso === '-99') iso = (props?.ADMIN ?? props?.NAME ?? '') as string
     const rawName = (props?.ADMIN ?? props?.NAME ?? '') as string
+    const centroid = LABEL_POSITION_OVERRIDES[iso] ?? ringCentroid(lr.ring)
     points.push({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: ringCentroid(lr.ring) },
+      geometry: { type: 'Point', coordinates: centroid },
       properties: {
         ...feature.properties,
         sizeTier: sizeTier(area),
         labelName: abbreviateName(rawName),
-        labelAngle: computeLabelAngle(lr.ring),
+        labelAngle: LABEL_ANGLE_OVERRIDES[iso] ?? computeLabelAngle(lr.ring),
       },
     })
   }

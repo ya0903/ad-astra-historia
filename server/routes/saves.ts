@@ -2,15 +2,26 @@
 import { Router, Request, Response } from 'express'
 import { readFileSync, writeFileSync, readdirSync, unlinkSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
+import { resolveSession } from './auth.js'
 import type { GameState } from '@ad-astra/shared/types'
 
 const FILENAME_REGEX = /^[\w\-]+$/
+
+function requireAuth(req: Request, res: Response): string | null {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) { res.status(401).json({ error: 'Login required' }); return null }
+  const userId = resolveSession(token)
+  if (!userId) { res.status(401).json({ error: 'Session expired — please log in again' }); return null }
+  return userId
+}
 
 export function createSavesRouter(savesDir: string) {
   const router = Router()
 
   // POST /api/saves/:filename — save a game
   router.post('/:filename', (req: Request, res: Response) => {
+    const userId = requireAuth(req, res)
+    if (!userId) return
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
@@ -19,9 +30,10 @@ export function createSavesRouter(savesDir: string) {
       return res.status(400).json({ error: 'Request body must be a JSON object' })
     }
     const body = req.body as GameState
-    const filePath = join(savesDir, filename + '.json')
+    const userDir = join(savesDir, userId)
+    const filePath = join(userDir, filename + '.json')
     try {
-      mkdirSync(savesDir, { recursive: true })
+      mkdirSync(userDir, { recursive: true })
       writeFileSync(filePath, JSON.stringify(body))
       return res.status(201).json({ saved: true, filename })
     } catch {
@@ -29,13 +41,14 @@ export function createSavesRouter(savesDir: string) {
     }
   })
 
-  // GET /api/saves — list all saves
-  router.get('/', (_req: Request, res: Response) => {
-    if (!existsSync(savesDir)) {
-      return res.status(200).json({ saves: [] })
-    }
+  // GET /api/saves — list saves for current user
+  router.get('/', (req: Request, res: Response) => {
+    const userId = requireAuth(req, res)
+    if (!userId) return
+    const userDir = join(savesDir, userId)
+    if (!existsSync(userDir)) return res.status(200).json({ saves: [] })
     try {
-      const files = readdirSync(savesDir)
+      const files = readdirSync(userDir)
       const saves = files
         .filter(f => f.endsWith('.json'))
         .map(f => f.slice(0, -5))
@@ -49,11 +62,13 @@ export function createSavesRouter(savesDir: string) {
 
   // GET /api/saves/:filename — load a save
   router.get('/:filename', (req: Request, res: Response) => {
+    const userId = requireAuth(req, res)
+    if (!userId) return
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
     }
-    const filePath = join(savesDir, filename + '.json')
+    const filePath = join(savesDir, userId, filename + '.json')
     try {
       const data = readFileSync(filePath, 'utf-8')
       return res.status(200).json(JSON.parse(data))
@@ -67,11 +82,13 @@ export function createSavesRouter(savesDir: string) {
 
   // DELETE /api/saves/:filename — delete a save
   router.delete('/:filename', (req: Request, res: Response) => {
+    const userId = requireAuth(req, res)
+    if (!userId) return
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
     }
-    const filePath = join(savesDir, filename + '.json')
+    const filePath = join(savesDir, userId, filename + '.json')
     try {
       unlinkSync(filePath)
       return res.status(200).json({ deleted: true })
@@ -83,18 +100,9 @@ export function createSavesRouter(savesDir: string) {
     }
   })
 
-  // Catch-all for unmatched paths (e.g. filenames containing slashes)
-  router.post('/*', (_req: Request, res: Response) => {
-    return res.status(400).json({ error: 'Invalid filename' })
-  })
-
-  router.get('/*', (_req: Request, res: Response) => {
-    return res.status(400).json({ error: 'Invalid filename' })
-  })
-
-  router.delete('/*', (_req: Request, res: Response) => {
-    return res.status(400).json({ error: 'Invalid filename' })
-  })
+  router.post('/*', (_req, res) => res.status(400).json({ error: 'Invalid filename' }))
+  router.get('/*', (_req, res) => res.status(400).json({ error: 'Invalid filename' }))
+  router.delete('/*', (_req, res) => res.status(400).json({ error: 'Invalid filename' }))
 
   return router
 }

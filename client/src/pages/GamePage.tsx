@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useGameStore, useConfigStore, useMapStore } from '../stores'
+import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stores'
+import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
 import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer } from '../components/map'
@@ -147,6 +148,8 @@ export default function GamePage() {
   const gameState = useGameStore(s => s.state)
   const isJumping = useGameStore(s => s.isJumping)
   const clearGame = useGameStore(s => s.clearGame)
+  const { username, clearAuth } = useAuthStore()
+  const handleLogout = async () => { await logout().catch(() => {}); clearAuth(); clearGame() }
   const setJumping = useGameStore(s => s.setJumping)
   const applyResults = useGameStore(s => s.applyResults)
   const advanceDate = useGameStore(s => s.advanceDate)
@@ -358,10 +361,16 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <p className="text-xs font-bold text-white tracking-widest uppercase">
                 {gameState.empireName ?? player?.name ?? gameState.playerCountryId}
               </p>
-              {gameState.empireName && <p className="text-[10px] text-gray-500 mt-0.5">{player?.name}</p>}
+              {gameState.empireName
+                ? <p className="text-[10px] text-gray-500 mt-0.5">{player?.name}</p>
+                : <p className="text-[10px] text-gray-600 mt-0.5">{username}</p>}
             </div>
-            <button onClick={() => setSidebarOpen(false)}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">‹</button>
+            <div className="flex items-center gap-1">
+              <button onClick={handleLogout} title="Sign out"
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-900/30 text-gray-600 hover:text-red-400 transition-colors text-[10px]">⏻</button>
+              <button onClick={() => setSidebarOpen(false)}
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">‹</button>
+            </div>
           </div>
 
           {/* Stats bar */}

@@ -2,74 +2,74 @@ import type { Era } from './types.js'
 
 export const COUNTRY_COLOURS: Record<string, string> = {
   // ── Americas ───────────────────────────────────────────────────────────────
-  USA: '#3b82f6', CAN: '#f97316', MEX: '#22c55e', BRA: '#eab308',
-  ARG: '#06b6d4', CHL: '#8b5cf6', COL: '#f43f5e', VEN: '#84cc16',
-  PER: '#ec4899', BOL: '#14b8a6', URY: '#f59e0b', PRY: '#6366f1',
-  ECU: '#10b981', GUY: '#ef4444', SUR: '#0ea5e9', TTO: '#a78bfa',
-  BLZ: '#22d3ee', GTM: '#f97316', HND: '#84cc16', SLV: '#ec4899',
-  NIC: '#facc15', CRI: '#0ea5e9', PAN: '#f43f5e', CUB: '#f97316',
-  DOM: '#3b82f6', HTI: '#a78bfa', JAM: '#22c55e',
+  USA: '#3C3B6E', CAN: '#FF0000', MEX: '#006847', BRA: '#009C3B',
+  ARG: '#74ACDF', CHL: '#D52B1E', COL: '#FCD116', VEN: '#CF142B',
+  PER: '#D91023', BOL: '#D52B1E', URY: '#0038A8', PRY: '#D52B1E',
+  ECU: '#003893', GUY: '#009E60', SUR: '#377E3F', TTO: '#CE1126',
+  BLZ: '#003F87', GTM: '#4997D0', HND: '#0073CF', SLV: '#0F47AF',
+  NIC: '#3A75C4', CRI: '#002B7F', PAN: '#0038A8', CUB: '#002A8F',
+  DOM: '#002D62', HTI: '#00209F', JAM: '#009B3A',
   // ── Western Europe ────────────────────────────────────────────────────────
-  GBR: '#dc2626', FRA: '#2563eb', DEU: '#16a34a', ITA: '#ca8a04',
-  ESP: '#9333ea', PRT: '#0891b2', NLD: '#d97706', BEL: '#7c3aed',
-  CHE: '#059669', AUT: '#db2777', POL: '#1d4ed8', CZE: '#65a30d',
-  HUN: '#c2410c', ROU: '#0284c7', BGR: '#7e22ce', GRC: '#0f766e',
-  SWE: '#b45309', NOR: '#1e40af', DNK: '#15803d', FIN: '#be185d',
-  IRL: '#16a34a', LUX: '#f59e0b', ISL: '#06b6d4', MLT: '#dc2626',
-  CYP: '#b45309', AND: '#9333ea', MCO: '#ef4444', LIE: '#0891b2',
-  SMR: '#1d4ed8',
+  GBR: '#012169', FRA: '#0055A4', DEU: '#DD0000', ITA: '#009246',
+  ESP: '#AA151B', PRT: '#006600', NLD: '#AE1C28', BEL: '#EF3340',
+  CHE: '#FF0000', AUT: '#ED2939', POL: '#DC143C', CZE: '#D7141A',
+  HUN: '#CE2939', ROU: '#002B7F', BGR: '#009B74', GRC: '#0D5EAF',
+  SWE: '#006AA7', NOR: '#EF2B2D', DNK: '#C60C30', FIN: '#003580',
+  IRL: '#169B62', LUX: '#EF3340', ISL: '#003897', MLT: '#CF142B',
+  CYP: '#4A90D9', AND: '#003DA5', MCO: '#CE1126', LIE: '#002B7F',
+  SMR: '#5EB6E4',
   // ── Eastern Europe / Balkans ──────────────────────────────────────────────
-  UKR: '#1e3a8a', BLR: '#166534', MDA: '#92400e', LTU: '#8b5cf6',
-  LVA: '#0284c7', EST: '#16a34a', RUS: '#7f1d1d',
-  SVK: '#f43f5e', SVN: '#0ea5e9', HRV: '#f97316', BIH: '#6366f1',
-  SRB: '#dc2626', MKD: '#f59e0b', MNE: '#14b8a6', ALB: '#b91c1c',
-  XKX: '#a78bfa', KOS: '#a78bfa',
+  UKR: '#005BBB', BLR: '#CF101A', MDA: '#003DA5', LTU: '#FDB913',
+  LVA: '#9E3039', EST: '#0072CE', RUS: '#0039A6',
+  SVK: '#EE1C25', SVN: '#003DA5', HRV: '#FF0000', BIH: '#002395',
+  SRB: '#C6363C', MKD: '#CE2028', MNE: '#D4AF37', ALB: '#E41E20',
+  XKX: '#244AA5', KOS: '#244AA5',
   // ── Central Asia ─────────────────────────────────────────────────────────
-  KAZ: '#84cc16', UZB: '#f43f5e', TKM: '#0ea5e9', KGZ: '#f59e0b',
-  TJK: '#a78bfa',
+  KAZ: '#00AFCA', UZB: '#1EB53A', TKM: '#1B9B4F', KGZ: '#E8112D',
+  TJK: '#CC0000',
   // ── East Asia ─────────────────────────────────────────────────────────────
-  CHN: '#ef4444', JPN: '#f9a8d4', KOR: '#818cf8', PRK: '#1e40af',
-  MNG: '#a3e635', TWN: '#ec4899', HKG: '#84cc16',
+  CHN: '#DE2910', JPN: '#BC002D', KOR: '#CD2E3A', PRK: '#024FA2',
+  MNG: '#C4272F', TWN: '#FE0000', HKG: '#DE2110',
   // ── South / SE Asia ───────────────────────────────────────────────────────
-  IND: '#f97316', PAK: '#1d4ed8', BGD: '#10b981', LKA: '#9333ea',
-  NPL: '#ca8a04', BTN: '#0f766e', MDV: '#7c3aed', AFG: '#8b5cf6',
-  VNM: '#16a34a', THA: '#f59e0b', MMR: '#dc2626', KHM: '#8b5cf6',
-  LAO: '#06b6d4', MYS: '#f97316', SGP: '#22c55e', IDN: '#eab308',
-  PHL: '#3b82f6', BRN: '#f43f5e', TLS: '#22d3ee',
+  IND: '#FF9933', PAK: '#01411C', BGD: '#006A4E', LKA: '#8D153A',
+  NPL: '#CA0000', BTN: '#FF8000', MDV: '#D21034', AFG: '#009A44',
+  VNM: '#DA251D', THA: '#A51931', MMR: '#FECB00', KHM: '#032EA1',
+  LAO: '#CE1126', MYS: '#CC0001', SGP: '#EF3340', IDN: '#CE1126',
+  PHL: '#0038A8', BRN: '#F7E017', TLS: '#DC241F',
   // ── Middle East ───────────────────────────────────────────────────────────
-  IRN: '#059669', IRQ: '#b91c1c', SAU: '#1e3a8a', ARE: '#164e63',
-  KWT: '#8b5cf6', QAT: '#0c4a6e', BHR: '#5b21b6', OMN: '#b45309',
-  YEM: '#92400e', JOR: '#ca8a04', ISR: '#1e40af', LBN: '#065f46',
-  SYR: '#6b21a8', TUR: '#c2410c', GEO: '#0d9488', ARM: '#7c3aed',
-  AZE: '#f59e0b', PSE: '#065f46',
+  IRN: '#239F40', IRQ: '#CE1126', SAU: '#006C35', ARE: '#00732F',
+  KWT: '#007A3D', QAT: '#8D1B3D', BHR: '#CE1126', OMN: '#DB161B',
+  YEM: '#CE1126', JOR: '#007A3D', ISR: '#0038B8', LBN: '#00A651',
+  SYR: '#007A3D', TUR: '#E30A17', GEO: '#FF0000', ARM: '#D90012',
+  AZE: '#0092BC', PSE: '#007A3D',
   // ── North Africa ──────────────────────────────────────────────────────────
-  EGY: '#15803d', LBY: '#be185d', TUN: '#0891b2',
-  DZA: '#92400e', MAR: '#7e22ce',
+  EGY: '#CE1126', LBY: '#239E46', TUN: '#E70013',
+  DZA: '#006233', MAR: '#C1272D',
   // ── West Africa ───────────────────────────────────────────────────────────
-  MRT: '#1e3a8a', MLI: '#f59e0b', NER: '#0284c7', NGA: '#16a34a',
-  GHA: '#f43f5e', CIV: '#f97316', SEN: '#6b21a8',
-  GMB: '#14b8a6', GNB: '#84cc16', GIN: '#dc2626', SLE: '#0ea5e9',
-  LBR: '#b91c1c', BFA: '#ca8a04', BEN: '#9333ea', TGO: '#22c55e',
-  GNQ: '#0891b2', CMR: '#f59e0b', GAB: '#16a34a',
+  MRT: '#006233', MLI: '#009A00', NER: '#0DB02B', NGA: '#008751',
+  GHA: '#006B3F', CIV: '#F77F00', SEN: '#00853F',
+  GMB: '#3A7728', GNB: '#CE1126', GIN: '#CE1126', SLE: '#1EB53A',
+  LBR: '#BF0A30', BFA: '#EF2B2D', BEN: '#008751', TGO: '#006A4E',
+  GNQ: '#3E9A00', CMR: '#007A5E', GAB: '#009E60',
   // ── Central & East Africa ────────────────────────────────────────────────
-  COD: '#b45309', COG: '#1e3a8a', CAF: '#dc2626', TCD: '#1d4ed8',
-  SDN: '#b45309', SSD: '#16a34a', ETH: '#a78bfa', ERI: '#0ea5e9',
-  DJI: '#f43f5e', SOM: '#f97316', UGA: '#ca8a04', KEN: '#ef4444',
-  TZA: '#0284c7', RWA: '#f59e0b', BDI: '#9333ea',
-  AGO: '#0d9488',
+  COD: '#007FFF', COG: '#009A44', CAF: '#003082', TCD: '#002664',
+  SDN: '#007229', SSD: '#078930', ETH: '#078930', ERI: '#4189DD',
+  DJI: '#6AB2E7', SOM: '#4189DD', UGA: '#CE1126', KEN: '#006600',
+  TZA: '#1EB53A', RWA: '#20603D', BDI: '#CE1126',
+  AGO: '#CC0000',
   // ── Southern Africa ───────────────────────────────────────────────────────
-  ZAF: '#0c4a6e', ZWE: '#dc2626', ZMB: '#f97316', MOZ: '#5b21b6',
-  MWI: '#22c55e', NAM: '#eab308', BWA: '#06b6d4', LSO: '#f43f5e',
-  SWZ: '#84cc16', MDG: '#ca8a04',
+  ZAF: '#007A4D', ZWE: '#006400', ZMB: '#198A00', MOZ: '#009A44',
+  MWI: '#CE1126', NAM: '#003580', BWA: '#75AADB', LSO: '#009A44',
+  SWZ: '#3E5EB9', MDG: '#FC3D32',
   // ── Pacific / Oceania ─────────────────────────────────────────────────────
-  AUS: '#f97316', NZL: '#3b82f6', PNG: '#22c55e', FJI: '#eab308',
-  SLB: '#0ea5e9', VUT: '#16a34a', WSM: '#f43f5e', TON: '#f59e0b',
+  AUS: '#012169', NZL: '#012169', PNG: '#CE1126', FJI: '#68BFE5',
+  SLB: '#0120B8', VUT: '#009A44', WSM: '#CE1126', TON: '#C10000',
   // ── Historical ────────────────────────────────────────────────────────────
-  SUN: '#7f1d1d',   // USSR
-  DDR: '#4d7c0f',   // East Germany
-  FRG: '#16a34a',   // West Germany
-  YUG: '#0f766e',   // Yugoslavia
-  CSK: '#1d4ed8',   // Czechoslovakia
+  SUN: '#CC0000',   // USSR
+  DDR: '#CC0000',   // East Germany
+  FRG: '#DD0000',   // West Germany
+  YUG: '#0039A6',   // Yugoslavia
+  CSK: '#D7141A',   // Czechoslovakia
 }
 
 export const ERA_START_DATES: Record<Era, string> = {

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { existsSync } from 'fs'
 import { aiRouter } from './routes/ai.js'
+import { authRouter } from './routes/auth.js'
 import { createSavesRouter } from './routes/saves.js'
 import { gameRouter } from './routes/game.js'
 
@@ -31,6 +32,7 @@ export function createApp(options: AppOptions = {}) {
   })
 
   app.use('/api/ai', aiRouter)
+  app.use('/api/auth', authRouter)
   app.use('/api/saves', createSavesRouter(savesDir))
   app.use('/api/game', gameRouter)
 
