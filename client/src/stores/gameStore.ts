@@ -10,6 +10,8 @@ interface GameStoreState {
   clearGame: () => void
   setLoading: (v: boolean) => void
   setError: (msg: string | null) => void
+  // Cheat menu — directly mutates player state
+  cheatPatch: (patch: Partial<{ date: string; countryId: string; stats: Partial<GameState['countries'][string]['stats']>; sectors: Partial<GameState['countries'][string]['sectors']> }>) => void
 }
 
 export const useGameStore = create<GameStoreState>()((set) => ({
@@ -47,4 +49,27 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   setLoading: (v) => set({ isLoading: v }),
 
   setError: (msg) => set({ error: msg }),
+
+  cheatPatch: (patch) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const pid = s.playerCountryId
+    const player = s.countries[pid]
+    if (!player) return {}
+    return {
+      state: {
+        ...s,
+        currentDate: patch.date ?? s.currentDate,
+        playerCountryId: patch.countryId ?? pid,
+        countries: {
+          ...s.countries,
+          [pid]: {
+            ...player,
+            stats: patch.stats ? { ...player.stats, ...patch.stats } : player.stats,
+            sectors: patch.sectors ? { ...player.sectors, ...patch.sectors } : player.sectors,
+          },
+        },
+      },
+    }
+  }),
 }))

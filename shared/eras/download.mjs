@@ -58,6 +58,10 @@ const citiesPath = join(__dirname, 'cities.geojson')
 const COUNTRIES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
 
+// 50m country borders — more detail than 110m, includes Gaza, small island nations etc.
+const BORDERS_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson'
+
 // 10m populated places — ~7,300 cities, includes SCALERANK for density filtering
 const CITIES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson'
@@ -84,6 +88,14 @@ try {
     }
   }
 
+  // 50m borders
+  const bordersPath = join(__dirname, 'borders.geojson')
+  if (existsSync(bordersPath)) {
+    console.log(`borders.geojson already exists (${featureCount(bordersPath)} features) — skipping.`)
+  } else {
+    await downloadFile(BORDERS_URL, bordersPath, 'borders.geojson (50m countries)')
+  }
+
   // Cities — re-download if stale (old 110m file had only 243 features)
   const existingCount = featureCount(citiesPath)
   if (existsSync(citiesPath) && existingCount >= 1000) {
@@ -97,8 +109,9 @@ try {
   }
 
   console.log('\nAll files ready.')
-  console.log('  Countries: modern.geojson + era copies')
-  console.log('  Cities:    cities.geojson')
+  console.log('  Countries: modern.geojson + era copies (110m, for game data)')
+  console.log('  Borders:   borders.geojson (50m, for map rendering)')
+  console.log('  Cities:    cities.geojson (10m populated places)')
 } catch (err) {
   console.error('Error:', err.message)
   process.exit(1)

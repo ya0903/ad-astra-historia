@@ -3,6 +3,7 @@ import { useGameStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { WorldMap, CountryLayer, CitiesLayer, InfraLayer, RailLayer, LandUseLayer } from '../components/map'
 import OrgPanel from '../components/OrgPanel'
+import CheatMenu from '../components/CheatMenu'
 import type { ActionResult } from '@ad-astra/shared/types'
 
 // ── Category definitions ────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export default function GamePage() {
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [cheatOpen, setCheatOpen] = useState(false)
 
   const player = gameState.countries[gameState.playerCountryId]
   const stats = player?.stats
@@ -132,6 +134,13 @@ export default function GamePage() {
         <div className="ml-auto flex gap-2">
           <button onClick={handleSave} className="px-3 py-1 rounded text-xs bg-blue-700 hover:bg-blue-600 transition-colors">
             {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Error!' : 'Save'}
+          </button>
+          <button
+            onClick={() => setCheatOpen(o => !o)}
+            className={`px-3 py-1 rounded text-xs transition-colors font-mono ${cheatOpen ? 'bg-green-800/60 text-green-300' : 'bg-white/5 text-gray-500 hover:text-green-400 hover:bg-green-900/30'}`}
+            title="Cheat Console (~)"
+          >
+            ~
           </button>
           <button onClick={clearGame} className="px-3 py-1 rounded text-xs bg-white/10 hover:bg-white/20 transition-colors">
             New Game
@@ -300,6 +309,9 @@ export default function GamePage() {
           <OrgPanel />
         </div>
       </div>
+
+      {/* ── Cheat Console ── */}
+      {cheatOpen && <CheatMenu onClose={() => setCheatOpen(false)} />}
 
       {/* ── Time Bar ── */}
       <div className="flex items-center justify-center gap-3 px-4 py-2 bg-[#0d1f3c] border-t border-white/10 shrink-0">

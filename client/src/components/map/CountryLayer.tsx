@@ -13,10 +13,10 @@ export default function CountryLayer() {
   useEffect(() => {
     if (!map || !gameState) return
 
-    const era = gameState.era
     const playerCountryId = gameState.playerCountryId
 
-    fetch(`/api/game/geojson/${era}`)
+    // Use 50m borders dataset for rendering — includes small territories like Gaza
+    fetch('/api/game/borders')
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
         if (map.getSource('countries')) return

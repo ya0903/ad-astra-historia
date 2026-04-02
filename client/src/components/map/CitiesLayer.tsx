@@ -28,18 +28,17 @@ export default function CitiesLayer() {
           data: geojson as GeoJSON.FeatureCollection,
         })
 
-        // Dot layer — visible size and zoom-dependent density via scalerank filter
+        // Dot layer — only appear when zoomed into a country (zoom 4+)
         map.addLayer({
           id: 'city-dots',
           type: 'circle',
           source: 'cities',
-          minzoom: 2,
-          // Show only cities with scalerank <= threshold that steps up with zoom
+          minzoom: 4,
+          // Show progressively more cities as zoom increases
           filter: [
             'case',
-            ['<', ['zoom'], 3], ['<=', ['get', 'SCALERANK'], 2],
-            ['<', ['zoom'], 4], ['<=', ['get', 'SCALERANK'], 3],
-            ['<', ['zoom'], 5], ['<=', ['get', 'SCALERANK'], 5],
+            ['<', ['zoom'], 5], ['<=', ['get', 'SCALERANK'], 3],
+            ['<', ['zoom'], 6], ['<=', ['get', 'SCALERANK'], 5],
             ['<', ['zoom'], 7], ['<=', ['get', 'SCALERANK'], 7],
             ['<=', ['get', 'SCALERANK'], 10],
           ],
@@ -63,23 +62,22 @@ export default function CitiesLayer() {
           },
         })
 
-        // City name labels — appear progressively with zoom
+        // City name labels — appear after zooming into a country
         map.addLayer({
           id: 'city-labels',
           type: 'symbol',
           source: 'cities',
-          minzoom: 3,
+          minzoom: 5,
           filter: [
             'case',
-            ['<', ['zoom'], 4], ['<=', ['get', 'SCALERANK'], 2],
-            ['<', ['zoom'], 5], ['<=', ['get', 'SCALERANK'], 4],
-            ['<', ['zoom'], 6], ['<=', ['get', 'SCALERANK'], 6],
+            ['<', ['zoom'], 6], ['<=', ['get', 'SCALERANK'], 4],
+            ['<', ['zoom'], 7], ['<=', ['get', 'SCALERANK'], 6],
             ['<=', ['get', 'SCALERANK'], 10],
           ],
           layout: {
             'text-field': ['get', 'NAME'],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 3, 9, 5, 11, 8, 13],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10, 7, 12, 9, 14],
             'text-offset': [0, 0.9],
             'text-anchor': 'top',
             'text-max-width': 8,

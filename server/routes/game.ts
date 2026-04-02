@@ -116,7 +116,25 @@ function readEraFile(filePath: string): { data: GeoJSONFeatureCollection } | { n
 
 export const gameRouter = Router()
 
-// GET /api/game/cities — Natural Earth 110m populated places
+// GET /api/game/borders — 50m country polygons for rendering (includes small territories like Gaza)
+gameRouter.get('/borders', (_req, res) => {
+  const bordersPath = join(ERAS_DIR, 'borders.geojson')
+  const result = readEraFile(bordersPath)
+  if ('notFound' in result) {
+    // Fall back to 110m if 50m not downloaded yet
+    const fallback = readEraFile(join(ERAS_DIR, 'modern.geojson'))
+    if ('data' in fallback) { res.json(fallback.data); return }
+    res.status(404).json({ error: 'borders.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read borders file' })
+    return
+  }
+  res.json(result.data)
+})
+
+// GET /api/game/cities — Natural Earth 10m populated places
 gameRouter.get('/cities', (_req, res) => {
   const citiesPath = join(ERAS_DIR, 'cities.geojson')
   const result = readEraFile(citiesPath)
