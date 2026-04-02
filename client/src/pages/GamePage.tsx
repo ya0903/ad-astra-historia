@@ -57,17 +57,24 @@ function repairJson(raw: string): string {
   // Strip markdown code fences (```json … ```)
   let s = raw.replace(/^```(?:json)?\s*/gm, '').replace(/^```\s*$/gm, '').trim()
 
-  // Extract the outermost {...} block
+  // Find the start of the outermost { ... } object
   const start = s.indexOf('{')
-  const end   = s.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('No JSON object found in AI response')
+  if (start === -1) throw new Error('No JSON object found in AI response')
+
+  // Walk forward to find the matching closing } — bracket matching instead of
+  // lastIndexOf. lastIndexOf fails when the LLM appends commentary that itself
+  // contains { } (e.g. "GDP is {estimated at $5B}"), which was causing the
+  // "Unexpected non-whitespace character after JSON" error.
+  let depth = 0, end = -1
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '{') depth++
+    else if (s[i] === '}') { if (--depth === 0) { end = i; break } }
+  }
+  if (end === -1) throw new Error('Unclosed JSON object in AI response')
   s = s.slice(start, end + 1)
 
   // Fix single-quoted PROPERTY NAMES only: {'key': → {"key":
-  // This is safe because JSON keys never contain apostrophes.
-  // The old approach (`([{,\s])'` + `'([:\s,}\]])`) was converting apostrophes
-  // inside narrative text (e.g. "Pakistan's army", "rebels' weapons") into `"`
-  // which corrupted the JSON mid-string.
+  // Does NOT touch apostrophes inside prose values ("Pakistan's army", etc.)
   s = s.replace(/'([^'\n\r]{0,80})'(\s*:)/g, '"$1"$2')
 
   // Fix single-quoted simple VALUES (no internal single quotes) after : [ ,
