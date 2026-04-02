@@ -70,6 +70,10 @@ const CITIES_URL =
 const RIVERS_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson'
 
+// 10m geographic regions — deserts, forests, tundra, grasslands, wetlands
+const BIOMES_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_regions_polys.geojson'
+
 try {
   // Countries
   let countriesData = null
@@ -120,11 +124,20 @@ try {
     await downloadFile(RIVERS_URL, riversPath, 'rivers.geojson (50m rivers)')
   }
 
+  // Biomes / geographic regions
+  const biomesPath = join(__dirname, 'biomes.geojson')
+  if (existsSync(biomesPath)) {
+    console.log(`biomes.geojson already exists (${featureCount(biomesPath)} features) — skipping.`)
+  } else {
+    await downloadFile(BIOMES_URL, biomesPath, 'biomes.geojson (10m geographic regions)')
+  }
+
   console.log('\nAll files ready.')
   console.log('  Countries: modern.geojson + era copies (110m, for game data)')
   console.log('  Borders:   borders.geojson (50m, for map rendering)')
   console.log('  Cities:    cities.geojson (10m populated places)')
   console.log('  Rivers:    rivers.geojson (50m rivers)')
+  console.log('  Biomes:    biomes.geojson (10m geographic regions)')
 } catch (err) {
   console.error('Error:', err.message)
   process.exit(1)

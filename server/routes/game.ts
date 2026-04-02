@@ -135,6 +135,21 @@ gameRouter.get('/borders', (_req, res) => {
   res.json(result.data)
 })
 
+// GET /api/game/biomes — Natural Earth 10m geographic regions (deserts, forests, tundra…)
+gameRouter.get('/biomes', (_req, res) => {
+  const biomesPath = join(ERAS_DIR, 'biomes.geojson')
+  const result = readEraFile(biomesPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'biomes.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read biomes file' })
+    return
+  }
+  res.json(result.data)
+})
+
 // GET /api/game/rivers — Natural Earth 50m rivers and lake centerlines
 gameRouter.get('/rivers', (_req, res) => {
   const riversPath = join(ERAS_DIR, 'rivers.geojson')

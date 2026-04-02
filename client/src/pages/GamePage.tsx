@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGameStore, useConfigStore, useMapStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, LandUseLayer, DamageLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -583,6 +583,25 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                   ))}
                 </div>
               </div>
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Terrain</p>
+                <div className="space-y-1.5">
+                  {[
+                    { color: 'rgba(210,175,60,0.7)',   label: 'Desert / Arid' },
+                    { color: 'rgba(30,110,50,0.7)',    label: 'Forest / Rainforest' },
+                    { color: 'rgba(120,165,55,0.7)',   label: 'Grassland / Savanna' },
+                    { color: 'rgba(30,140,130,0.7)',   label: 'Wetlands / Marsh' },
+                    { color: 'rgba(160,180,200,0.7)',  label: 'Alpine / Highland' },
+                    { color: 'rgba(200,230,255,0.7)',  label: 'Tundra / Ice' },
+                    { color: '#38bdf8',                label: 'Rivers' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm shrink-0 border border-white/10" style={{ backgroundColor: item.color }} />
+                      <span className="text-xs text-gray-400">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -598,6 +617,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap>
           <CountryLayer />
+          <BiomesLayer />
           <RiversLayer />
           <CountryLabelOverlay />
           <DamageLayer />
