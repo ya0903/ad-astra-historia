@@ -42,17 +42,21 @@ export default function WorldMap({ children }: Props) {
 
     mapRef.current = map
     map.on('load', () => {
-      // Add DEM source + hillshade layer before any country/infra layers
+      // Add DEM source + hillshade layer before any country/infra layers.
+      // maxzoom:8 caps tile resolution; tileSize:512 halves the tile count.
+      // minzoom:3 on the layer means no terrain renders at world-zoom.
       map.addSource('terrain-dem', {
         type: 'raster-dem',
         tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        tileSize: 256,
+        tileSize: 512,
         encoding: 'terrarium',
+        maxzoom: 8,
       })
       map.addLayer({
         id: 'hillshade',
         type: 'hillshade',
         source: 'terrain-dem',
+        minzoom: 3,
         paint: {
           'hillshade-shadow-color': '#0a1a2e',
           'hillshade-highlight-color': '#c8ddf8',
