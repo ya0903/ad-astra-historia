@@ -20,7 +20,7 @@ export function createApp(options: AppOptions = {}) {
 
   // In production the client is built to client/dist — serve it from Express.
   // In development Vite runs on its own port so we allow localhost:3000.
-  const clientDist = join(__dirname, '../../client/dist')
+  const clientDist = join(__dirname, '../client/dist')
   const isProd = existsSync(clientDist)
 
   app.use(cors({ origin: isProd ? false : 'http://localhost:3000' }))
