@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type {
   GameState, EraStartConditions, Difficulty, GameAction, ActionResult,
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
+  RailLine, RailType,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
@@ -231,10 +232,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     // Turn completed builds into Infrastructure entries on the map
-    // Rail types are linear features — they don't produce a meaningful dot on the map
-    const RAIL_TYPES = new Set(['rail_line', 'high_speed_rail'])
-    const newInfra: Infrastructure[] = completedBuilds.filter(b => !RAIL_TYPES.has(b.type)).map(b => {
-      const centre = (b.countryId ? getCountryCentre(b.countryId) : null)
+    // Rail types are linear features — they become RailLine entries, not dots
+    const RAIL_INFRA_TYPES = new Set<string>(['rail_line', 'high_speed_rail'])
+    const newInfra: Infrastructure[] = completedBuilds.filter(b => !RAIL_INFRA_TYPES.has(b.type)).map(b => {
+      const cityCoords = b.lat != null && b.lng != null ? null : getCityCentre(b.name)
+      const centre = cityCoords
+                  ?? (b.countryId ? getCountryCentre(b.countryId) : null)
                   ?? getCountryCentre(s.playerCountryId)
                   ?? [0, 0]
       // Slight random offset so stacked buildings are distinguishable
@@ -250,6 +253,19 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       } satisfies Infrastructure
     })
 
+    // Convert completed rail builds into RailLine map features
+    const newRailLines: RailLine[] = completedBuilds
+      .filter(b => RAIL_INFRA_TYPES.has(b.type) && b.fromCoords && b.toCoords)
+      .map(b => ({
+        id: `rail-${b.id}`,
+        countryId: b.countryId ?? s.playerCountryId,
+        fromCity: b.fromCity ?? '',
+        toCity: b.toCity ?? '',
+        fromCoords: b.fromCoords!,
+        toCoords: b.toCoords!,
+        type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
+      }))
+
     return {
       state: {
         ...s,
@@ -258,6 +274,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         buildQueue: newBuildQueue,
         researchQueue: newResearchQueue,
         infrastructureMap: [...s.infrastructureMap, ...newInfra],
+        railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
       },
@@ -308,25 +325,47 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     // Add any build projects from AI results
+    const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
     const newBuilds: BuildProject[] = []
     for (const r of results) {
       if (r.buildProject) {
         const weeks = BUILD_WEEKS[r.buildProject.type] ?? 52
         const targetIso = r.focusIso ?? pid
-        // Prefer city coords (parsed from name), fall back to country centre
-        const cityCoords = getCityCentre(r.buildProject.name)
-        const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
-        newBuilds.push({
-          id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          type: r.buildProject.type,
-          name: r.buildProject.name,
-          weeksRemaining: weeks,
-          totalWeeks: weeks,
-          startDate: s.currentDate,
-          countryId: targetIso,
-          lat: centre ? centre[1] : undefined,
-          lng: centre ? centre[0] : undefined,
-        })
+        const bp = r.buildProject
+
+        if (RAIL_INFRA.has(bp.type) && bp.fromCity && bp.toCity) {
+          // Rail line — resolve endpoint coords
+          const fromCoords = getCityCentre(bp.fromCity) ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
+          const toCoords = getCityCentre(bp.toCity) ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
+          newBuilds.push({
+            id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: bp.type,
+            name: bp.name,
+            weeksRemaining: weeks,
+            totalWeeks: weeks,
+            startDate: s.currentDate,
+            countryId: targetIso,
+            fromCity: bp.fromCity,
+            toCity: bp.toCity,
+            fromCoords: fromCoords ? [fromCoords[0], fromCoords[1]] : undefined,
+            toCoords: toCoords ? [toCoords[0], toCoords[1]] : undefined,
+          })
+        } else {
+          // Point infrastructure — prefer explicit city field, then parse from name
+          const cityCoords = (bp.city ? getCityCentre(bp.city) : null) ?? getCityCentre(bp.name)
+          const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
+          newBuilds.push({
+            id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: bp.type,
+            name: bp.name,
+            weeksRemaining: weeks,
+            totalWeeks: weeks,
+            startDate: s.currentDate,
+            countryId: targetIso,
+            lat: centre ? centre[1] : undefined,
+            lng: centre ? centre[0] : undefined,
+          })
+        }
       }
     }
 

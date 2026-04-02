@@ -135,6 +135,21 @@ gameRouter.get('/borders', (_req, res) => {
   res.json(result.data)
 })
 
+// GET /api/game/rivers — Natural Earth 50m rivers and lake centerlines
+gameRouter.get('/rivers', (_req, res) => {
+  const riversPath = join(ERAS_DIR, 'rivers.geojson')
+  const result = readEraFile(riversPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'rivers.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read rivers file' })
+    return
+  }
+  res.json(result.data)
+})
+
 // GET /api/game/cities — Natural Earth 10m populated places
 gameRouter.get('/cities', (_req, res) => {
   const citiesPath = join(ERAS_DIR, 'cities.geojson')

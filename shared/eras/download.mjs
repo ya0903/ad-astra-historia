@@ -66,6 +66,10 @@ const BORDERS_URL =
 const CITIES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson'
 
+// 50m rivers and lake centerlines
+const RIVERS_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson'
+
 try {
   // Countries
   let countriesData = null
@@ -108,10 +112,19 @@ try {
     await downloadFile(CITIES_URL, citiesPath, 'cities.geojson (10m populated places)')
   }
 
+  // Rivers
+  const riversPath = join(__dirname, 'rivers.geojson')
+  if (existsSync(riversPath)) {
+    console.log(`rivers.geojson already exists (${featureCount(riversPath)} features) — skipping.`)
+  } else {
+    await downloadFile(RIVERS_URL, riversPath, 'rivers.geojson (50m rivers)')
+  }
+
   console.log('\nAll files ready.')
   console.log('  Countries: modern.geojson + era copies (110m, for game data)')
   console.log('  Borders:   borders.geojson (50m, for map rendering)')
   console.log('  Cities:    cities.geojson (10m populated places)')
+  console.log('  Rivers:    rivers.geojson (50m rivers)')
 } catch (err) {
   console.error('Error:', err.message)
   process.exit(1)

@@ -24,12 +24,31 @@ export default function WorldMap({ children }: Props) {
         version: 8,
         // Hosted glyph font needed for any text/symbol layers
         glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
-        sources: {},
+        sources: {
+          'terrain-dem': {
+            type: 'raster-dem' as const,
+            tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            encoding: 'terrarium' as const,
+          },
+        },
         layers: [
           {
             id: 'background',
             type: 'background',
             paint: { 'background-color': '#0a1628' },
+          },
+          {
+            id: 'hillshade',
+            type: 'hillshade' as const,
+            source: 'terrain-dem',
+            paint: {
+              'hillshade-shadow-color': '#0a1a2e',
+              'hillshade-highlight-color': '#c8ddf8',
+              'hillshade-illumination-altitude': 45,
+              'hillshade-exaggeration': 0.3,
+              'hillshade-accent-color': '#091525',
+            },
           },
         ],
       },

@@ -176,6 +176,11 @@ export interface BuildProject {
   countryId?: string
   lat?: number
   lng?: number
+  // Rail-specific fields — only set for rail_line / high_speed_rail types
+  fromCity?: string
+  toCity?: string
+  fromCoords?: [number, number]
+  toCoords?: [number, number]
 }
 
 // ── Research ──────────────────────────────────────────────────────────────────
@@ -237,7 +242,7 @@ export interface ActionResult {
   empireName?: string          // if conquest/expansion occurred, suggest a new empire name
   annexedCountry?: string      // ISO_A3 of any annexed country
   focusIso?: string            // ISO_A3 to fly map camera to
-  buildProject?: { type: InfrastructureType; name: string } // triggers a build queue entry
+  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string } // triggers a build queue entry
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
 }

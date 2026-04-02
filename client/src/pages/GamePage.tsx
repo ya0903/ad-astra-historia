@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGameStore, useConfigStore, useMapStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, LandUseLayer, DamageLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, LandUseLayer, DamageLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -260,9 +260,9 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProject":{"type":"<infra_type>","name":"<specific real-world name>"},"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
+{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProject":{"type":"<infra_type>","name":"<specific real-world name>","city":"<city name for point infra>","fromCity":"<departure city for rail only>","toCity":"<destination city for rail only>"},"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
 
-buildProject: ONLY include when the action physically constructs a facility or route. Use exactly one of these types: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. The name must be a specific real-world name (e.g. "Islamabad Institute of Technology", "Gwadar Deep-Water Port", "Lahore–Karachi HSR"). Omit buildProject entirely for non-construction actions.
+buildProject: ONLY include when the action physically constructs a facility or route. Use exactly one of these types: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. The name must be a specific real-world name (e.g. "Islamabad Institute of Technology", "Gwadar Deep-Water Port", "Lahore–Karachi HSR"). For point infrastructure always include "city" (the nearest city, e.g. "Karachi"). For rail_line and high_speed_rail always include "fromCity" and "toCity" (the two terminal cities, e.g. "Lahore" and "Karachi"). Omit buildProject entirely for non-construction actions.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
 
@@ -598,6 +598,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap>
           <CountryLayer />
+          <RiversLayer />
           <CountryLabelOverlay />
           <DamageLayer />
           <CitiesLayer />
