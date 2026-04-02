@@ -1,58 +1,68 @@
 #!/usr/bin/env node
 // shared/eras/download.mjs
-// Downloads Natural Earth 110m country polygons and creates all era GeoJSON files.
+// Downloads Natural Earth GeoJSON files for countries and cities.
 // Run with: node shared/eras/download.mjs
-// Re-running is safe — exits early if modern.geojson already exists.
+// Re-running is safe — skips files that already exist.
 
-import { existsSync, writeFileSync, copyFileSync, readFileSync } from 'fs'
+import { existsSync, writeFileSync, copyFileSync } from 'fs'
 import { get } from 'https'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const modernPath = join(__dirname, 'modern.geojson')
 
-if (existsSync(modernPath)) {
-  console.log('modern.geojson already exists. Delete it manually to re-download.')
-  process.exit(0)
+function downloadFile(url, destPath, label) {
+  return new Promise((resolve, reject) => {
+    if (existsSync(destPath)) {
+      console.log(`${label} already exists — skipping.`)
+      resolve(null)
+      return
+    }
+
+    console.log(`Downloading ${label}...`)
+    const chunks = []
+
+    get(url, res => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} for ${label}`))
+        return
+      }
+      res.on('data', chunk => chunks.push(chunk))
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8')
+        let data
+        try {
+          data = JSON.parse(raw)
+        } catch {
+          reject(new Error(`${label}: downloaded file is not valid JSON`))
+          return
+        }
+        if (data.type !== 'FeatureCollection' || !Array.isArray(data.features) || data.features.length === 0) {
+          reject(new Error(`${label}: not a valid GeoJSON FeatureCollection`))
+          return
+        }
+        writeFileSync(destPath, raw, 'utf8')
+        console.log(`${label} verified (${data.features.length} features).`)
+        resolve(data)
+      })
+    }).on('error', err => reject(err))
+  })
 }
 
-const URL =
+const modernPath = join(__dirname, 'modern.geojson')
+const citiesPath = join(__dirname, 'cities.geojson')
+
+const COUNTRIES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
 
-console.log('Downloading Natural Earth 110m countries...')
+const CITIES_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_populated_places.geojson'
 
-const chunks = []
+try {
+  const countriesData = await downloadFile(COUNTRIES_URL, modernPath, 'modern.geojson (countries)')
 
-get(URL, res => {
-  if (res.statusCode !== 200) {
-    console.error(`Download failed: HTTP ${res.statusCode}`)
-    process.exit(1)
-  }
-
-  res.on('data', chunk => chunks.push(chunk))
-
-  res.on('end', () => {
-    const raw = Buffer.concat(chunks).toString('utf8')
-
-    // Validate before writing
-    let data
-    try {
-      data = JSON.parse(raw)
-    } catch {
-      console.error('Downloaded file is not valid JSON. Aborting.')
-      process.exit(1)
-    }
-
-    if (data.type !== 'FeatureCollection' || !Array.isArray(data.features) || data.features.length === 0) {
-      console.error('Downloaded file is not a valid GeoJSON FeatureCollection. Aborting.')
-      process.exit(1)
-    }
-
-    writeFileSync(modernPath, raw, 'utf8')
-    console.log(`Download verified (${data.features.length} features).`)
-
-    // Copy to era files
+  if (countriesData !== null) {
+    // Fresh download — copy to era files
     const eras = ['2010s', '1990s', '1960s', '1945']
     for (const era of eras) {
       const dest = join(__dirname, `${era}.geojson`)
@@ -63,10 +73,14 @@ get(URL, res => {
         console.log(`${era}.geojson already exists — skipping.`)
       }
     }
+  }
 
-    console.log('All era files ready. Historical border adjustments are handled server-side.')
-  })
-}).on('error', err => {
-  console.error('Download error:', err.message)
+  await downloadFile(CITIES_URL, citiesPath, 'cities.geojson (populated places)')
+
+  console.log('\nAll files ready.')
+  console.log('  Countries: modern.geojson + era copies')
+  console.log('  Cities:    cities.geojson')
+} catch (err) {
+  console.error('Error:', err.message)
   process.exit(1)
-})
+}

@@ -79,6 +79,26 @@ export default function CountryLayer() {
             ] as ExpressionSpecification,
           },
         })
+
+        // Country name labels — rendered on top of fills
+        map.addLayer({
+          id: 'country-labels',
+          type: 'symbol',
+          source: 'countries',
+          minzoom: 1.5,
+          layout: {
+            'text-field': ['get', 'ADMIN'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 4, 11, 6, 13],
+            'text-max-width': 7,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#e2e8f0',
+            'text-halo-color': '#0a1628',
+            'text-halo-width': 1.5,
+          },
+        })
       })
       .catch(console.error)
 
@@ -133,6 +153,7 @@ export default function CountryLayer() {
       map.off('click', 'country-fills', onClick)
       popupRef.current?.remove()
 
+      if (map.getLayer('country-labels')) map.removeLayer('country-labels')
       if (map.getLayer('country-hover')) map.removeLayer('country-hover')
       if (map.getLayer('country-borders')) map.removeLayer('country-borders')
       if (map.getLayer('country-fills')) map.removeLayer('country-fills')

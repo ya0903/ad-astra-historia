@@ -116,6 +116,21 @@ function readEraFile(filePath: string): { data: GeoJSONFeatureCollection } | { n
 
 export const gameRouter = Router()
 
+// GET /api/game/cities — Natural Earth 110m populated places
+gameRouter.get('/cities', (_req, res) => {
+  const citiesPath = join(ERAS_DIR, 'cities.geojson')
+  const result = readEraFile(citiesPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'cities.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read cities file' })
+    return
+  }
+  res.json(result.data)
+})
+
 // GET /api/game/geojson/:era
 gameRouter.get('/geojson/:era', (req, res) => {
   const { era } = req.params

@@ -1,5 +1,6 @@
 export { default as WorldMap } from './WorldMap'
 export { default as CountryLayer } from './CountryLayer'
+export { default as CitiesLayer } from './CitiesLayer'
 export { default as InfraLayer } from './InfraLayer'
 export { default as RailLayer } from './RailLayer'
 export { default as LandUseLayer } from './LandUseLayer'

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { FeatureCollection } from 'geojson'
 import maplibregl from 'maplibre-gl'
 import { useMap } from './MapContext'
@@ -16,15 +16,32 @@ const PASSAGE_LOCATIONS: Record<string, [number, number]> = {
   'bab-el-mandeb': [43.4, 12.6],
 }
 
+const PASSAGE_NAMES: Record<string, string> = {
+  hormuz: 'Strait of Hormuz',
+  malacca: 'Strait of Malacca',
+  suez: 'Suez Canal',
+  panama: 'Panama Canal',
+  bosporus: 'Bosporus Strait',
+  gibraltar: 'Strait of Gibraltar',
+  'bab-el-mandeb': 'Bab-el-Mandeb',
+}
+
 const STATUS_COLOUR: Record<PassageStatus, string> = {
   open: '#22c55e',
   tolled: '#eab308',
   blocked: '#ef4444',
 }
 
+const STATUS_LABEL: Record<PassageStatus, string> = {
+  open: 'Open',
+  tolled: 'Tolled',
+  blocked: 'Blocked',
+}
+
 export default function LandUseLayer() {
   const map = useMap()
   const gameState = useGameStore(s => s.state)
+  const popupRef = useRef<maplibregl.Popup | null>(null)
 
   useEffect(() => {
     if (!map || !gameState) return
@@ -37,7 +54,6 @@ export default function LandUseLayer() {
         id: region.id,
         geometry: {
           type: 'Polygon',
-          // Close the polygon
           coordinates: [[...region.polygon, region.polygon[0]]],
         },
         properties: {
@@ -77,7 +93,8 @@ export default function LandUseLayer() {
             id,
             status,
             colour: STATUS_COLOUR[status as PassageStatus],
-            label: id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            name: PASSAGE_NAMES[id] ?? id,
+            statusLabel: STATUS_LABEL[status as PassageStatus] ?? status,
           },
         }
       }).filter((f): f is NonNullable<typeof f> => f !== null),
@@ -85,37 +102,69 @@ export default function LandUseLayer() {
 
     if (map.getSource('passages')) {
       (map.getSource('passages') as maplibregl.GeoJSONSource).setData(passageGeojson)
-    } else {
-      map.addSource('passages', { type: 'geojson', data: passageGeojson })
-
-      map.addLayer({
-        id: 'passage-glow',
-        type: 'circle',
-        source: 'passages',
-        paint: {
-          'circle-radius': 12,
-          'circle-color': ['get', 'colour'],
-          'circle-opacity': 0.25,
-          'circle-blur': 1,
-        },
-      })
-
-      map.addLayer({
-        id: 'passage-dots',
-        type: 'circle',
-        source: 'passages',
-        paint: {
-          'circle-radius': 5,
-          'circle-color': ['get', 'colour'],
-          'circle-opacity': 0.9,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 0.7,
-        },
-      })
+      return
     }
 
+    map.addSource('passages', { type: 'geojson', data: passageGeojson })
+
+    map.addLayer({
+      id: 'passage-glow',
+      type: 'circle',
+      source: 'passages',
+      paint: {
+        'circle-radius': 12,
+        'circle-color': ['get', 'colour'],
+        'circle-opacity': 0.25,
+        'circle-blur': 1,
+      },
+    })
+
+    map.addLayer({
+      id: 'passage-dots',
+      type: 'circle',
+      source: 'passages',
+      paint: {
+        'circle-radius': 5,
+        'circle-color': ['get', 'colour'],
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1.5,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-opacity': 0.7,
+      },
+    })
+
+    // Hover tooltip on passage dots
+    const onPassageMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      if (!e.features?.length) return
+      map.getCanvas().style.cursor = 'pointer'
+      const props = e.features[0].properties as { name: string; statusLabel: string; colour: string }
+      if (!popupRef.current) {
+        popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+      }
+      popupRef.current
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <div style="color:#fff;background:#1e293b;padding:6px 10px;border-radius:6px;font-size:12px;line-height:1.5">
+            <b>${props.name}</b><br/>
+            <span style="color:${props.colour}">${props.statusLabel}</span>
+          </div>
+        `)
+        .addTo(map)
+    }
+
+    const onPassageLeave = () => {
+      map.getCanvas().style.cursor = ''
+      popupRef.current?.remove()
+      popupRef.current = null
+    }
+
+    map.on('mousemove', 'passage-dots', onPassageMove)
+    map.on('mouseleave', 'passage-dots', onPassageLeave)
+
     return () => {
+      map.off('mousemove', 'passage-dots', onPassageMove)
+      map.off('mouseleave', 'passage-dots', onPassageLeave)
+      popupRef.current?.remove()
       if (map.getLayer('passage-dots')) map.removeLayer('passage-dots')
       if (map.getLayer('passage-glow')) map.removeLayer('passage-glow')
       if (map.getSource('passages')) map.removeSource('passages')
