@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useGameStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { WorldMap, CountryLayer, InfraLayer, RailLayer, LandUseLayer } from '../components/map'
+import OrgPanel from '../components/OrgPanel'
 import type { ActionResult } from '@ad-astra/shared/types'
 
 export default function GamePage() {
@@ -153,6 +154,7 @@ export default function GamePage() {
             <RailLayer />
             <LandUseLayer />
           </WorldMap>
+          <OrgPanel />
         </div>
       </div>
 
