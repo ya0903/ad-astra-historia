@@ -375,7 +375,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
     for (const r of results) {
       const targetIso = r.focusIso ?? pid
-      // Support both buildProjects[] (new, multiple per action) and buildProject (legacy single)
+      // Only queue builds on success or partial outcomes — failures produce nothing
+      if (r.outcome === 'failure') continue
       const bpList = r.buildProjects?.length ? r.buildProjects : r.buildProject ? [r.buildProject] : []
       for (const bp of bpList) {
         pushBuildProject(bp, targetIso)

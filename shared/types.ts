@@ -235,6 +235,8 @@ export interface GameAction {
 
 export interface ActionResult {
   actionId: string
+  outcome: 'success' | 'partial' | 'failure'
+  failureReason?: string        // required when outcome is partial or failure
   summary: string
   fullNarrative: string
   worldReaction: string

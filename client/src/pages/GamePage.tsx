@@ -264,9 +264,15 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
 
-buildProjects: Array of ALL physical constructions triggered by this action — include one entry per distinct facility or route built. If an action builds a desalination plant in Turbat AND a nuclear plant in Karachi AND solar farms in the Cholistan Desert, buildProjects must have 3 entries. Use exactly one of these types per entry: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. Name must be specific (e.g. "Gwadar Deep-Water Port"). For point infrastructure always include "city". For rail include "cities": ["City1","City2",...] with all stops in order. Omit buildProjects entirely for non-construction actions.
+outcome: Assess geopolitical realism honestly — NOT every action succeeds.
+- "success": action proceeds as intended. Full positive stat deltas.
+- "partial": action partially succeeds or faces significant obstacles. Halve positive deltas; may add minor negatives.
+- "failure": action is rejected, fails, or backfires. statDeltas should be 0 or negative (costs, backlash). No buildProjects. Require failureReason.
+Examples: Requesting Kashmir from India → failure (India rejects). Proposing trade deal with an ally → success. Imposing sanctions on a great power → partial (they retaliate). Invading a stronger neighbour → failure or partial depending on military balance.
+
+buildProjects: Array of ALL physical constructions triggered by this action — include one entry per distinct facility or route built. If an action builds a desalination plant in Turbat AND a nuclear plant in Karachi AND solar farms in the Cholistan Desert, buildProjects must have 3 entries. Use exactly one of these types per entry: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. Name must be specific (e.g. "Gwadar Deep-Water Port"). For point infrastructure always include "city". For rail include "cities": ["City1","City2",...] with all stops in order. Omit buildProjects entirely for non-construction actions or failures.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
 
@@ -690,15 +696,39 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── Timeline event card (Pax Historia style) ── */}
         {timelineResult != null && (
-          <div className="absolute top-16 left-4 z-20 w-80 bg-[#070d1c] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
+          <div className={`absolute top-16 left-4 z-20 w-80 bg-[#070d1c] rounded-2xl shadow-2xl overflow-hidden border ${
+            timelineResult.outcome === 'failure' ? 'border-red-700/50' :
+            timelineResult.outcome === 'partial' ? 'border-amber-700/50' :
+            'border-white/15'
+          }`}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8">
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Timeline</p>
-                <p className="text-[10px] text-gray-600 font-mono mt-0.5">from {gameState.currentDate}</p>
+              <div className="flex items-center gap-2">
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Timeline</p>
+                  <p className="text-[10px] text-gray-600 font-mono mt-0.5">from {gameState.currentDate}</p>
+                </div>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                  timelineResult.outcome === 'failure' ? 'bg-red-950/70 border-red-700/50 text-red-300' :
+                  timelineResult.outcome === 'partial' ? 'bg-amber-950/70 border-amber-700/50 text-amber-300' :
+                  'bg-emerald-950/70 border-emerald-700/50 text-emerald-300'
+                }`}>
+                  {timelineResult.outcome ?? 'success'}
+                </span>
               </div>
               <button onClick={() => setTimelineIdx(null)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">✕</button>
             </div>
+
+            {/* Failure/partial reason banner */}
+            {timelineResult.failureReason && (
+              <div className={`px-4 py-2 border-b ${
+                timelineResult.outcome === 'failure' ? 'bg-red-950/40 border-red-900/30' : 'bg-amber-950/40 border-amber-900/30'
+              }`}>
+                <p className={`text-xs leading-relaxed ${timelineResult.outcome === 'failure' ? 'text-red-300' : 'text-amber-300'}`}>
+                  {timelineResult.failureReason}
+                </p>
+              </div>
+            )}
 
             {/* Country tags */}
             {timelineResult.countryReactions && timelineResult.countryReactions.length > 0 && (

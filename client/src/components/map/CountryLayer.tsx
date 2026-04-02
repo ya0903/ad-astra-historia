@@ -160,11 +160,16 @@ function buildLabelPoints(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCo
 
 function buildColourExpression(
   countries: Record<string, { colour: string }>,
-  playerCountryId: string
+  playerCountryId: string,
+  controlledCountries: string[]
 ): ExpressionSpecification {
+  const playerColour = countries[playerCountryId]?.colour ?? '#1a4a7a'
+  const controlledSet = new Set(controlledCountries)
   const pairs = Object.entries(countries).flatMap(([iso, c]) => [
     iso,
-    iso === playerCountryId ? lightenColour(c.colour) : c.colour,
+    iso === playerCountryId ? lightenColour(c.colour) :
+    controlledSet.has(iso) ? tintOccupied(playerColour) :
+    c.colour,
   ])
   return ['match', ['get', 'ISO_A3'], ...pairs, '#374151'] as unknown as ExpressionSpecification
 }
@@ -175,6 +180,7 @@ export default function CountryLayer() {
   const map = useMap()
   const countries = useGameStore(s => s.state?.countries ?? {})
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
+  const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
 
   // ── Effect 1: set up layers once when map is ready ────────────────────────
@@ -186,7 +192,7 @@ export default function CountryLayer() {
       .then((geojson: GeoJSON.FeatureCollection) => {
         if (map.getSource('countries')) return
 
-        const colourExpression = buildColourExpression(countries, playerCountryId)
+        const colourExpression = buildColourExpression(countries, playerCountryId, controlledCountries)
 
         map.addSource('countries', { type: 'geojson', data: geojson })
 
@@ -211,15 +217,17 @@ export default function CountryLayer() {
           paint: { 'line-color': '#1e3a5f', 'line-width': 0.8 },
         })
 
+        const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
+
         map.addLayer({
           id: 'player-border-glow', type: 'line', source: 'countries',
-          filter: ['==', ['get', 'ISO_A3'], playerCountryId] as ExpressionSpecification,
+          filter: empireFilter,
           paint: { 'line-color': '#60a5fa', 'line-width': 8, 'line-opacity': 0.3, 'line-blur': 6 },
         })
 
         map.addLayer({
           id: 'player-border', type: 'line', source: 'countries',
-          filter: ['==', ['get', 'ISO_A3'], playerCountryId] as ExpressionSpecification,
+          filter: empireFilter,
           paint: { 'line-color': '#93c5fd', 'line-width': 1.5, 'line-opacity': 0.85 },
         })
 
@@ -293,11 +301,14 @@ export default function CountryLayer() {
     }
   }, [map, playerCountryId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Effect 2: update fill colours when country stats change (no layer rebuild) ──
+  // ── Effect 2: update fill colours + empire borders when game state changes ──
   useEffect(() => {
     if (!map || !playerCountryId || !map.getLayer('country-fills')) return
-    map.setPaintProperty('country-fills', 'fill-color', buildColourExpression(countries, playerCountryId))
-  }, [map, countries, playerCountryId])
+    map.setPaintProperty('country-fills', 'fill-color', buildColourExpression(countries, playerCountryId, controlledCountries))
+    const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
+    if (map.getLayer('player-border')) map.setFilter('player-border', empireFilter)
+    if (map.getLayer('player-border-glow')) map.setFilter('player-border-glow', empireFilter)
+  }, [map, countries, playerCountryId, controlledCountries])
 
   return null
 }
@@ -310,4 +321,15 @@ function lightenColour(hex: string): string {
   const lg = Math.min(255, Math.round(g + (255 - g) * 0.3))
   const lb = Math.min(255, Math.round(b + (255 - b) * 0.3))
   return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`
+}
+
+/** Occupied/controlled territory: player hue, slightly darker and more muted than the player's own territory */
+function tintOccupied(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const or_ = Math.min(255, Math.round(r + (255 - r) * 0.15))
+  const og = Math.min(255, Math.round(g + (255 - g) * 0.15))
+  const ob = Math.min(255, Math.round(b + (255 - b) * 0.15))
+  return `#${or_.toString(16).padStart(2, '0')}${og.toString(16).padStart(2, '0')}${ob.toString(16).padStart(2, '0')}`
 }
