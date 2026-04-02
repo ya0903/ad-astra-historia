@@ -2,9 +2,9 @@
 // shared/eras/download.mjs
 // Downloads Natural Earth GeoJSON files for countries and cities.
 // Run with: node shared/eras/download.mjs
-// Re-running is safe — skips files that already exist.
+// Re-running is safe — skips files that already exist (unless stale).
 
-import { existsSync, writeFileSync, copyFileSync } from 'fs'
+import { existsSync, writeFileSync, copyFileSync, readFileSync, unlinkSync } from 'fs'
 import { get } from 'https'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
@@ -13,12 +13,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 function downloadFile(url, destPath, label) {
   return new Promise((resolve, reject) => {
-    if (existsSync(destPath)) {
-      console.log(`${label} already exists — skipping.`)
-      resolve(null)
-      return
-    }
-
     console.log(`Downloading ${label}...`)
     const chunks = []
 
@@ -49,20 +43,35 @@ function downloadFile(url, destPath, label) {
   })
 }
 
+function featureCount(filePath) {
+  try {
+    const data = JSON.parse(readFileSync(filePath, 'utf8'))
+    return data?.features?.length ?? 0
+  } catch {
+    return 0
+  }
+}
+
 const modernPath = join(__dirname, 'modern.geojson')
 const citiesPath = join(__dirname, 'cities.geojson')
 
 const COUNTRIES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
 
+// 10m populated places — ~7,300 cities, includes SCALERANK for density filtering
 const CITIES_URL =
-  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_populated_places.geojson'
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson'
 
 try {
-  const countriesData = await downloadFile(COUNTRIES_URL, modernPath, 'modern.geojson (countries)')
+  // Countries
+  let countriesData = null
+  if (existsSync(modernPath)) {
+    console.log('modern.geojson already exists — skipping.')
+  } else {
+    countriesData = await downloadFile(COUNTRIES_URL, modernPath, 'modern.geojson (110m countries)')
+  }
 
   if (countriesData !== null) {
-    // Fresh download — copy to era files
     const eras = ['2010s', '1990s', '1960s', '1945']
     for (const era of eras) {
       const dest = join(__dirname, `${era}.geojson`)
@@ -75,7 +84,17 @@ try {
     }
   }
 
-  await downloadFile(CITIES_URL, citiesPath, 'cities.geojson (populated places)')
+  // Cities — re-download if stale (old 110m file had only 243 features)
+  const existingCount = featureCount(citiesPath)
+  if (existsSync(citiesPath) && existingCount >= 1000) {
+    console.log(`cities.geojson already exists (${existingCount} features) — skipping.`)
+  } else {
+    if (existsSync(citiesPath)) {
+      console.log(`cities.geojson has only ${existingCount} features (stale 110m data) — replacing with 10m dataset...`)
+      unlinkSync(citiesPath)
+    }
+    await downloadFile(CITIES_URL, citiesPath, 'cities.geojson (10m populated places)')
+  }
 
   console.log('\nAll files ready.')
   console.log('  Countries: modern.geojson + era copies')

@@ -7,7 +7,8 @@ import { useGameStore } from '../../stores'
 export default function CountryLayer() {
   const map = useMap()
   const gameState = useGameStore(s => s.state)
-  const popupRef = useRef<maplibregl.Popup | null>(null)
+  // No popup — country names are shown as permanent labels on the map
+  const hoveredIdRef = useRef<string | number | undefined>(undefined)
 
   useEffect(() => {
     if (!map || !gameState) return
@@ -15,14 +16,11 @@ export default function CountryLayer() {
     const era = gameState.era
     const playerCountryId = gameState.playerCountryId
 
-    // Fetch GeoJSON for this era
     fetch(`/api/game/geojson/${era}`)
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
-        if (map.getSource('countries')) return // already added
+        if (map.getSource('countries')) return
 
-        // Build colour expression from country data
-        // MapLibre expression: match ISO_A3 → colour
         const colourPairs = Object.entries(gameState.countries).flatMap(([iso, country]) => [
           iso,
           iso === playerCountryId ? lightenColour(country.colour) : country.colour,
@@ -31,13 +29,10 @@ export default function CountryLayer() {
           'match',
           ['get', 'ISO_A3'],
           ...colourPairs,
-          '#374151', // fallback
+          '#374151',
         ] as unknown as ExpressionSpecification
 
-        map.addSource('countries', {
-          type: 'geojson',
-          data: geojson,
-        })
+        map.addSource('countries', { type: 'geojson', data: geojson })
 
         map.addLayer({
           id: 'country-fills',
@@ -64,7 +59,7 @@ export default function CountryLayer() {
           },
         })
 
-        // Hover highlight layer
+        // Hover highlight
         map.addLayer({
           id: 'country-hover',
           type: 'fill',
@@ -80,7 +75,8 @@ export default function CountryLayer() {
           },
         })
 
-        // Country name labels — rendered on top of fills
+        // Permanent country name labels — CK3/Pax Historia style
+        // Names sit over the landmass at the polygon centroid
         map.addLayer({
           id: 'country-labels',
           type: 'symbol',
@@ -88,52 +84,42 @@ export default function CountryLayer() {
           minzoom: 1.5,
           layout: {
             'text-field': ['get', 'ADMIN'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 4, 11, 6, 13],
+            // Noto Sans Regular is available from the protomaps glyphs CDN
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 4, 11, 6, 14],
             'text-max-width': 7,
             'text-allow-overlap': false,
             'text-ignore-placement': false,
+            'text-letter-spacing': 0.05,
           },
           paint: {
             'text-color': '#e2e8f0',
             'text-halo-color': '#0a1628',
             'text-halo-width': 1.5,
+            'text-opacity': ['interpolate', ['linear'], ['zoom'], 1.5, 0, 2, 1],
           },
         })
       })
       .catch(console.error)
 
-    // Hover events
-    let hoveredId: string | number | undefined
+    // Hover highlight (no popup — label is always visible)
     const onMouseMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       if (e.features && e.features.length > 0) {
-        if (hoveredId !== undefined) {
-          map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: false })
+        if (hoveredIdRef.current !== undefined) {
+          map.setFeatureState({ source: 'countries', id: hoveredIdRef.current }, { hover: false })
         }
-        hoveredId = e.features[0].id
-        if (hoveredId !== undefined) {
-          map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: true })
+        hoveredIdRef.current = e.features[0].id
+        if (hoveredIdRef.current !== undefined) {
+          map.setFeatureState({ source: 'countries', id: hoveredIdRef.current }, { hover: true })
         }
-        const iso = e.features[0].properties?.ISO_A3 as string
-        const country = gameState.countries[iso]
-        const name = country?.name ?? iso
-
-        if (!popupRef.current) {
-          popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false })
-        }
-        popupRef.current
-          .setLngLat(e.lngLat)
-          .setHTML(`<div style="color:#fff;background:#1e293b;padding:4px 8px;border-radius:4px;font-size:12px">${name}</div>`)
-          .addTo(map)
       }
     }
 
     const onMouseLeave = () => {
-      if (hoveredId !== undefined) {
-        map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: false })
-        hoveredId = undefined
+      if (hoveredIdRef.current !== undefined) {
+        map.setFeatureState({ source: 'countries', id: hoveredIdRef.current }, { hover: false })
+        hoveredIdRef.current = undefined
       }
-      popupRef.current?.remove()
-      popupRef.current = null
     }
 
     const onClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
@@ -151,7 +137,6 @@ export default function CountryLayer() {
       map.off('mousemove', 'country-fills', onMouseMove)
       map.off('mouseleave', 'country-fills', onMouseLeave)
       map.off('click', 'country-fills', onClick)
-      popupRef.current?.remove()
 
       if (map.getLayer('country-labels')) map.removeLayer('country-labels')
       if (map.getLayer('country-hover')) map.removeLayer('country-hover')
@@ -165,7 +150,6 @@ export default function CountryLayer() {
 }
 
 function lightenColour(hex: string): string {
-  // Simple lightening: blend toward white by 30%
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)

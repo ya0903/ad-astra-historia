@@ -20,6 +20,8 @@ export default function WorldMap({ children }: Props) {
       container: mapContainer.current,
       style: {
         version: 8,
+        // Hosted glyph font needed for any text/symbol layers
+        glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
         sources: {},
         layers: [
           {
