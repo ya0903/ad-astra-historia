@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGameStore, useConfigStore, useMapStore } from '../stores'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CitiesLayer, InfraLayer, RailLayer, LandUseLayer, DamageLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, LandUseLayer, DamageLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -581,6 +581,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap>
           <CountryLayer />
+          <CountryLabelOverlay />
           <DamageLayer />
           <CitiesLayer />
           <InfraLayer />
@@ -624,7 +625,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── Timeline event card (Pax Historia style) ── */}
         {timelineResult !== null && (
-          <div className="absolute top-16 left-4 z-20 w-80 bg-[#080f1e]/97 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute top-16 left-4 z-20 w-80 bg-[#070d1c] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8">
               <div>

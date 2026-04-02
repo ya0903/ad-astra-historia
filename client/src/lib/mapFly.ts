@@ -204,6 +204,12 @@ const CITY_CENTRES: Record<string, [number, number, number]> = {
   yangon: [96.2, 16.8, 9],
 }
 
+/** Returns [lng, lat] for an ISO_A3 code, or null if unknown */
+export function getCountryCentre(iso: string): [number, number] | null {
+  const e = COUNTRY_CENTRES[iso.toUpperCase()]
+  return e ? [e[0], e[1]] : null
+}
+
 export function flyToLocation(map: maplibregl.Map, isoOrName: string) {
   const key = isoOrName.trim().toUpperCase()
   const entry = COUNTRY_CENTRES[key]

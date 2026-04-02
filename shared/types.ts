@@ -169,6 +169,9 @@ export interface BuildProject {
   weeksRemaining: number
   totalWeeks: number
   startDate: string
+  countryId?: string
+  lat?: number
+  lng?: number
 }
 
 // ── Research ──────────────────────────────────────────────────────────────────

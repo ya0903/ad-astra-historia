@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Missale AS Lunea — place the font file at client/public/fonts/MissaleASLunea.woff2 */
+@font-face {
+  font-family: 'Missale AS Lunea';
+  src: url('/fonts/MissaleASLunea.woff2') format('woff2'),
+       url('/fonts/MissaleASLunea.ttf') format('truetype');
+  font-weight: normal;
+  font-display: swap;
+}
+
+/* IM Fell English as open-source fallback (similar medieval feel) */
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
+/* Strip MapLibre's default white popup chrome */
+.maplibregl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.maplibregl-popup-tip {
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

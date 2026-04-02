@@ -227,14 +227,13 @@ export default function CountryLayer() {
 
         const labelLayout = {
           'text-field': ['get', 'labelName'] as ExpressionSpecification,
-          'text-font': ['Noto Sans Bold'],
+          'text-font': ['Noto Sans Medium'],
           'text-size': ['interpolate', ['linear'], ['zoom'], 1.5, 8, 3, 12, 4, 15, 5, 17] as ExpressionSpecification,
           'text-max-width': 6,
           'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-letter-spacing': 0.2,
           'text-transform': 'uppercase' as const,
-          'text-rotation-alignment': 'map' as const,
           'text-rotate': ['get', 'labelAngle'] as ExpressionSpecification,
           'text-padding': 4,
         }
@@ -245,10 +244,13 @@ export default function CountryLayer() {
           'text-halo-blur': 1,
         }
 
-        map.addLayer({ id: 'country-labels-0', type: 'symbol', source: 'country-label-points', minzoom: 1.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 0] as ExpressionSpecification, layout: labelLayout, paint: labelPaint })
-        map.addLayer({ id: 'country-labels-1', type: 'symbol', source: 'country-label-points', minzoom: 2, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 1] as ExpressionSpecification, layout: labelLayout, paint: labelPaint })
-        map.addLayer({ id: 'country-labels-2', type: 'symbol', source: 'country-label-points', minzoom: 3.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 2] as ExpressionSpecification, layout: labelLayout, paint: labelPaint })
-        map.addLayer({ id: 'country-labels-3', type: 'symbol', source: 'country-label-points', minzoom: 5.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 3] as ExpressionSpecification, layout: labelLayout, paint: labelPaint })
+        // These layers are kept as data sources only — CountryLabelOverlay renders
+        // the actual labels as HTML so any font (e.g. Missale AS Lunea) can be used.
+        const hiddenPaint = { ...labelPaint, 'text-opacity': 0 }
+        map.addLayer({ id: 'country-labels-0', type: 'symbol', source: 'country-label-points', minzoom: 1.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 0] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
+        map.addLayer({ id: 'country-labels-1', type: 'symbol', source: 'country-label-points', minzoom: 2, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 1] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
+        map.addLayer({ id: 'country-labels-2', type: 'symbol', source: 'country-label-points', minzoom: 3.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 2] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
+        map.addLayer({ id: 'country-labels-3', type: 'symbol', source: 'country-label-points', minzoom: 5.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 3] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
       })
       .catch(console.error)
 

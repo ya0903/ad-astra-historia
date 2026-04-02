@@ -5,6 +5,8 @@ import type {
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
+import type { Infrastructure } from '@ad-astra/shared/types'
+import { getCountryCentre } from '../lib/mapFly'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
 const GDP_GROWTH_BASE = 0.025 // 2.5% default
@@ -228,6 +230,24 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       }
     }
 
+    // Turn completed builds into Infrastructure entries on the map
+    const newInfra: Infrastructure[] = completedBuilds.map(b => {
+      const centre = (b.countryId ? getCountryCentre(b.countryId) : null)
+                  ?? getCountryCentre(s.playerCountryId)
+                  ?? [0, 0]
+      // Slight random offset so stacked buildings are distinguishable
+      const jitter = () => (Math.random() - 0.5) * 0.15
+      return {
+        id: `infra-${b.id}`,
+        countryId: b.countryId ?? s.playerCountryId,
+        type: b.type,
+        name: b.name,
+        lat: (b.lat ?? centre[1]) + jitter(),
+        lng: (b.lng ?? centre[0]) + jitter(),
+        level: 1,
+      } satisfies Infrastructure
+    })
+
     return {
       state: {
         ...s,
@@ -235,6 +255,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         countries: newCountries,
         buildQueue: newBuildQueue,
         researchQueue: newResearchQueue,
+        infrastructureMap: [...s.infrastructureMap, ...newInfra],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
       },
@@ -289,6 +310,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     for (const r of results) {
       if (r.buildProject) {
         const weeks = BUILD_WEEKS[r.buildProject.type] ?? 52
+        const targetIso = r.focusIso ?? pid
+        const centre = getCountryCentre(targetIso) ?? getCountryCentre(pid)
         newBuilds.push({
           id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           type: r.buildProject.type,
@@ -296,6 +319,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           weeksRemaining: weeks,
           totalWeeks: weeks,
           startDate: s.currentDate,
+          countryId: targetIso,
+          lat: centre ? centre[1] : undefined,
+          lng: centre ? centre[0] : undefined,
         })
       }
     }

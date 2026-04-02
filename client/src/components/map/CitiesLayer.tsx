@@ -102,18 +102,34 @@ export default function CitiesLayer() {
           }
           const pop = props.POP_MAX && props.POP_MAX > 0
             ? props.POP_MAX >= 1e6
-              ? ` · ${(props.POP_MAX / 1e6).toFixed(1)}M`
-              : ` · ${Math.round(props.POP_MAX / 1000)}K`
-            : ''
+              ? `${(props.POP_MAX / 1e6).toFixed(1)}M`
+              : `${Math.round(props.POP_MAX / 1000)}K`
+            : null
           if (!popupRef.current) {
-            popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+            popupRef.current = new maplibregl.Popup({
+              closeButton: false,
+              closeOnClick: false,
+              offset: 12,
+              className: 'city-popup',
+            })
           }
           popupRef.current
             .setLngLat(e.lngLat)
             .setHTML(`
-              <div style="color:#fff;background:#1e293b;padding:5px 10px;border-radius:5px;font-size:12px;line-height:1.5">
-                <b>${props.NAME}</b>${pop}
-                ${props.ADM0NAME ? `<br/><span style="color:#94a3b8">${props.ADM0NAME}</span>` : ''}
+              <div style="
+                background:#0d1b31;
+                border:1px solid rgba(255,255,255,0.12);
+                border-radius:10px;
+                padding:8px 12px;
+                font-family:system-ui,sans-serif;
+                font-size:12px;
+                line-height:1.5;
+                min-width:120px;
+                box-shadow:0 4px 20px rgba(0,0,0,0.6);
+              ">
+                <div style="color:#fff;font-weight:600;font-size:13px">${props.NAME}</div>
+                ${props.ADM0NAME ? `<div style="color:#64748b;font-size:11px;margin-top:1px">${props.ADM0NAME}</div>` : ''}
+                ${pop ? `<div style="color:#94a3b8;font-size:11px;margin-top:3px">Pop. ${pop}</div>` : ''}
               </div>
             `)
             .addTo(map)
