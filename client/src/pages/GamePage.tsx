@@ -153,6 +153,18 @@ export default function GamePage() {
     .slice(0, 15)
     .map(c => ({ name: c.name, gdp: c.stats.gdp }))
 
+  // Recent history summary — shared across all AI calls for continuity
+  const recentHistory = [
+    ...(lastResults).slice(-6).map(r => `• ${r.summary}`),
+    ...(recentDisasters).slice(-3).map(d => `• Disaster: ${d.type} — ${d.description}`),
+    ...(buildQueue).filter(b => b.weeksRemaining <= 4).map(b => `• Building: ${b.name} (${b.weeksRemaining}w left)`),
+    ...(researchQueue).slice(0, 2).map(r => `• Researching: ${r.techId}`),
+  ].join('\n')
+
+  const warDamageSummary = Object.entries(gameState.warDamage ?? {})
+    .map(([iso, lvl]) => `${iso}:${lvl}`)
+    .join(', ')
+
   const handleSave = async () => {
     setSaveStatus('saving')
     try { await saveGame('autosave', gameState); setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000) }
@@ -198,8 +210,11 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
 - Maximum magnitude per action: gdp ±$30B, military ±5, approval ±5, softPower ±3, techLevel ±2.
 - Be consistent: the same type of action should give similar deltas regardless of how many times it is called.`
 
-      const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}
+      const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
+      const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
 
+      const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}
+${historyBlock}${damageBlock}
 Actions:
 ${actionList}
 
@@ -667,8 +682,10 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               yesman: gameState.yesman ?? false,
               countryNames: Object.values(gameState.countries).map(c => c.name).filter(n => n !== (player?.name ?? '')),
               stats: stats as unknown as Record<string, number> ?? {},
+              recentHistory,
+              warDamageSummary,
             }} />
-            <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries }} />
+            <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
           </div>
         </div>
       </div>

@@ -9,6 +9,8 @@ interface GameContext {
   yesman: boolean
   countryNames: string[]
   stats: Record<string, number>
+  recentHistory: string
+  warDamageSummary: string
 }
 
 interface Message {
@@ -61,10 +63,17 @@ export default function DiplomacyPanel({ gameContext }: Props) {
       const yesmanNote = gameContext.yesman
         ? 'YESMAN MODE: The country is extremely cooperative and will agree to any reasonable proposal.'
         : ''
+      const historyBlock = gameContext.recentHistory
+        ? `\nRecent events in this timeline that both sides are aware of:\n${gameContext.recentHistory}`
+        : ''
+      const damageBlock = gameContext.warDamageSummary
+        ? `\nOngoing war damage: ${gameContext.warDamageSummary}`
+        : ''
       const system = `You are the government of ${targetCountry} in ${gameContext.era} (${gameContext.currentDate}).
 You are in diplomatic talks with ${gameContext.playerCountry}.
 Respond as a realistic statesperson — protect your national interests, be cautious but not hostile by default.
-Keep responses concise (2-3 sentences). Reference real geopolitical context for the era.
+React appropriately to recent events: if ${gameContext.playerCountry} has recently attacked, sanctioned, or provoked you, be guarded or hostile; if they've offered aid or cooperation, be warmer.
+Keep responses concise (2-3 sentences). Reference real geopolitical context for the era.${historyBlock}${damageBlock}
 ${yesmanNote}
 Return ONLY the spoken diplomatic response. No labels, no narration.`
 

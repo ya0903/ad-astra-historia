@@ -8,6 +8,8 @@ interface GameContext {
   era: string
   stats: Record<string, number>
   topCountries: Array<{ name: string; gdp: number }>
+  recentHistory: string
+  warDamageSummary: string
 }
 
 interface ChatMessage {
@@ -54,14 +56,16 @@ export default function AdvisorPanel({ gameContext }: Props) {
     setLoading(true)
 
     try {
-      const { playerCountry, currentDate, era, stats, topCountries } = gameContext
+      const { playerCountry, currentDate, era, stats, topCountries, recentHistory, warDamageSummary } = gameContext
       const statsStr = Object.entries(stats)
         .map(([k, v]) => `${k}: ${typeof v === 'number' && v > 1e8 ? `$${(v / 1e9).toFixed(1)}B` : v}`)
         .join(', ')
       const topStr = topCountries.slice(0, 10)
         .map((c, i) => `${i + 1}. ${c.name} ($${(c.gdp / 1e9).toFixed(0)}B)`)
         .join('\n')
-      const system = `You are a geopolitical intelligence advisor in a strategy game set in the ${era} era (${currentDate}). The player leads ${playerCountry}. Stats: ${statsStr}.\n\nTop world economies:\n${topStr}\n\nAnswer concisely in under 200 words, in-character as a knowledgeable advisor.`
+      const historyBlock = recentHistory ? `\nRecent events in this timeline:\n${recentHistory}` : ''
+      const damageBlock = warDamageSummary ? `\nWar damage on map: ${warDamageSummary}` : ''
+      const system = `You are a geopolitical intelligence advisor in a strategy game set in the ${era} era (${currentDate}). The player leads ${playerCountry}. Stats: ${statsStr}.\n\nTop world economies:\n${topStr}${historyBlock}${damageBlock}\n\nBase your advice on what has already happened in this timeline. Answer concisely in under 200 words, in-character as a knowledgeable advisor.`
 
       const reply = await callAI(config, system, [
         ...messages.slice(-6) as ChatMessage[],
