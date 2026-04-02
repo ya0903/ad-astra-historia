@@ -328,54 +328,57 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     // Add any build projects from AI results
     const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
     const newBuilds: BuildProject[] = []
-    for (const r of results) {
-      if (r.buildProject) {
-        const weeks = BUILD_WEEKS[r.buildProject.type] ?? 52
-        const targetIso = r.focusIso ?? pid
-        const bp = r.buildProject
 
-        if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
-          // Rail line — resolve waypoints for all stops
-          const citiesList: string[] = bp.cities?.length
-            ? bp.cities
-            : [bp.fromCity!, bp.toCity!].filter(Boolean)
-          const fallback = getCountryCentre(targetIso) ?? getCountryCentre(pid) ?? [0, 0] as [number, number]
-          const waypoints = citiesList
-            .map(c => getCityCentre(c, targetIso) ?? fallback)
-            .map(c => [c[0], c[1]] as [number, number])
-          const fromCoords = waypoints[0] ?? (fallback as [number, number])
-          const toCoords = waypoints[waypoints.length - 1] ?? (fallback as [number, number])
-          newBuilds.push({
-            id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            type: bp.type,
-            name: bp.name,
-            weeksRemaining: weeks,
-            totalWeeks: weeks,
-            startDate: s.currentDate,
-            countryId: targetIso,
-            fromCity: citiesList[0],
-            toCity: citiesList[citiesList.length - 1],
-            fromCoords,
-            toCoords,
-            cities: citiesList,
-            waypoints,
-          })
-        } else {
-          // Point infrastructure — prefer explicit city field, then parse from name
-          const cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
-          const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
-          newBuilds.push({
-            id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            type: bp.type,
-            name: bp.name,
-            weeksRemaining: weeks,
-            totalWeeks: weeks,
-            startDate: s.currentDate,
-            countryId: targetIso,
-            lat: centre ? centre[1] : undefined,
-            lng: centre ? centre[0] : undefined,
-          })
-        }
+    function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }, targetIso: string) {
+      const weeks = BUILD_WEEKS[bp.type] ?? 52
+      if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
+        const citiesList: string[] = bp.cities?.length
+          ? bp.cities
+          : [bp.fromCity!, bp.toCity!].filter(Boolean)
+        const fallback = getCountryCentre(targetIso) ?? getCountryCentre(pid) ?? [0, 0] as [number, number]
+        const waypoints = citiesList
+          .map(c => getCityCentre(c, targetIso) ?? fallback)
+          .map(c => [c[0], c[1]] as [number, number])
+        const fromCoords = waypoints[0] ?? (fallback as [number, number])
+        const toCoords = waypoints[waypoints.length - 1] ?? (fallback as [number, number])
+        newBuilds.push({
+          id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          type: bp.type,
+          name: bp.name,
+          weeksRemaining: weeks,
+          totalWeeks: weeks,
+          startDate: s.currentDate,
+          countryId: targetIso,
+          fromCity: citiesList[0],
+          toCity: citiesList[citiesList.length - 1],
+          fromCoords,
+          toCoords,
+          cities: citiesList,
+          waypoints,
+        })
+      } else {
+        const cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
+        const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
+        newBuilds.push({
+          id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          type: bp.type,
+          name: bp.name,
+          weeksRemaining: weeks,
+          totalWeeks: weeks,
+          startDate: s.currentDate,
+          countryId: targetIso,
+          lat: centre ? centre[1] : undefined,
+          lng: centre ? centre[0] : undefined,
+        })
+      }
+    }
+
+    for (const r of results) {
+      const targetIso = r.focusIso ?? pid
+      // Support both buildProjects[] (new, multiple per action) and buildProject (legacy single)
+      const bpList = r.buildProjects?.length ? r.buildProjects : r.buildProject ? [r.buildProject] : []
+      for (const bp of bpList) {
+        pushBuildProject(bp, targetIso)
       }
     }
 

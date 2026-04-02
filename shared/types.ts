@@ -245,7 +245,8 @@ export interface ActionResult {
   empireName?: string          // if conquest/expansion occurred, suggest a new empire name
   annexedCountry?: string      // ISO_A3 of any annexed country
   focusIso?: string            // ISO_A3 to fly map camera to
-  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] } // triggers a build queue entry
+  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }  // single build (legacy)
+  buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }> // multiple builds from one action
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
 }
