@@ -45,6 +45,33 @@ function formatStat(n: number): string {
   return String(Math.round(n))
 }
 
+const MILITARY_KEYWORDS = /\b(military|army|navy|air force|weapon|defence|defense|war|combat|troops|soldier|missile|bomb|nuke|nuclear|attack|invad|conscript|peacekeep|base|artillery|tank|fighter|jet|submarine|carrier|armed forces|security forces)\b/i
+const DIPLOMACY_KEYWORDS = /\b(diplomac|treaty|alliance|summit|embassy|aid|sanction|trade agreement|mediat|UN |peace talk|foreign minister|soft power)\b/i
+const TECH_KEYWORDS = /\b(research|R&D|technolog|semiconductor|AI |artificial intelligence|satellite|space|university|data centre|photolithograph|quantum|nuclear energy)\b/i
+
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
+
+function sanitiseDeltas(result: ActionResult, pending: { id: string; text: string }[]): ActionResult {
+  const action = pending.find(p => p.id === result.actionId)
+  const text = action?.text ?? ''
+  const d = result.statDeltas ?? {}
+
+  const isMilitary = MILITARY_KEYWORDS.test(text)
+  const isDiplomacy = DIPLOMACY_KEYWORDS.test(text)
+  const isTech = TECH_KEYWORDS.test(text)
+
+  return {
+    ...result,
+    statDeltas: {
+      gdp: d.gdp != null ? clamp(d.gdp, -30e9, 30e9) : 0,
+      military: isMilitary ? clamp(d.military ?? 0, -5, 5) : 0,
+      approval: clamp(d.approval ?? 0, -5, 5),
+      softPower: isDiplomacy ? clamp(d.softPower ?? 0, -3, 3) : 0,
+      techLevel: isTech ? clamp(d.techLevel ?? 0, -2, 2) : 0,
+    },
+  }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 // ── Grouped infra legend ─────────────────────────────────────────────────────
@@ -160,7 +187,16 @@ CRITICAL RULE: Always use specific real-world names. Never use generic labels.
 - Institutions: give them a real name (e.g. "Islamabad Institute of Technology" not "university", "Port Qasim Authority" not "port authority")
 - Infrastructure: use the actual city/location (e.g. "Gwadar deep-water port" not "port", "Lahore–Karachi motorway" not "highway")
 - Companies: use plausible real names (e.g. "Pakistan Steel Mills" not "steel company")
-Use your knowledge of ${playerCountry}'s actual geography, cities, resources, and institutions.`
+Use your knowledge of ${playerCountry}'s actual geography, cities, resources, and institutions.
+
+STAT DELTA RULES — follow these precisely, do not invent stats unrelated to the action:
+- gdp: any action that meaningfully changes revenue, spending, or economic output. Range ±$500M–$50B depending on scale.
+- military: ONLY for actions that directly involve armed forces, defence spending, weapons, conflict, or security. Must be 0 for economic, diplomatic, infrastructure, environment, or culture actions.
+- approval: public satisfaction. Positive for welfare/growth/populist actions; negative for tax hikes, austerity, or conflict casualties.
+- softPower: ONLY for diplomacy, culture, international aid, hosting events. Must be 0 for purely domestic economic or military actions.
+- techLevel: ONLY for R&D, education, technology, or space actions. Must be 0 for all other categories.
+- Maximum magnitude per action: gdp ±$30B, military ±5, approval ±5, softPower ±3, techLevel ±2.
+- Be consistent: the same type of action should give similar deltas regardless of how many times it is called.`
 
       const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}
 
@@ -168,7 +204,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD>,"military":<-10..10>,"approval":<-10..10>,"softPower":<-5..5>,"techLevel":<-3..3>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
+{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
 
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
@@ -181,7 +217,9 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       const end = raw.lastIndexOf('}')
       if (start === -1 || end === -1) throw new Error('No JSON in AI response')
       const parsed = JSON.parse(raw.slice(start, end + 1)) as { results: ActionResult[] }
-      applyResults(parsed.results ?? [], period)
+      // Post-process: clamp deltas to prevent irrelevant stat changes
+      const clampedResults = (parsed.results ?? []).map(r => sanitiseDeltas(r, pendingActions))
+      applyResults(clampedResults, period)
       // Fly map to first result with a focusIso
       const focusTarget = parsed.results?.find(r => r.focusIso)?.focusIso
       if (focusTarget && mapInstance) {
