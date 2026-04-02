@@ -52,6 +52,22 @@ const TECH_KEYWORDS = /\b(research|R&D|technolog|semiconductor|AI |artificial in
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
 
+// ── JSON repair — fixes common LLM output issues ──────────────────────────────
+function repairJson(raw: string): string {
+  // Extract the outermost {...} block
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON object found in AI response')
+  let s = raw.slice(start, end + 1)
+  // Replace single-quoted strings with double-quoted
+  s = s.replace(/([{,\s])'/g, '$1"').replace(/'([:\s,}\]])/g, '"$1')
+  // Remove trailing commas before } or ]
+  s = s.replace(/,(\s*[}\]])/g, '$1')
+  // Replace Python-style None/True/False
+  s = s.replace(/\bNone\b/g, 'null').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false')
+  return s
+}
+
 function sanitiseDeltas(result: ActionResult, pending: { id: string; text: string }[]): ActionResult {
   const action = pending.find(p => p.id === result.actionId)
   const text = action?.text ?? ''
@@ -230,11 +246,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 2-3 countryReactions from realistic neighbours/rivals.`
 
       const raw = await callAI(config, system, [{ role: 'user', content: prompt }])
-      // Extract just the JSON object — ignore any text before/after it
-      const start = raw.indexOf('{')
-      const end = raw.lastIndexOf('}')
-      if (start === -1 || end === -1) throw new Error('No JSON in AI response')
-      const parsed = JSON.parse(raw.slice(start, end + 1)) as { results: ActionResult[] }
+      const parsed = JSON.parse(repairJson(raw)) as { results: ActionResult[] }
       // Post-process: clamp deltas to prevent irrelevant stat changes
       const clampedResults = (parsed.results ?? []).map(r => sanitiseDeltas(r, pendingActions))
       applyResults(clampedResults, period)
@@ -688,8 +700,8 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           </div>
         )}
 
-        {/* ── Bottom-left floating buttons ── */}
-        <div className="absolute bottom-20 left-4 z-10 flex flex-col items-start gap-2">
+        {/* ── Bottom-right floating buttons ── */}
+        <div className="absolute bottom-20 right-4 z-10 flex flex-col items-end gap-2">
           <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
           <DiplomacyPanel gameContext={{
             playerCountry: player?.name ?? gameState.playerCountryId,
@@ -702,8 +714,8 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
             warDamageSummary,
           }} />
           <button onClick={() => setCheatOpen(o => !o)}
-            className={`w-10 h-10 rounded-full border shadow-xl backdrop-blur-md flex items-center justify-center text-xs font-mono transition-all ${
-              cheatOpen ? 'bg-green-900/70 border-green-700/60 text-green-300' : 'bg-[#080f1e]/80 border-white/10 text-gray-500 hover:text-green-400 hover:border-green-800/50'
+            className={`w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-xs font-mono transition-all ${
+              cheatOpen ? 'bg-green-800 border-green-600 text-green-200' : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-green-400 hover:border-green-700'
             }`} title="Cheat console">~</button>
         </div>
 

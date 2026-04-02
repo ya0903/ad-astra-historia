@@ -84,13 +84,13 @@ export default function AdvisorPanel({ gameContext }: Props) {
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="w-10 h-10 rounded-full bg-[#080f1e]/85 border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-center hover:bg-purple-900/50 hover:border-purple-700/50 transition-all"
+          className="w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center hover:bg-purple-900 hover:border-purple-600 transition-all"
           title="Intelligence Advisor"
         >
           <span className="text-lg">🎖️</span>
         </button>
       ) : (
-        <div className="w-80 flex flex-col rounded-2xl bg-[#080f1e]/97 border border-white/10 backdrop-blur-md shadow-2xl" style={{ height: '420px' }}>
+        <div className="w-80 flex flex-col rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl" style={{ height: '420px' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
             <div className="flex items-center gap-2">

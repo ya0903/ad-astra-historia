@@ -98,7 +98,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-10 h-10 rounded-full bg-[#080f1e]/85 border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-center text-lg hover:bg-blue-900/50 hover:border-blue-700/50 transition-all"
+        className="w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
         title="Diplomatic Chats"
       >
         🤝
@@ -107,7 +107,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   }
 
   return (
-    <div className="w-80 bg-[#080f1e]/97 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col"
+    <div className="w-80 bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
       style={{ maxHeight: '420px' }}
     >
       {/* Header */}
