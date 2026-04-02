@@ -1,23 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { AIProvider, AIConfig, Era, Difficulty, EraStartConditions } from '@ad-astra/shared/types'
 import { useConfigStore, useGameStore } from '../stores'
-import { fetchEraConditions, listSaves, loadSave } from '../lib/api'
+import { fetchEraConditions, listSaves, loadSave, deleteSave, renameSave } from '../lib/api'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const MODEL_HINTS: Record<AIProvider, string> = {
   openai: 'gpt-4o',
-  anthropic: 'claude-opus-4-6',
+  anthropic: 'claude-sonnet-4-6',
   google: 'gemini-2.0-flash',
-  custom: '',
+  custom: 'qwen2.5:14b',
 }
 
-const ERAS: { label: string; value: Era }[] = [
-  { label: '1945', value: '1945' },
-  { label: '1960s', value: '1960s' },
-  { label: '1990s', value: '1990s' },
-  { label: '2010s', value: '2010s' },
-  { label: 'Modern', value: 'modern' },
+const ERAS: { label: string; value: Era; desc: string }[] = [
+  { label: '1945', value: '1945', desc: 'Post-WWII world order' },
+  { label: '1960s', value: '1960s', desc: 'Cold War tensions' },
+  { label: '1990s', value: '1990s', desc: 'Post-Soviet realignment' },
+  { label: '2010s', value: '2010s', desc: 'Multipolar world' },
+  { label: 'Modern', value: 'modern', desc: 'Present day' },
 ]
 
 const DIFFICULTIES: { label: string; value: Difficulty; description: string }[] = [
@@ -26,13 +26,17 @@ const DIFFICULTIES: { label: string; value: Difficulty; description: string }[] 
   { label: 'Aggressive', value: 'aggressive', description: 'AI plays hard' },
 ]
 
-// ── sub-components ────────────────────────────────────────────────────────────
+function configLabel(c: AIConfig) {
+  let name = c.provider
+  if (c.provider === 'custom') {
+    try { name = c.baseUrl ? new URL(c.baseUrl).hostname : 'Custom' } catch { name = c.baseUrl || 'Custom' }
+  }
+  return `${name} · ${c.model}`
+}
 
 function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 ${className}`}
-    >
+    <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 ${className}`}>
       {children}
     </div>
   )
@@ -48,142 +52,217 @@ function ErrorMsg({ msg }: { msg: string }) {
 
 // ── main component ────────────────────────────────────────────────────────────
 
+type View = 'landing' | 'setup'
+
 export default function SetupPage() {
-  // ── config store ──
-  const savedConfig = useConfigStore((s) => s.config)
-  const setStoreConfig = useConfigStore((s) => s.setConfig)
+  const savedConfig = useConfigStore(s => s.config)
+  const configHistory = useConfigStore(s => s.configHistory)
+  const setStoreConfig = useConfigStore(s => s.setConfig)
+  const initGame = useGameStore(s => s.initGame)
+  const loadGameStore = useGameStore(s => s.loadGame)
 
-  // ── game store ──
-  const initGame = useGameStore((s) => s.initGame)
-  const loadGameStore = useGameStore((s) => s.loadGame)
+  const [view, setView] = useState<View>('landing')
 
-  // ── Step 1: AI config local state ──
-  const [provider, setProvider] = useState<AIProvider>(savedConfig?.provider ?? 'openai')
+  // ── model list (for custom provider) ──
+  const [availableModels, setAvailableModels] = useState<string[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+
+  // ── landing state ──
+  const [saves, setSaves] = useState<string[]>([])
+  const [savesLoading, setSavesLoading] = useState(false)
+  const [landingError, setLandingError] = useState('')
+  const [renamingName, setRenamingName] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
+
+  // ── config state ──
+  const [provider, setProvider] = useState<AIProvider>(savedConfig?.provider ?? 'custom')
   const [apiKey, setApiKey] = useState(savedConfig?.apiKey ?? '')
   const [baseUrl, setBaseUrl] = useState(savedConfig?.baseUrl ?? '')
-  const [model, setModel] = useState(savedConfig?.model ?? MODEL_HINTS['openai'])
+  const [model, setModel] = useState(savedConfig?.model ?? MODEL_HINTS['custom'])
   const [configSaved, setConfigSaved] = useState(savedConfig !== null)
   const [configError, setConfigError] = useState('')
 
-  // ── Step 2: era selection ──
+  // ── era / country / difficulty state ──
   const [selectedEra, setSelectedEra] = useState<Era | null>(null)
   const [eraConditions, setEraConditions] = useState<EraStartConditions | null>(null)
   const [eraLoading, setEraLoading] = useState(false)
   const [eraError, setEraError] = useState('')
-
-  // ── Step 3: country + difficulty ──
   const [countrySearch, setCountrySearch] = useState('')
   const [selectedCountry, setSelectedCountry] = useState('')
   const [difficulty, setDifficulty] = useState<Difficulty>('realistic')
-
-  // ── Step 4: start / load ──
-  const [saves, setSaves] = useState<string[]>([])
-  const [savesLoading, setSavesLoading] = useState(false)
-  const [savesError, setSavesError] = useState('')
-  const [savesVisible, setSavesVisible] = useState(false)
   const [startError, setStartError] = useState('')
 
+  useEffect(() => {
+    // Load saves list for landing screen
+    setSavesLoading(true)
+    listSaves()
+      .then(r => setSaves(r.saves))
+      .catch(() => setSaves([]))
+      .finally(() => setSavesLoading(false))
+  }, [])
+
   // ── handlers ─────────────────────────────────────────────────────────────
+
+  function applyConfig(cfg: AIConfig) {
+    setProvider(cfg.provider)
+    setApiKey(cfg.apiKey)
+    setBaseUrl(cfg.baseUrl ?? '')
+    setModel(cfg.model)
+    setConfigSaved(true)
+    setConfigError('')
+  }
 
   function handleProviderChange(p: AIProvider) {
     setProvider(p)
     setModel(MODEL_HINTS[p])
     setConfigSaved(false)
+    setAvailableModels([])
+  }
+
+  async function fetchModels() {
+    if (!baseUrl.trim()) return
+    setModelsLoading(true)
+    try {
+      const base = baseUrl.trim().replace(/\/$/, '')
+      const headers: Record<string, string> = {}
+      if (apiKey.trim()) headers['authorization'] = `Bearer ${apiKey.trim()}`
+      const res = await fetch(`${base}/models`, { headers })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const data = await res.json() as { data?: Array<{ id: string }>; models?: Array<{ id?: string; name?: string }> }
+      const models: string[] = []
+      if (data.data) data.data.forEach(m => models.push(m.id))
+      else if (data.models) data.models.forEach(m => { if (m.id) models.push(m.id) })
+      setAvailableModels(models)
+      if (models.length > 0 && !models.includes(model)) setModel(models[0])
+    } catch {
+      setAvailableModels([])
+    } finally {
+      setModelsLoading(false)
+    }
   }
 
   function handleSaveConfig() {
     setConfigError('')
-    if (!model.trim()) {
-      setConfigError('Model name is required.')
-      return
-    }
-    if (provider !== 'custom' && !apiKey.trim()) {
-      setConfigError('API key is required for this provider.')
-      return
-    }
+    if (!model.trim()) { setConfigError('Model name is required.'); return }
+    if (provider !== 'custom' && !apiKey.trim()) { setConfigError('API key is required.'); return }
     const cfg: AIConfig = {
-      provider,
-      apiKey: apiKey.trim(),
-      model: model.trim(),
-      ...(provider === 'custom' && baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+      provider, apiKey: apiKey.trim(), model: model.trim(),
+      ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
     }
     setStoreConfig(cfg)
     setConfigSaved(true)
   }
 
   async function handleEraSelect(era: Era) {
-    setSelectedEra(era)
-    setEraConditions(null)
-    setEraError('')
-    setSelectedCountry('')
-    setCountrySearch('')
-    setEraLoading(true)
-    try {
-      const conditions = await fetchEraConditions(era)
-      setEraConditions(conditions)
-    } catch (err) {
-      setEraError(err instanceof Error ? err.message : 'Failed to load era conditions.')
-    } finally {
-      setEraLoading(false)
-    }
+    setSelectedEra(era); setEraConditions(null); setEraError('')
+    setSelectedCountry(''); setCountrySearch(''); setEraLoading(true)
+    try { setEraConditions(await fetchEraConditions(era)) }
+    catch (err) { setEraError(err instanceof Error ? err.message : 'Failed to load era') }
+    finally { setEraLoading(false) }
   }
 
   function handleStartGame() {
-    setStartError('')
-    if (!eraConditions) {
-      setStartError('Please select an era first.')
-      return
-    }
-    if (!selectedCountry) {
-      setStartError('Please select a country.')
-      return
-    }
+    if (!eraConditions) { setStartError('Select an era first.'); return }
+    if (!selectedCountry) { setStartError('Select a country.'); return }
     initGame(eraConditions, selectedCountry, difficulty)
   }
 
-  async function handleShowSaves() {
-    setSavesError('')
-    setSavesLoading(true)
-    setSavesVisible(true)
-    try {
-      const result = await listSaves()
-      setSaves(result.saves)
-    } catch (err) {
-      setSavesError(err instanceof Error ? err.message : 'Failed to list saves.')
-    } finally {
-      setSavesLoading(false)
-    }
-  }
-
   async function handleLoadSave(name: string) {
-    setSavesError('')
-    try {
-      const saved = await loadSave(name)
-      loadGameStore(saved)
-    } catch (err) {
-      setSavesError(err instanceof Error ? err.message : 'Failed to load save.')
-    }
+    setLandingError('')
+    try { loadGameStore(await loadSave(name)) }
+    catch (err) { setLandingError(err instanceof Error ? err.message : 'Failed to load save') }
   }
 
-  // ── derived ──────────────────────────────────────────────────────────────
+  async function handleDeleteSave(name: string) {
+    setLandingError('')
+    try {
+      await deleteSave(name)
+      setSaves(s => s.filter(n => n !== name))
+    } catch (err) { setLandingError(err instanceof Error ? err.message : 'Failed to delete') }
+  }
+
+  async function handleRenameSave(oldName: string) {
+    const newName = renameText.trim()
+    if (!newName || newName === oldName) { setRenamingName(null); return }
+    setLandingError('')
+    try {
+      await renameSave(oldName, newName)
+      setSaves(s => s.map(n => n === oldName ? newName : n))
+      setRenamingName(null)
+    } catch (err) { setLandingError(err instanceof Error ? err.message : 'Failed to rename') }
+  }
 
   const sortedCountries = eraConditions
     ? Object.values(eraConditions.countries)
-        .filter((c) =>
-          countrySearch.trim() === '' ||
-          c.name.toLowerCase().includes(countrySearch.toLowerCase())
-        )
+        .filter(c => !countrySearch.trim() || c.name.toLowerCase().includes(countrySearch.toLowerCase()))
         .sort((a, b) => a.name.localeCompare(b.name))
     : []
 
-  // ── render ───────────────────────────────────────────────────────────────
+  // ── LANDING VIEW ─────────────────────────────────────────────────────────
+
+  if (view === 'landing') {
+    return (
+      <div className="min-h-screen bg-[#0a1628] text-white flex flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-lg space-y-6">
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold tracking-widest text-white mb-2">AD ASTRA</h1>
+            <p className="text-blue-400 tracking-[0.4em] text-sm uppercase">Historia</p>
+          </div>
+
+          {/* Saves */}
+          <Panel>
+            <SectionTitle>Continue</SectionTitle>
+            {savesLoading && <p className="text-blue-400 text-sm animate-pulse">Loading saves…</p>}
+            {landingError && <ErrorMsg msg={landingError} />}
+            {!savesLoading && saves.length === 0 && (
+              <p className="text-gray-500 text-sm">No saved games found.</p>
+            )}
+            <div className="space-y-1.5">
+              {saves.map(name => (
+                <div key={name} className="rounded-lg bg-white/5 border border-white/10 overflow-hidden">
+                  {renamingName === name ? (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <input autoFocus value={renameText} onChange={e => setRenameText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(name); if (e.key === 'Escape') setRenamingName(null) }}
+                        className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500" />
+                      <button onClick={() => handleRenameSave(name)} className="text-xs text-green-400 hover:text-green-300 px-1">Save</button>
+                      <button onClick={() => setRenamingName(null)} className="text-xs text-gray-500 hover:text-gray-300 px-1">Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <button onClick={() => handleLoadSave(name)}
+                        className="flex-1 text-left px-4 py-3 hover:bg-blue-800/40 transition-colors flex items-center justify-between group">
+                        <p className="text-sm font-medium text-white">{name}</p>
+                        <span className="text-xs text-gray-500 group-hover:text-blue-300 transition-colors">Load →</span>
+                      </button>
+                      <button onClick={() => { setRenamingName(name); setRenameText(name) }}
+                        className="px-3 py-3 text-xs text-gray-500 hover:text-blue-300 transition-colors border-l border-white/10" title="Rename">✎</button>
+                      <button onClick={() => handleDeleteSave(name)}
+                        className="px-3 py-3 text-xs text-gray-500 hover:text-red-400 transition-colors border-l border-white/10" title="Delete">✕</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <button onClick={() => setView('setup')}
+            className="w-full py-3 rounded-xl bg-blue-700 hover:bg-blue-600 text-white font-semibold text-lg tracking-wide transition-colors">
+            New Game
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── SETUP VIEW ────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#0a1628] text-white py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* Title */}
         <div className="text-center mb-8">
+          <button onClick={() => setView('landing')} className="text-gray-500 hover:text-gray-300 text-sm mb-4 block mx-auto transition-colors">← Back</button>
           <h1 className="text-4xl font-bold tracking-widest text-white mb-1">AD ASTRA: HISTORIA</h1>
           <p className="text-blue-400 text-sm tracking-wide">New Game Setup</p>
         </div>
@@ -192,21 +271,29 @@ export default function SetupPage() {
         <Panel>
           <SectionTitle>Step 1 — AI Configuration</SectionTitle>
 
+          {/* Saved config history */}
+          {configHistory.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-2">Previous Configs</label>
+              <div className="flex flex-wrap gap-2">
+                {configHistory.map((c, i) => (
+                  <button key={i} onClick={() => applyConfig(c)}
+                    className="px-3 py-1 rounded-lg text-xs bg-white/5 border border-white/10 text-gray-300 hover:bg-blue-800/40 hover:text-white transition-colors">
+                    {configLabel(c)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Provider */}
           <div className="mb-4">
             <label className="block text-sm text-gray-400 mb-2">Provider</label>
             <div className="flex flex-wrap gap-2">
-              {(['openai', 'anthropic', 'google', 'custom'] as AIProvider[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handleProviderChange(p)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                    provider === p
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                  }`}
-                >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+              {(['openai', 'anthropic', 'google', 'custom'] as AIProvider[]).map(p => (
+                <button key={p} onClick={() => handleProviderChange(p)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${provider === p ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
+                  {p === 'openai' ? 'OpenAI' : p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
             </div>
@@ -214,56 +301,65 @@ export default function SetupPage() {
 
           {/* API Key */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-1">
-              API Key{provider === 'custom' ? ' (optional)' : ' *'}
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => { setApiKey(e.target.value); setConfigSaved(false) }}
+            <label className="block text-sm text-gray-400 mb-1">API Key{provider === 'custom' ? ' (optional)' : ' *'}</label>
+            <input type="password" value={apiKey}
+              onChange={e => { setApiKey(e.target.value); setConfigSaved(false) }}
               placeholder={provider === 'custom' ? 'Optional' : 'sk-...'}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500"
-            />
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500" />
           </div>
 
-          {/* Base URL (custom only) */}
+          {/* Base URL (custom) */}
           {provider === 'custom' && (
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-1">Base URL</label>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(e) => { setBaseUrl(e.target.value); setConfigSaved(false) }}
-                placeholder="http://localhost:11434/v1"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500"
-              />
+              <input type="text" value={baseUrl}
+                onChange={e => { setBaseUrl(e.target.value); setConfigSaved(false) }}
+                placeholder="https://host:port/api"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500" />
+              <p className="text-xs text-gray-500 mt-1">
+                Open WebUI: <span className="font-mono text-gray-400">https://host:port/api</span> ·
+                Ollama: <span className="font-mono text-gray-400">http://host:11434/api</span> ·
+                LM Studio: <span className="font-mono text-gray-400">http://host:port/v1</span>
+              </p>
             </div>
           )}
 
           {/* Model */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-1">Model *</label>
-            <input
-              type="text"
-              value={model}
-              onChange={(e) => { setModel(e.target.value); setConfigSaved(false) }}
-              placeholder={MODEL_HINTS[provider] || 'model-name'}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm text-gray-400">Model *</label>
+              {provider === 'custom' && baseUrl.trim() && (
+                <button onClick={fetchModels} disabled={modelsLoading}
+                  className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors">
+                  {modelsLoading ? 'Loading…' : '⟳ Fetch models'}
+                </button>
+              )}
+            </div>
+            {availableModels.length > 0 ? (
+              <select value={model} onChange={e => { setModel(e.target.value); setConfigSaved(false) }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                {availableModels.map(m => (
+                  <option key={m} value={m} className="bg-[#0a1628]">{m}</option>
+                ))}
+              </select>
+            ) : (
+              <input type="text" value={model}
+                onChange={e => { setModel(e.target.value); setConfigSaved(false) }}
+                placeholder={MODEL_HINTS[provider] || 'model-name'}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500" />
+            )}
+            {provider === 'custom' && availableModels.length === 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                Enter Base URL above then click "Fetch models", or type manually. Recommended: <span className="text-gray-400">qwen2.5:14b</span> · <span className="text-gray-400">qwen2.5:7b</span> · <span className="text-gray-400">mistral-nemo</span>
+              </p>
+            )}
           </div>
 
           {configError && <ErrorMsg msg={configError} />}
 
           <div className="flex items-center gap-3 mt-2">
-            <button
-              onClick={handleSaveConfig}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"
-            >
-              Save Config
-            </button>
-            {configSaved && (
-              <span className="text-green-400 text-sm">Config saved ✓</span>
-            )}
+            <button onClick={handleSaveConfig} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">Save Config</button>
+            {configSaved && <span className="text-green-400 text-sm">Saved ✓</span>}
           </div>
         </Panel>
 
@@ -271,29 +367,17 @@ export default function SetupPage() {
         <Panel>
           <SectionTitle>Step 2 — Select Era</SectionTitle>
           <div className="flex flex-wrap gap-2">
-            {ERAS.map(({ label, value }) => (
-              <button
-                key={value}
-                onClick={() => handleEraSelect(value)}
-                className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  selectedEra === value
-                    ? 'bg-indigo-600 border-indigo-500 text-white'
-                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                }`}
-              >
+            {ERAS.map(({ label, value, desc }) => (
+              <button key={value} onClick={() => handleEraSelect(value)} title={desc}
+                className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors ${selectedEra === value ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
                 {label}
               </button>
             ))}
           </div>
-
-          {eraLoading && (
-            <p className="text-blue-400 text-sm mt-3 animate-pulse">Loading era conditions…</p>
-          )}
+          {eraLoading && <p className="text-blue-400 text-sm mt-3 animate-pulse">Loading era conditions…</p>}
           {eraError && <ErrorMsg msg={eraError} />}
           {eraConditions && !eraLoading && (
-            <p className="text-gray-500 text-xs mt-3">
-              {Object.keys(eraConditions.countries).length} countries loaded · starts {eraConditions.startDate}
-            </p>
+            <p className="text-gray-500 text-xs mt-3">{Object.keys(eraConditions.countries).length} countries · starts {eraConditions.startDate}</p>
           )}
         </Panel>
 
@@ -301,110 +385,46 @@ export default function SetupPage() {
         {eraConditions && (
           <Panel>
             <SectionTitle>Step 3 — Country &amp; Difficulty</SectionTitle>
-
-            {/* Country search */}
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-1">Country</label>
-              <input
-                type="text"
-                value={countrySearch}
-                onChange={(e) => setCountrySearch(e.target.value)}
+              <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)}
                 placeholder="Search countries…"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 mb-2"
-              />
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 mb-2" />
               <div className="max-h-48 overflow-y-auto rounded-lg border border-white/10 bg-black/20">
-                {sortedCountries.length === 0 ? (
-                  <p className="text-gray-500 text-sm px-3 py-2">No countries match.</p>
-                ) : (
-                  sortedCountries.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCountry(c.id)}
-                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                        selectedCountry === c.id
-                          ? 'bg-indigo-700 text-white'
-                          : 'text-gray-300 hover:bg-white/10'
-                      }`}
-                    >
+                {sortedCountries.length === 0
+                  ? <p className="text-gray-500 text-sm px-3 py-2">No countries match.</p>
+                  : sortedCountries.map(c => (
+                    <button key={c.id} onClick={() => setSelectedCountry(c.id)}
+                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedCountry === c.id ? 'bg-indigo-700 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
                       {c.name}
                     </button>
-                  ))
-                )}
+                  ))}
               </div>
             </div>
-
-            {/* Difficulty */}
             <div>
               <label className="block text-sm text-gray-400 mb-2">Difficulty</label>
               <div className="flex flex-wrap gap-2">
                 {DIFFICULTIES.map(({ label, value, description }) => (
-                  <button
-                    key={value}
-                    onClick={() => setDifficulty(value)}
-                    title={description}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      difficulty === value
-                        ? 'bg-amber-600 border-amber-500 text-white'
-                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                    }`}
-                  >
+                  <button key={value} onClick={() => setDifficulty(value)} title={description}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${difficulty === value ? 'bg-amber-600 border-amber-500 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
                     {label}
                   </button>
                 ))}
               </div>
-              <p className="text-gray-500 text-xs mt-1">
-                {DIFFICULTIES.find((d) => d.value === difficulty)?.description}
-              </p>
+              <p className="text-gray-500 text-xs mt-1">{DIFFICULTIES.find(d => d.value === difficulty)?.description}</p>
             </div>
           </Panel>
         )}
 
-        {/* ── Step 4: Start / Load ── */}
+        {/* ── Step 4: Start ── */}
         {eraConditions && (
           <Panel>
-            <SectionTitle>Step 4 — Start or Load</SectionTitle>
-
+            <SectionTitle>Step 4 — Start</SectionTitle>
             {startError && <ErrorMsg msg={startError} />}
-
-            <div className="flex flex-wrap gap-3 mb-6">
-              <button
-                onClick={handleStartGame}
-                disabled={!selectedCountry}
-                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold transition-colors"
-              >
-                Start New Game
-              </button>
-              <button
-                onClick={handleShowSaves}
-                className="px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-sm font-medium transition-colors"
-              >
-                Load Save…
-              </button>
-            </div>
-
-            {savesVisible && (
-              <div>
-                <h3 className="text-sm text-gray-400 mb-2">Saved Games</h3>
-                {savesLoading && (
-                  <p className="text-blue-400 text-sm animate-pulse">Loading saves…</p>
-                )}
-                {savesError && <ErrorMsg msg={savesError} />}
-                {!savesLoading && saves.length === 0 && !savesError && (
-                  <p className="text-gray-500 text-sm">No saves found.</p>
-                )}
-                <div className="space-y-1">
-                  {saves.map((name) => (
-                    <button
-                      key={name}
-                      onClick={() => handleLoadSave(name)}
-                      className="w-full text-left px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-gray-300 transition-colors"
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <button onClick={handleStartGame} disabled={!selectedCountry}
+              className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-base font-semibold transition-colors">
+              Start Game as {selectedCountry ? (eraConditions.countries[selectedCountry]?.name ?? selectedCountry) : '…'}
+            </button>
           </Panel>
         )}
 

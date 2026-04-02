@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { ERA_START_DATES, getCountryColour } from '@ad-astra/shared/countries'
 import type { Era, EraStartConditions, Country, CountryStats, CountrySectors, PassageStatus } from '@ad-astra/shared/types'
+import { ERA_DISPUTES, ERA_NON_STATE_ACTORS } from '@ad-astra/shared/eraConflicts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -197,8 +198,8 @@ gameRouter.get('/era/:era', (req, res) => {
     startDate: ERA_START_DATES[era],
     countries: buildCountriesFromGeoJSON(result.data),
     organisations: [],
-    disputes: [],
-    nonStateActors: [],
+    disputes: ERA_DISPUTES[era] ?? [],
+    nonStateActors: ERA_NON_STATE_ACTORS[era] ?? [],
     strategicPassages: buildStrategicPassages(),
   }
 

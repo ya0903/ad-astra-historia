@@ -13,7 +13,11 @@ import { useGameStore } from '../stores'
 //   set cultural <number>
 //   set date <YYYY-MM-DD>
 //   set sector <name> <number>   e.g. set sector defence 80
-//   god                          max all stats
+//   empire <name>            rename your empire
+//   god                      max all stats
+//   instabuild               complete all build queue instantly
+//   instaresearch            complete all research instantly
+//   yesman                   toggle yesman mode (countries auto-accept)
 
 const HELP = `Available commands:
   set gdp <value>          e.g. set gdp 5t  2b  500m
@@ -27,7 +31,11 @@ const HELP = `Available commands:
   set sector <name> <0-100>
     sectors: defence technology batteries microchips
              space pharmaceuticals agriculture finance
+  empire <name>            rename your empire
   god                      max out everything
+  instabuild               finish all builds instantly
+  instaresearch            complete all research instantly
+  yesman                   toggle auto-diplomacy accept
   clear                    clear console`
 
 function parseValue(raw: string): number | null {
@@ -47,6 +55,9 @@ const SECTOR_KEYS = ['defence', 'technology', 'batteries', 'microchips', 'space'
 export default function CheatMenu({ onClose }: { onClose: () => void }) {
   const gameState = useGameStore(s => s.state)
   const cheatPatch = useGameStore(s => s.cheatPatch)
+  const setEmpireName = useGameStore(s => s.setEmpireName)
+  const instaBuild = useGameStore(s => s.instaBuild)
+  const instaResearch = useGameStore(s => s.instaResearch)
   const [input, setInput] = useState('')
   const [lines, setLines] = useState<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }[]>([
     { text: 'Cheat Console — type "help" for commands', type: 'info' },
@@ -72,12 +83,42 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
     if (parts[0] === 'help') { push(HELP, 'info'); return }
     if (parts[0] === 'clear') { setLines([]); return }
 
+    // empire <name…>
+    if (parts[0] === 'empire') {
+      const name = cmd.slice('empire'.length).trim()
+      if (!name) { push('Usage: empire <name>  e.g. empire Caliphate of Pakistan', 'err'); return }
+      setEmpireName(name)
+      push(`Empire renamed to "${name}".`, 'ok')
+      return
+    }
+
+    if (parts[0] === 'instabuild') {
+      instaBuild()
+      push('All build projects completed instantly.', 'ok')
+      return
+    }
+
+    if (parts[0] === 'instaresearch') {
+      instaResearch()
+      push('All research projects completed instantly.', 'ok')
+      return
+    }
+
+    if (parts[0] === 'yesman') {
+      const next = !gameState.yesman
+      cheatPatch({ yesman: next })
+      push(`Yesman mode ${next ? 'ON — countries will auto-accept all proposals.' : 'OFF.'}`, 'ok')
+      return
+    }
+
     if (parts[0] === 'god') {
       cheatPatch({
         stats: { gdp: 50e12, military: 100, approval: 100, softPower: 100, techLevel: 100, researchPoints: 9999, culturalReach: 100 },
         sectors: { defence: 100, technology: 100, batteries: 100, microchips: 100, space: 100, pharmaceuticals: 100, agriculture: 100, finance: 100 },
       })
-      push('God mode activated. All stats maxed.', 'ok')
+      instaBuild()
+      instaResearch()
+      push('God mode activated. All stats maxed, builds and research completed.', 'ok')
       return
     }
 

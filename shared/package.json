@@ -8,7 +8,9 @@
     ".": "./dist/index.js",
     "./types": "./dist/types.js",
     "./countries": "./dist/countries.js",
-    "./infraColours": "./dist/infraColours.js"
+    "./infraColours": "./dist/infraColours.js",
+    "./eraConflicts": "./eraConflicts.ts",
+    "./techTree": "./techTree.ts"
   },
   "scripts": {
     "build": "tsc",

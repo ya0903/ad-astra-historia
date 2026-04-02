@@ -59,3 +59,10 @@ export async function deleteSave(filename: string): Promise<{ deleted: boolean }
   })
   return handleResponse<{ deleted: boolean }>(res)
 }
+
+// Rename save — load the old one, save under new name, delete old
+export async function renameSave(oldName: string, newName: string): Promise<void> {
+  const state = await loadSave(oldName)
+  await saveGame(newName, state)
+  await deleteSave(oldName)
+}

@@ -1,0 +1,102 @@
+import type { Dispute, NonStateActor, Era } from './types'
+
+// ── Pre-loaded historical conflicts per era ───────────────────────────────────
+// These seed the disputes and nonStateActors arrays when a new game starts.
+
+export const ERA_DISPUTES: Record<Era, Dispute[]> = {
+  '1945': [
+    { id: 'ko-45', name: 'Korean Occupation Zones', parties: ['USA', 'USSR', 'KOR', 'PRK'], status: 'active', history: ['Japan surrendered Korea — US/USSR split at 38th parallel (Sep 1945)'] },
+    { id: 'ic-45', name: 'First Indochina War', parties: ['FRA', 'VNM'], status: 'active', history: ['Ho Chi Minh declares independence; France seeks to reassert control (1945)'] },
+    { id: 'gr-45', name: 'Greek Civil War', parties: ['GRC'], status: 'active', history: ['Communist insurgency vs government backed by UK and US (1945–1949)'] },
+    { id: 'pal-45', name: 'Palestine Mandate Crisis', parties: ['GBR', 'ISR', 'PSE', 'JOR', 'EGY'], status: 'active', history: ['British mandate over Palestine; Jewish and Arab factions clash (1945–1948)'] },
+    { id: 'chi-45', name: 'Chinese Civil War', parties: ['CHN', 'TWN'], status: 'active', history: ['KMT vs Communist Party of China resumes after WWII (1945)'] },
+    { id: 'ind-45', name: 'Indonesian National Revolution', parties: ['IDN', 'NLD'], status: 'active', history: ['Indonesia declares independence; Netherlands attempts to retake (1945–1949)'] },
+    { id: 'ber-45', name: 'Berlin Occupation Zones', parties: ['USA', 'GBR', 'FRA', 'RUS'], status: 'negotiating', history: ['Berlin divided into four occupation sectors after Nazi surrender'] },
+    { id: 'irn-45', name: 'Iran Azerbaijan Crisis', parties: ['IRN', 'RUS'], status: 'active', history: ['Soviet forces remain in northern Iran; support for separatist movements (1945)'] },
+  ],
+
+  '1960s': [
+    { id: 'vn-60', name: 'Vietnam War', parties: ['VNM', 'USA', 'KHM', 'LAO', 'CHN', 'RUS'], status: 'active', history: ['US escalates involvement; Gulf of Tonkin incident 1964', 'NLF (Viet Cong) insurgency ongoing in South Vietnam'] },
+    { id: 'kash-60', name: 'Kashmir Dispute', parties: ['IND', 'PAK'], status: 'active', history: ['First Kashmir War 1947; Line of Control established', 'Indo-Pakistani War 1965 over Kashmir'] },
+    { id: 'cuba-60', name: 'Cuban Missile Crisis', parties: ['USA', 'RUS', 'CUB'], status: 'frozen', history: ['Soviet missiles discovered in Cuba Oct 1962; 13-day standoff', 'Resolved: Soviets remove missiles; US pledges not to invade Cuba'] },
+    { id: 'arab-60', name: 'Arab-Israeli Conflict', parties: ['ISR', 'EGY', 'JOR', 'SYR', 'IRQ'], status: 'active', history: ['Six-Day War June 1967 — Israel captures Sinai, Gaza, West Bank, Golan Heights'] },
+    { id: 'cong-60', name: 'Congo Crisis', parties: ['COD', 'BEL', 'USA', 'RUS'], status: 'active', history: ['Congo independence 1960; Katanga secession; UN intervention', 'Mobutu coup 1965'] },
+    { id: 'alg-60', name: 'Algerian Independence Aftermath', parties: ['DZA', 'FRA'], status: 'frozen', history: ['Algeria independence 1962 after brutal war', 'Mass exodus of pieds-noirs; ongoing diplomatic tensions'] },
+    { id: 'brl-60', name: 'Berlin Wall', parties: ['DEU', 'USA', 'RUS'], status: 'active', history: ['Wall constructed August 1961 dividing East and West Berlin'] },
+    { id: 'ys-60', name: 'Yemen Civil War', parties: ['YEM', 'EGY', 'SAU'], status: 'active', history: ['Republican coup 1962; Egypt supports republicans, Saudi Arabia backs royalists'] },
+    { id: 'sn-60', name: 'Sino-Soviet Split', parties: ['CHN', 'RUS'], status: 'active', history: ['Ideological break between China and USSR; border tensions mount'] },
+    { id: 'bio-60', name: 'Biafra War', parties: ['NGA'], status: 'active', history: ['Biafran secession from Nigeria 1967; devastating civil war'] },
+  ],
+
+  '1990s': [
+    { id: 'gw-90', name: 'Gulf War', parties: ['IRQ', 'KWT', 'USA', 'SAU', 'GBR', 'FRA'], status: 'resolved', history: ['Iraq invades Kuwait Aug 1990; US-led coalition liberates Kuwait Feb 1991'] },
+    { id: 'yug-90', name: 'Yugoslav Wars', parties: ['SRB', 'HRV', 'BIH', 'SVN', 'MKD', 'ALB'], status: 'active', history: ['Yugoslavia dissolves 1991; Slovenia, Croatia declare independence', 'Bosnian War 1992–1995; Srebrenica massacre 1995', 'Kosovo War 1998–1999'] },
+    { id: 'rwa-90', name: 'Rwandan Genocide', parties: ['RWA', 'COD'], status: 'resolved', history: ['Hutu extremists kill ~800,000 Tutsi and moderate Hutu in 100 days (1994)', 'RPF takes Kinali; millions flee to DRC'] },
+    { id: 'som-90', name: 'Somali Civil War', parties: ['SOM', 'USA'], status: 'active', history: ['Siad Barre ousted 1991; warlord chaos', 'Battle of Mogadishu 1993; US withdraws'] },
+    { id: 'che-90', name: 'First Chechen War', parties: ['RUS', 'CHE'], status: 'active', history: ['Chechnya declares independence 1991; Russia invades Dec 1994', 'Grozny siege; massive Russian casualties; ceasefire 1996'] },
+    { id: 'pal-90', name: 'Oslo Peace Process', parties: ['ISR', 'PSE'], status: 'negotiating', history: ['Oslo Accords 1993 — Arafat and Rabin shake hands', 'Palestinian Authority established in West Bank and Gaza'] },
+    { id: 'kash-90', name: 'Kashmir Insurgency', parties: ['IND', 'PAK'], status: 'active', history: ['Armed insurgency begins 1989; Pakistani support alleged', 'Kargil War 1999 — Pakistan-backed forces infiltrate Indian Kashmir'] },
+    { id: 'ang-90', name: 'Angolan Civil War', parties: ['AGO'], status: 'active', history: ['UNITA vs MPLA; UNITA rejects 1992 election results; war resumes', 'Diamonds fund UNITA; oil funds MPLA'] },
+    { id: 'afg-90', name: 'Afghan Civil War', parties: ['AFG', 'RUS', 'USA', 'PAK'], status: 'active', history: ['Soviet withdrawal 1989; Mujahideen factions fight for Kabul', 'Taliban emerges 1994; capture Kabul 1996'] },
+  ],
+
+  '2010s': [
+    { id: 'syr-10', name: 'Syrian Civil War', parties: ['SYR', 'RUS', 'USA', 'TUR', 'IRN', 'ISR', 'SAU', 'QAT'], status: 'active', history: ['Arab Spring protests 2011; Assad cracks down', 'ISIS emerges 2013; US-led coalition strikes 2014', 'Russian intervention 2015; Aleppo siege 2016'] },
+    { id: 'ukr-10', name: 'Donbas Conflict', parties: ['UKR', 'RUS'], status: 'active', history: ['Euromaidan revolution 2014; Russia annexes Crimea', 'Pro-Russian separatists seize Donetsk and Luhansk', 'MH17 shot down Jul 2014; Minsk agreements 2014-2015'] },
+    { id: 'yen-10', name: 'Yemeni Civil War', parties: ['YEM', 'SAU', 'UAE', 'IRN'], status: 'active', history: ['Houthi rebels seize Sanaa 2014; Saudi-led coalition intervenes 2015', 'Humanitarian catastrophe; blockade on Hodeidah port'] },
+    { id: 'lib-10', name: 'Libyan Civil War', parties: ['LBY', 'USA', 'GBR', 'FRA', 'RUS', 'TUR', 'UAE'], status: 'active', history: ['NATO intervention topples Gaddafi 2011; power vacuum', 'Two rival governments; LNA vs GNA; foreign proxy war'] },
+    { id: 'isis-10', name: 'War on ISIS / Islamic State', parties: ['IRQ', 'SYR', 'USA', 'RUS', 'TUR', 'IRN', 'KUR'], status: 'active', history: ['ISIS declares caliphate Jun 2014; controls Mosul, Raqqa', 'Coalition airstrikes; Kurdish Peshmerga and SDF on ground', 'Mosul retaken 2017; ISIS loses territory but remains active'] },
+    { id: 'kash-10', name: 'Kashmir Tensions', parties: ['IND', 'PAK'], status: 'active', history: ['Mumbai attacks 2008; India-Pakistan near war', 'Uri attack 2016; Indian surgical strikes', 'Pulwama attack 2019; air skirmish over Kashmir'] },
+    { id: 'scs-10', name: 'South China Sea Dispute', parties: ['CHN', 'PHL', 'VNM', 'MYS', 'BRN', 'USA'], status: 'active', history: ['China constructs artificial islands and militarises reefs', 'Permanent Court of Arbitration rules against China 2016; China rejects ruling'] },
+    { id: 'afg-10', name: 'Afghan War', parties: ['AFG', 'USA', 'GBR', 'PAK', 'IRN'], status: 'active', history: ['NATO combat mission ends 2014; Taliban resurgence', 'US-Taliban Doha Agreement 2020; troop withdrawal announced'] },
+  ],
+
+  'modern': [
+    { id: 'rus-ukr', name: 'Russia-Ukraine War', parties: ['RUS', 'UKR', 'USA', 'GBR', 'DEU', 'FRA', 'POL'], status: 'active', history: ['Russia full-scale invasion Feb 2022; Kyiv withstands early assault', 'NATO supplies weapons; Western sanctions on Russia', 'Frontline stabilises in Donbas and Zaporizhzhia; counteroffensives'] },
+    { id: 'gaz-mod', name: 'Gaza-Israel War', parties: ['ISR', 'PSE', 'LBN', 'IRN', 'USA', 'EGY', 'QAT'], status: 'active', history: ['Hamas attacks Israel Oct 7 2023; 1200 killed', 'Israel launches major Gaza offensive; Rafah ground operation', 'Hezbollah-Israel exchanges; Iran strikes Israel Apr 2024'] },
+    { id: 'sdn-mod', name: 'Sudanese Civil War', parties: ['SDN'], status: 'active', history: ['SAF vs RSF para-military conflict erupts Apr 2023', 'Khartoum devastated; humanitarian crisis; millions displaced'] },
+    { id: 'myn-mod', name: 'Myanmar Civil War', parties: ['MMR', 'CHN', 'USA'], status: 'active', history: ['Military coup Feb 2021; mass protests', 'PDF resistance forces vs Tatmadaw; ethnic armed groups advance', 'Brotherhood Alliance offensive 2023 captures major towns'] },
+    { id: 'eth-mod', name: 'Ethiopia Tigray Aftermath', parties: ['ETH', 'ERI'], status: 'negotiating', history: ['Tigray War 2020–2022; Pretoria peace deal Nov 2022', 'Amhara conflict 2023; Fano militias vs government'] },
+    { id: 'scs-mod', name: 'South China Sea Tensions', parties: ['CHN', 'PHL', 'USA', 'VNM'], status: 'active', history: ['Chinese coast guard vessels block Philippine resupply missions at Second Thomas Shoal', 'US-Philippines enhanced defence cooperation; joint patrols'] },
+    { id: 'twn-mod', name: 'Taiwan Strait Crisis', parties: ['CHN', 'TWN', 'USA', 'JPN'], status: 'active', history: ['China military exercises around Taiwan Aug 2022 following Pelosi visit', 'US arms sales to Taiwan; Japan increases defence spending'] },
+    { id: 'irn-mod', name: 'Iran Regional Conflict', parties: ['IRN', 'ISR', 'USA', 'SAU', 'YEM', 'IRQ', 'SYR', 'LBN'], status: 'active', history: ['Iran-Israel shadow war; direct Iran-Israel strikes Apr-Oct 2024', 'Houthi Red Sea attacks disrupt global shipping', 'Axis of Resistance — Hezbollah, Hamas, Islamic Jihad, Houthis'] },
+    { id: 'sah-mod', name: 'Sahel Instability', parties: ['MLI', 'NER', 'BFA', 'RUS', 'FRA', 'USA'], status: 'active', history: ['Coups in Mali 2021, Burkina Faso 2022, Niger 2023', 'France expelled; Wagner/Africa Corps deployed', 'Alliance of Sahel States formed; ECOWAS crisis'] },
+  ],
+}
+
+export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
+  '1945': [
+    { id: 'viet-minh', name: 'Viet Minh', type: 'insurgency', regions: ['VNM'], strength: 60, sponsors: ['CHN', 'RUS'] },
+    { id: 'irgun', name: 'Irgun', type: 'paramilitary', regions: ['PSE'], strength: 30, sponsors: ['ISR'] },
+  ],
+  '1960s': [
+    { id: 'viet-cong', name: 'Viet Cong / NLF', type: 'insurgency', regions: ['VNM'], strength: 70, sponsors: ['VNM', 'CHN', 'RUS'] },
+    { id: 'plo', name: 'Palestine Liberation Organization', type: 'paramilitary', regions: ['PSE', 'JOR', 'LBN'], strength: 45, sponsors: ['EGY', 'SYR'] },
+    { id: 'farc-proto', name: 'FARC (founded 1964)', type: 'insurgency', regions: ['COL'], strength: 20, sponsors: [] },
+  ],
+  '1990s': [
+    { id: 'taliban-90', name: 'Taliban', type: 'paramilitary', regions: ['AFG'], strength: 65, sponsors: ['PAK'] },
+    { id: 'al-qaeda-90', name: 'Al-Qaeda', type: 'terror', regions: ['AFG', 'SDN', 'YEM'], strength: 40, sponsors: [] },
+    { id: 'hamas-90', name: 'Hamas', type: 'paramilitary', regions: ['PSE'], strength: 35, sponsors: ['IRN', 'QAT'] },
+    { id: 'ira-90', name: 'IRA', type: 'paramilitary', regions: ['GBR', 'IRL'], strength: 25, sponsors: [] },
+    { id: 'ltte-90', name: 'Tamil Tigers (LTTE)', type: 'separatist', regions: ['LKA'], strength: 50, sponsors: [] },
+  ],
+  '2010s': [
+    { id: 'isis-10', name: 'Islamic State (ISIS/ISIL)', type: 'terror', regions: ['IRQ', 'SYR'], strength: 80, sponsors: [] },
+    { id: 'hamas-10', name: 'Hamas', type: 'paramilitary', regions: ['PSE'], strength: 55, sponsors: ['IRN', 'QAT'] },
+    { id: 'hezbollah-10', name: 'Hezbollah', type: 'paramilitary', regions: ['LBN', 'SYR'], strength: 70, sponsors: ['IRN'] },
+    { id: 'houthi-10', name: 'Houthi Movement (Ansarallah)', type: 'insurgency', regions: ['YEM'], strength: 60, sponsors: ['IRN'] },
+    { id: 'al-shabaab', name: 'Al-Shabaab', type: 'terror', regions: ['SOM', 'KEN', 'ETH'], strength: 45, sponsors: [] },
+    { id: 'boko-haram', name: 'Boko Haram / ISWAP', type: 'terror', regions: ['NGA', 'NER', 'TCD', 'CMR'], strength: 50, sponsors: [] },
+    { id: 'wagner-10', name: 'Wagner Group', type: 'paramilitary', regions: ['UKR', 'LBY', 'MLI', 'CAF'], strength: 65, sponsors: ['RUS'] },
+  ],
+  'modern': [
+    { id: 'hamas-mod', name: 'Hamas', type: 'paramilitary', regions: ['PSE'], strength: 55, sponsors: ['IRN', 'QAT'] },
+    { id: 'hezbollah-mod', name: 'Hezbollah', type: 'paramilitary', regions: ['LBN', 'SYR'], strength: 75, sponsors: ['IRN'] },
+    { id: 'houthi-mod', name: 'Houthi Movement', type: 'insurgency', regions: ['YEM'], strength: 65, sponsors: ['IRN'] },
+    { id: 'rsf-mod', name: 'Rapid Support Forces (RSF)', type: 'paramilitary', regions: ['SDN'], strength: 70, sponsors: ['UAE', 'RUS'] },
+    { id: 'wagner-mod', name: 'Africa Corps (ex-Wagner)', type: 'paramilitary', regions: ['MLI', 'NER', 'BFA', 'LBY', 'CAF'], strength: 60, sponsors: ['RUS'] },
+    { id: 'isis-mod', name: 'Islamic State (remnants)', type: 'terror', regions: ['IRQ', 'SYR', 'AFG', 'SAH'], strength: 35, sponsors: [] },
+    { id: 'pdf-mod', name: 'Myanmar PDF', type: 'insurgency', regions: ['MMR'], strength: 50, sponsors: ['USA'] },
+  ],
+}
