@@ -74,6 +74,10 @@ const RIVERS_URL =
 const BIOMES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_regions_polys.geojson'
 
+// 110m ocean polygons — used to mask hillshade over sea areas
+const OCEAN_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_ocean.geojson'
+
 try {
   // Countries
   let countriesData = null
@@ -132,12 +136,21 @@ try {
     await downloadFile(BIOMES_URL, biomesPath, 'biomes.geojson (10m geographic regions)')
   }
 
+  // Ocean polygons
+  const oceanPath = join(__dirname, 'ocean.geojson')
+  if (existsSync(oceanPath)) {
+    console.log(`ocean.geojson already exists (${featureCount(oceanPath)} features) — skipping.`)
+  } else {
+    await downloadFile(OCEAN_URL, oceanPath, 'ocean.geojson (110m ocean polygons)')
+  }
+
   console.log('\nAll files ready.')
   console.log('  Countries: modern.geojson + era copies (110m, for game data)')
   console.log('  Borders:   borders.geojson (50m, for map rendering)')
   console.log('  Cities:    cities.geojson (10m populated places)')
   console.log('  Rivers:    rivers.geojson (50m rivers)')
   console.log('  Biomes:    biomes.geojson (10m geographic regions)')
+  console.log('  Ocean:     ocean.geojson (110m ocean polygons)')
 } catch (err) {
   console.error('Error:', err.message)
   process.exit(1)

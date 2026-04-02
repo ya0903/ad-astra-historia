@@ -2,11 +2,46 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import { MapContext } from './MapContext'
 import { useMapStore } from '../../stores'
 
 interface Props {
   children?: ReactNode
+}
+
+// ── Biome colours ──────────────────────────────────────────────────────────────
+// FEATURECLA values from ne_10m_geography_regions_polys
+const BIOME_COLOURS: Record<string, string> = {
+  'Desert':                  'rgba(210,175,60,0.55)',
+  'Dune':                    'rgba(220,195,80,0.45)',
+  'Arid':                    'rgba(210,175,60,0.45)',
+  'Tundra':                  'rgba(180,210,240,0.40)',
+  'Ice Shelf/Tundra':        'rgba(200,230,255,0.45)',
+  'Glaciated Areas':         'rgba(220,240,255,0.50)',
+  'Forest':                  'rgba(30,110,50,0.55)',
+  'Rain Forest':             'rgba(20,130,60,0.60)',
+  'Tropical Rainforest':     'rgba(20,130,60,0.60)',
+  'Coniferous Forest':       'rgba(40,100,55,0.52)',
+  'Deciduous Forest':        'rgba(60,130,50,0.52)',
+  'Grassland':               'rgba(120,165,55,0.42)',
+  'Steppe':                  'rgba(150,175,70,0.38)',
+  'Savanna':                 'rgba(170,170,60,0.42)',
+  'Prairie':                 'rgba(130,170,55,0.40)',
+  'Wetlands':                'rgba(30,140,130,0.52)',
+  'Marsh':                   'rgba(40,150,120,0.52)',
+  'Swamp':                   'rgba(30,130,110,0.50)',
+  'Alpine':                  'rgba(160,180,200,0.45)',
+  'Highland':                'rgba(150,160,180,0.42)',
+  'Mediterranean Shrubland': 'rgba(170,140,70,0.40)',
+  'Shrubland':               'rgba(160,135,65,0.38)',
+  'Plains':                  'rgba(140,170,80,0.36)',
+  'Agricultural':            'rgba(150,180,70,0.38)',
+}
+
+function buildBiomeColour(): ExpressionSpecification {
+  const pairs = Object.entries(BIOME_COLOURS).flatMap(([k, v]) => [k, v])
+  return ['match', ['get', 'FEATURECLA'], ...pairs, 'rgba(0,0,0,0)'] as unknown as ExpressionSpecification
 }
 
 export default function WorldMap({ children }: Props) {
@@ -22,15 +57,10 @@ export default function WorldMap({ children }: Props) {
       container: mapContainer.current,
       style: {
         version: 8,
-        // Hosted glyph font needed for any text/symbol layers
         glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
         sources: {},
         layers: [
-          {
-            id: 'background',
-            type: 'background',
-            paint: { 'background-color': '#0a1628' },
-          },
+          { id: 'background', type: 'background', paint: { 'background-color': '#0a1628' } },
         ],
       },
       center: [20, 20],
@@ -41,10 +71,9 @@ export default function WorldMap({ children }: Props) {
     })
 
     mapRef.current = map
+
     map.on('load', () => {
-      // Add DEM source + hillshade layer before any country/infra layers.
-      // maxzoom:8 caps tile resolution; tileSize:512 halves the tile count.
-      // minzoom:3 on the layer means no terrain renders at world-zoom.
+      // ── 1. Hillshade (sync — always first) ──────────────────────────────────
       map.addSource('terrain-dem', {
         type: 'raster-dem',
         tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -58,16 +87,54 @@ export default function WorldMap({ children }: Props) {
         source: 'terrain-dem',
         minzoom: 3,
         paint: {
-          // Shadow/highlight close to the background so flat ocean is invisible.
-          // Only real elevation changes (mountains) produce visible contrast.
           'hillshade-shadow-color': '#060c1a',
           'hillshade-highlight-color': '#1a2e4a',
           'hillshade-accent-color': '#0a1628',
           'hillshade-exaggeration': 0.55,
         },
       })
-      setMapInstance(map)
-      setMapStore(map)
+
+      // ── 2. Fetch ocean + biomes in parallel before giving child components
+      //       access to the map — this guarantees:
+      //       background → hillshade → ocean-fill → biomes-fill
+      //                                          → [country-fills added by CountryLayer]
+      Promise.allSettled([
+        fetch('/api/game/ocean').then(r => { if (!r.ok) throw new Error('no ocean'); return r.json() }),
+        fetch('/api/game/biomes').then(r => { if (!r.ok) throw new Error('no biomes'); return r.json() }),
+      ]).then(([oceanRes, biomesRes]) => {
+        // Ocean mask — fills sea areas with background, hiding hillshade there
+        if (oceanRes.status === 'fulfilled') {
+          map.addSource('ocean', { type: 'geojson', data: oceanRes.value as never })
+          map.addLayer({
+            id: 'ocean-fill',
+            type: 'fill',
+            source: 'ocean',
+            paint: { 'fill-color': '#0a1628', 'fill-opacity': 1 },
+          })
+        }
+
+        // Biome tint — desert, forest, grassland, wetland, tundra overlays
+        if (biomesRes.status === 'fulfilled') {
+          map.addSource('biomes', { type: 'geojson', data: biomesRes.value as never })
+          map.addLayer({
+            id: 'biomes-fill',
+            type: 'fill',
+            source: 'biomes',
+            paint: { 'fill-color': buildBiomeColour(), 'fill-opacity': 1 },
+          })
+          map.addLayer({
+            id: 'biomes-outline',
+            type: 'line',
+            source: 'biomes',
+            minzoom: 4,
+            paint: { 'line-color': 'rgba(255,255,255,0.07)', 'line-width': 0.5 },
+          })
+        }
+
+        // ── 3. Open map context to child components (CountryLayer etc.)
+        setMapInstance(map)
+        setMapStore(map)
+      })
     })
 
     return () => {

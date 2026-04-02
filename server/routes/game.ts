@@ -135,6 +135,21 @@ gameRouter.get('/borders', (_req, res) => {
   res.json(result.data)
 })
 
+// GET /api/game/ocean — Natural Earth 110m ocean polygons (used to mask hillshade over sea)
+gameRouter.get('/ocean', (_req, res) => {
+  const oceanPath = join(ERAS_DIR, 'ocean.geojson')
+  const result = readEraFile(oceanPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'ocean.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read ocean file' })
+    return
+  }
+  res.json(result.data)
+})
+
 // GET /api/game/biomes — Natural Earth 10m geographic regions (deserts, forests, tundra…)
 gameRouter.get('/biomes', (_req, res) => {
   const biomesPath = join(ERAS_DIR, 'biomes.geojson')
