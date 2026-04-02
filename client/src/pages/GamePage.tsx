@@ -74,12 +74,11 @@ function repairJson(raw: string): string {
   s = s.slice(start, end + 1)
 
   // Fix single-quoted PROPERTY NAMES only: {'key': → {"key":
-  // Does NOT touch apostrophes inside prose values ("Pakistan's army", etc.)
+  // Intentionally does NOT touch values — the value repair that was here
+  // (/([:,\[]\s*)'([^'…]*?)'/g) would match `: 'he said'` patterns INSIDE
+  // already double-quoted strings (e.g. "quote": "Iran said: 'we oppose'"),
+  // inserting a rogue `"` mid-string and breaking the parse.
   s = s.replace(/'([^'\n\r]{0,80})'(\s*:)/g, '"$1"$2')
-
-  // Fix single-quoted simple VALUES (no internal single quotes) after : [ ,
-  s = s.replace(/([:,\[]\s*)'([^'{}[\]\n\r]*?)'/g,
-    (_, prefix, content) => prefix + '"' + content.replace(/"/g, '\\"') + '"')
 
   // Remove trailing commas before } or ]
   s = s.replace(/,(\s*[}\]])/g, '$1')
@@ -646,7 +645,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
         </div>
 
         {/* ── Timeline event card (Pax Historia style) ── */}
-        {timelineResult !== null && (
+        {timelineResult != null && (
           <div className="absolute top-16 left-4 z-20 w-80 bg-[#070d1c] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8">

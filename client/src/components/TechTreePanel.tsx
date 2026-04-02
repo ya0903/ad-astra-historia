@@ -1,6 +1,7 @@
 import { useGameStore } from '../stores'
 import { TECH_TREE, getAvailableTechs } from '@ad-astra/shared/techTree'
 import type { TechNode } from '@ad-astra/shared/types'
+import { INFRA_COLOURS } from '@ad-astra/shared/infraColours'
 
 function formatWeeks(w: number): string {
   if (w >= 520) return `${(w / 52).toFixed(0)} years`
@@ -19,6 +20,7 @@ export default function TechTreePanel() {
   const era = gameState.era
   const unlockedTechs = gameState.unlockedTechs ?? []
   const researchQueue = gameState.researchQueue ?? []
+  const buildQueue = gameState.buildQueue ?? []
   const researchingIds = researchQueue.map(r => r.techId)
   const available = getAvailableTechs(era, unlockedTechs)
   const locked = TECH_TREE.filter(t =>
@@ -35,6 +37,37 @@ export default function TechTreePanel() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
+
+        {/* Under construction */}
+        {buildQueue.length > 0 && (
+          <div>
+            <p className="text-xs text-amber-400 uppercase tracking-wider mb-2">Under Construction</p>
+            <div className="space-y-2">
+              {buildQueue.map(p => {
+                const colour = INFRA_COLOURS[p.type as keyof typeof INFRA_COLOURS] ?? '#94a3b8'
+                const pct = Math.round((1 - p.weeksRemaining / p.totalWeeks) * 100)
+                return (
+                  <div key={p.id} className="rounded bg-amber-900/20 border border-amber-800/30 px-2 py-2">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block"
+                          style={{ background: colour }} />
+                        <span className="text-xs text-amber-200 truncate">{p.name}</span>
+                      </div>
+                      <span className="text-xs text-amber-500 font-mono flex-shrink-0">
+                        {formatWeeks(p.weeksRemaining)} left
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: colour, opacity: 0.75 }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Unlocked */}
         {unlockedTechs.length > 0 && (
