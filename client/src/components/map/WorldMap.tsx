@@ -58,10 +58,12 @@ export default function WorldMap({ children }: Props) {
         source: 'terrain-dem',
         minzoom: 3,
         paint: {
-          'hillshade-shadow-color': '#0a1a2e',
-          'hillshade-highlight-color': '#c8ddf8',
-          'hillshade-exaggeration': 0.3,
-          'hillshade-accent-color': '#091525',
+          // Shadow/highlight close to the background so flat ocean is invisible.
+          // Only real elevation changes (mountains) produce visible contrast.
+          'hillshade-shadow-color': '#060c1a',
+          'hillshade-highlight-color': '#1a2e4a',
+          'hillshade-accent-color': '#0a1628',
+          'hillshade-exaggeration': 0.55,
         },
       })
       setMapInstance(map)
