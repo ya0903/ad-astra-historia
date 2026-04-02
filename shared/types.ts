@@ -16,6 +16,7 @@ export type InfrastructureType =
   | 'financial_institution' | 'emergency_services' | 'industrial_zone'
   | 'desalination_plant' | 'data_centre' | 'embassy'
   | 'stadium' | 'arts_centre' | 'film_studio'
+  | 'rail_line' | 'high_speed_rail'
 
 export interface Infrastructure {
   id: string
@@ -160,6 +161,9 @@ export const BUILD_WEEKS: Record<InfrastructureType, number> = {
   financial_institution: 52,
   industrial_zone: 78,
   desalination_plant: 78,
+  // Rail
+  rail_line: 104,       // 2 years standard rail
+  high_speed_rail: 260, // 5 years high-speed
 }
 
 export interface BuildProject {

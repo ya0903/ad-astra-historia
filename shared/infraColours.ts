@@ -26,6 +26,8 @@ export const INFRA_COLOURS: Record<InfrastructureType, string> = {
   stadium:           '#f97316',
   arts_centre:       '#d946ef',
   film_studio:       '#ec4899',
+  rail_line:         '#94a3b8',
+  high_speed_rail:   '#e2e8f0',
 }
 
 export const RAIL_COLOURS: Record<string, string> = {

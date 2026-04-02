@@ -231,7 +231,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     // Turn completed builds into Infrastructure entries on the map
-    const newInfra: Infrastructure[] = completedBuilds.map(b => {
+    // Rail types are linear features — they don't produce a meaningful dot on the map
+    const RAIL_TYPES = new Set(['rail_line', 'high_speed_rail'])
+    const newInfra: Infrastructure[] = completedBuilds.filter(b => !RAIL_TYPES.has(b.type)).map(b => {
       const centre = (b.countryId ? getCountryCentre(b.countryId) : null)
                   ?? getCountryCentre(s.playerCountryId)
                   ?? [0, 0]

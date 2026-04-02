@@ -116,7 +116,7 @@ function sanitiseDeltas(result: ActionResult, pending: { id: string; text: strin
 
 const INFRA_GROUPS = [
   { label: 'Education & Research', items: ['university', 'research_centre'] },
-  { label: 'Transport', items: ['port', 'airport'] },
+  { label: 'Transport', items: ['port', 'airport', 'rail_line', 'high_speed_rail'] },
   { label: 'Energy', items: ['nuclear_plant', 'hydro_dam', 'solar_farm', 'wind_farm', 'fossil_fuel_plant'] },
   { label: 'Military', items: ['military_base', 'nuclear_silo', 'defence_system'] },
   { label: 'Economy', items: ['financial_institution', 'industrial_zone', 'data_centre'] },
@@ -135,6 +135,7 @@ const INFRA_LABELS: Record<string, string> = {
   industrial_zone: 'Industrial Zone', desalination_plant: 'Desalination Plant',
   data_centre: 'Data Centre', embassy: 'Embassy', stadium: 'Stadium',
   arts_centre: 'Arts Centre', film_studio: 'Film Studio',
+  rail_line: 'Rail Line', high_speed_rail: 'High-Speed Rail',
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -259,8 +260,9 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
+{"results":[{"actionId":"<id>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProject":{"type":"<infra_type>","name":"<specific real-world name>"},"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 if annexed>"}]}
 
+buildProject: ONLY include when the action physically constructs a facility or route. Use exactly one of these types: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. The name must be a specific real-world name (e.g. "Islamabad Institute of Technology", "Gwadar Deep-Water Port", "Lahore–Karachi HSR"). Omit buildProject entirely for non-construction actions.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
 
@@ -285,7 +287,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
   }
 
   const handleCategoryAction = (action: string) => {
-    setActionText(action)
+    addPendingAction(action)
     setActiveTab('free')
   }
 
@@ -401,12 +403,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                   ))}
                 </div>
               </div>
-              {actionText && (
-                <div className="p-3 border-t border-white/8 shrink-0">
-                  <div className="mb-2 px-3 py-2 rounded-xl bg-blue-950/40 border border-blue-800/30 text-xs text-blue-200 truncate">{actionText}</div>
-                  <button onClick={handleExecute} className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold transition-colors shadow-lg shadow-blue-900/30">Queue Action</button>
-                </div>
-              )}
             </div>
           )}
 
