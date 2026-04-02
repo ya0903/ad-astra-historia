@@ -269,7 +269,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
 2-3 countryReactions from realistic neighbours/rivals.`
 
-      const raw = await callAI(config, system, [{ role: 'user', content: prompt }])
+      const raw = await callAI(config, system, [{ role: 'user', content: prompt }], true)
 
       let parsed: { results: ActionResult[] }
       try {

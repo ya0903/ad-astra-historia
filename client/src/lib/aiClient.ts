@@ -4,7 +4,8 @@ export interface AIMessage { role: 'user' | 'assistant'; content: string }
 
 // Calls the AI provider directly from the browser.
 // No server proxy — avoids SSL / network issues between the server and local AI endpoints.
-export async function callAI(config: AIConfig, system: string, messages: AIMessage[]): Promise<string> {
+// jsonMode=true forces JSON output (use for game simulation calls, not free-text calls).
+export async function callAI(config: AIConfig, system: string, messages: AIMessage[], jsonMode = false): Promise<string> {
   if (config.provider === 'anthropic') {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -25,15 +26,13 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
     const url = `${base}/chat/completions`
     const headers: Record<string, string> = { 'content-type': 'application/json' }
     if (config.apiKey) headers['authorization'] = `Bearer ${config.apiKey}`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: config.model,
-        max_tokens: 4096,
-        messages: [{ role: 'system', content: system }, ...messages],
-      }),
-    })
+    const body: Record<string, unknown> = {
+      model: config.model,
+      max_tokens: 4096,
+      messages: [{ role: 'system', content: system }, ...messages],
+    }
+    if (jsonMode) body['response_format'] = { type: 'json_object' }
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
     if (!res.ok) throw new Error(`${url} → ${res.status}: ${await res.text()}`)
     const data = await res.json() as { choices: Array<{ message: { content: string } }> }
     return data.choices[0]?.message?.content ?? ''
@@ -50,7 +49,10 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.content }],
           })),
-          generationConfig: { maxOutputTokens: 4096 },
+          generationConfig: {
+            maxOutputTokens: 4096,
+            ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+          },
         }),
       }
     )
