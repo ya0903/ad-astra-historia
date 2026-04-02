@@ -120,7 +120,7 @@ export default function WorldMap({ children }: Props) {
             id: 'biomes-fill',
             type: 'fill',
             source: 'biomes',
-            minzoom: 3,
+            minzoom: 4,
             paint: { 'fill-color': buildBiomeColour(), 'fill-opacity': 1 },
           })
           map.addLayer({
