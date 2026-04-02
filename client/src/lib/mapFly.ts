@@ -185,7 +185,7 @@ const CITY_CENTRES: Record<string, [number, number, number]> = {
   gwadar: [62.3, 25.1, 10],
   turbat: [63.0, 26.0, 10],
   'dera ghazi khan': [70.6, 30.1, 10],
-  hyderabad: [68.4, 25.4, 10],
+  'hyderabad sind': [68.4, 25.4, 10],
   sialkot: [74.5, 32.5, 10],
   bahawalpur: [71.7, 29.4, 10],
   larkana: [68.2, 27.6, 10],
