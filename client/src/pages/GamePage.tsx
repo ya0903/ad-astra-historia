@@ -269,19 +269,31 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 2-3 countryReactions from realistic neighbours/rivals.`
 
       const raw = await callAI(config, system, [{ role: 'user', content: prompt }])
-      const parsed = JSON.parse(repairJson(raw)) as { results: ActionResult[] }
-      // Post-process: clamp deltas to prevent irrelevant stat changes
+
+      let parsed: { results: ActionResult[] }
+      try {
+        parsed = JSON.parse(repairJson(raw)) as { results: ActionResult[] }
+      } catch (parseErr) {
+        console.error('AI response parse failed:', parseErr, '\nRaw:', raw)
+        throw new Error(`AI response couldn't be parsed. Try again or use fewer actions at once.`)
+      }
+
       const clampedResults = (parsed.results ?? []).map(r => sanitiseDeltas(r, pendingActions))
+      if (clampedResults.length === 0) {
+        console.warn('AI returned empty results. Raw:', raw)
+        throw new Error('AI returned no results. Try again or use fewer actions at once.')
+      }
+
       applyResults(clampedResults, period)
       if (clampedResults.length > 0) setTimelineIdx(0)
-      // Fly map to first result with a focusIso
       const focusTarget = parsed.results?.find(r => r.focusIso)?.focusIso
       if (focusTarget && mapInstance) {
         setTimeout(() => flyToLocation(mapInstance, focusTarget), 400)
       }
     } catch (e) {
-      setJumpError(e instanceof Error ? e.message : 'AI error')
-      advanceDate(period)
+      // Do NOT advance date or clear actions on failure — user can retry
+      console.error('handleJump error:', e)
+      setJumpError(e instanceof Error ? e.message : 'AI error — actions kept, try again')
       setJumping(false)
     }
   }
