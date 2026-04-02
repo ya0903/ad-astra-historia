@@ -430,7 +430,46 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
   instaBuild: () => set(store => {
     if (!store.state) return {}
-    return { state: { ...store.state, buildQueue: [] } }
+    const s = store.state
+    const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
+    const newInfra: Infrastructure[] = (s.buildQueue ?? [])
+      .filter(b => !RAIL_INFRA.has(b.type))
+      .map(b => {
+        const cityCoords = b.lat != null && b.lng != null ? null : getCityCentre(b.name)
+        const centre = cityCoords
+                    ?? (b.countryId ? getCountryCentre(b.countryId) : null)
+                    ?? getCountryCentre(s.playerCountryId)
+                    ?? [0, 0]
+        const jitter = () => (Math.random() - 0.5) * 0.15
+        return {
+          id: `infra-${b.id}`,
+          countryId: b.countryId ?? s.playerCountryId,
+          type: b.type,
+          name: b.name,
+          lat: (b.lat ?? centre[1]) + jitter(),
+          lng: (b.lng ?? centre[0]) + jitter(),
+          level: 1,
+        } satisfies Infrastructure
+      })
+    const newRailLines: RailLine[] = (s.buildQueue ?? [])
+      .filter(b => RAIL_INFRA.has(b.type) && b.fromCoords && b.toCoords)
+      .map(b => ({
+        id: `rail-${b.id}`,
+        countryId: b.countryId ?? s.playerCountryId,
+        fromCity: b.fromCity ?? '',
+        toCity: b.toCity ?? '',
+        fromCoords: b.fromCoords!,
+        toCoords: b.toCoords!,
+        type: 'domestic_hsr' as RailType,
+      }))
+    return {
+      state: {
+        ...s,
+        buildQueue: [],
+        infrastructureMap: [...s.infrastructureMap, ...newInfra],
+        railLines: [...(s.railLines ?? []), ...newRailLines],
+      },
+    }
   }),
 
   startResearch: (techId, weeksRequired) => set(store => {
