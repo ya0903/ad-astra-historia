@@ -1,7 +1,9 @@
 /**
  * CountryLabelOverlay — HTML labels over the map using any CSS font.
- * Positions are updated via direct DOM refs (no React state) so labels
- * track the map perfectly without lag.
+ * - Direct DOM refs for position updates (no React state lag → labels stay glued to map).
+ * - Labels only appear when the text fits inside the country at current zoom.
+ * - Wide/flat countries (China, USA, Australia, Egypt…) always render horizontally.
+ * - Liquid glass gradient text fill — no pill border.
  * Font priority: Missale AS Lunea → IM Fell English → serif
  */
 import { useEffect, useRef, useState } from 'react'
@@ -34,7 +36,24 @@ function ringCentroid(ring: Ring): [number, number] {
   return [cx / (6 * area), cy / (6 * area)]
 }
 
-function computeAngle(ring: Ring): number {
+/**
+ * Returns the screen-rotation angle for the label plus the bounding-box
+ * dimensions (in degrees) needed for the pixel-fit check.
+ *
+ * Rule: if the bbox is clearly wider than tall (ratio ≥ 1.4), OR the
+ * principal axis is already near-horizontal (< 22°), force angle = 0.
+ * This keeps China, USA, Australia, Egypt, Libya, Sudan, Greece etc. flat.
+ */
+function computeAngleAndBbox(ring: Ring): { angle: number; bboxW: number; bboxH: number } {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x
+    if (y < minY) minY = y; if (y > maxY) maxY = y
+  }
+  const bboxW = maxX - minX
+  const bboxH = maxY - minY
+
+  // Principal axis via covariance
   let mx = 0, my = 0
   for (const [x, y] of ring) { mx += x; my += y }
   mx /= ring.length; my /= ring.length
@@ -43,8 +62,15 @@ function computeAngle(ring: Ring): number {
     const dx = x - mx, dy = y - my
     cxx += dx * dx; cyy += dy * dy; cxy += dx * dy
   }
-  const deg = -Math.atan2(2 * cxy, cxx - cyy) * (90 / Math.PI)
-  return Math.max(-70, Math.min(70, Math.round(deg * 10) / 10))
+  // Negate: screen y-axis is inverted vs geographic latitude
+  const raw = -Math.atan2(2 * cxy, cxx - cyy) * (90 / Math.PI)
+  const deg = Math.max(-70, Math.min(70, Math.round(raw * 10) / 10))
+
+  // Snap to horizontal for wide-bbox or near-horizontal countries
+  if (bboxW > bboxH * 1.4 || Math.abs(deg) < 22) {
+    return { angle: 0, bboxW, bboxH }
+  }
+  return { angle: deg, bboxW, bboxH }
 }
 
 function sizeTier(area: number): number {
@@ -85,6 +111,7 @@ const ABBR: Record<string, string> = {
   'French Southern and Antarctic Lands': 'Fr. S. Lands',
   'Heard Island and McDonald Islands': 'Heard Is.',
 }
+
 function abbreviate(name: string): string {
   if (ABBR[name]) return ABBR[name]
   if (name.length > 16) {
@@ -110,23 +137,33 @@ interface LabelDatum {
   tier: number
   lng: number
   lat: number
+  bboxW: number  // degrees longitude
+  bboxH: number  // degrees latitude
 }
 
 const TIER_ZOOM_MIN = [1.5, 2.0, 3.5, 5.5]
-const TIER_BASE_PX   = [14,  12,  10,  8]
+const TIER_BASE_PX  = [14,  12,  10,  8]
+
+// Approx text width per character: uppercase serif (≈0.60em) + letter-spacing (0.12em) = 0.72em
+const CHAR_WIDTH_EM = 0.72
 
 export default function CountryLabelOverlay() {
   const map = useMap()
   const [labelsData, setLabelsData] = useState<LabelDatum[]>([])
-  // One ref per label iso — updated directly on each map render (no state lag)
+  // Refs to the rendered DOM elements so we can update positions without React state
   const labelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map())
 
-  // Fetch and compute geo data once
+  // ── Fetch borders once, compute label data ──────────────────────────────────
   useEffect(() => {
     fetch('/api/game/borders')
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
-        const best = new Map<string, { lng: number; lat: number; angle: number; tier: number; area: number; name: string }>()
+        const best = new Map<string, {
+          lng: number; lat: number; angle: number
+          tier: number; area: number; name: string
+          bboxW: number; bboxH: number
+        }>()
+
         for (const feature of geojson.features) {
           const props = feature.properties as Record<string, unknown>
           const rawName = (props?.ADMIN ?? props?.NAME ?? '') as string
@@ -139,52 +176,91 @@ export default function CountryLabelOverlay() {
           const geom = feature.geometry as GeoJSON.Geometry
           let rings: Ring[] = []
           if (geom.type === 'Polygon') rings = [geom.coordinates[0] as Ring]
-          else if (geom.type === 'MultiPolygon') rings = (geom as GeoJSON.MultiPolygon).coordinates.map(p => p[0] as Ring)
+          else if (geom.type === 'MultiPolygon')
+            rings = (geom as GeoJSON.MultiPolygon).coordinates.map(p => p[0] as Ring)
           if (rings.length === 0) continue
 
-          let best_ring = rings[0], bestArea = ringArea(rings[0])
+          let bestRing = rings[0], bestArea = ringArea(rings[0])
           for (let i = 1; i < rings.length; i++) {
             const a = ringArea(rings[i])
-            if (a > bestArea) { bestArea = a; best_ring = rings[i] }
+            if (a > bestArea) { bestArea = a; bestRing = rings[i] }
           }
 
           const existing = best.get(iso)
           if (!existing || bestArea > existing.area) {
-            const [lng, lat] = ringCentroid(best_ring)
-            best.set(iso, { lng, lat, angle: computeAngle(best_ring), tier: sizeTier(bestArea), area: bestArea, name: abbreviate(rawName) })
+            const [lng, lat] = ringCentroid(bestRing)
+            const { angle, bboxW, bboxH } = computeAngleAndBbox(bestRing)
+            best.set(iso, {
+              lng, lat, angle, bboxW, bboxH,
+              tier: sizeTier(bestArea),
+              area: bestArea,
+              name: abbreviate(rawName),
+            })
           }
         }
+
         setLabelsData(Array.from(best.entries()).map(([iso, d]) => ({ iso, ...d })))
       })
       .catch(() => {})
   }, [])
 
-  // Direct DOM position updates on every map render — no React state, no lag
+  // ── Direct DOM update on every map render — zero React-state lag ──────────
   useEffect(() => {
     if (!map || labelsData.length === 0) return
 
     const update = () => {
-      const zoom = map.getZoom()
+      const zoom  = map.getZoom()
       const scale = Math.pow(1.35, zoom - 3)
+      const canvas = map.getCanvas()
+
+      // Pixels per degree of longitude — same for every label at this zoom/viewport
+      const ctr = map.getCenter()
+      const cp0 = map.project([ctr.lng, ctr.lat])
+      const cp1 = map.project([ctr.lng + 1, ctr.lat])
+      const pxPerDegLng = Math.abs(cp1.x - cp0.x)
 
       for (const d of labelsData) {
         const el = labelRefsRef.current.get(d.iso)
         if (!el) continue
 
-        if (zoom < TIER_ZOOM_MIN[d.tier]) {
-          el.style.display = 'none'
-          continue
-        }
+        // Hard zoom gate (per tier)
+        if (zoom < TIER_ZOOM_MIN[d.tier]) { el.style.display = 'none'; continue }
 
         const { x, y } = map.project([d.lng, d.lat])
-        const fontSize = Math.max(6, TIER_BASE_PX[d.tier] * scale)
-        const opacity = Math.min(1, (zoom - TIER_ZOOM_MIN[d.tier] + 0.5) * 2)
 
-        el.style.display = 'block'
-        el.style.left = `${x}px`
-        el.style.top = `${y}px`
-        el.style.fontSize = `${fontSize}px`
-        el.style.opacity = String(opacity)
+        // Off-screen cull (generous margin for rotated labels)
+        if (x < -400 || x > canvas.width + 400 || y < -300 || y > canvas.height + 300) {
+          el.style.display = 'none'; continue
+        }
+
+        const fontSize = Math.max(6, TIER_BASE_PX[d.tier] * scale)
+
+        // ── Text-fit check ──────────────────────────────────────────────────
+        // Country span in pixels along the label's text direction.
+        // bboxH (latitude degrees) is stretched by Mercator (1/cos φ) relative to longitude.
+        const ar = d.angle * Math.PI / 180
+        const latStretch = 1 / Math.max(0.1, Math.cos(d.lat * Math.PI / 180))
+        const countrySpanPx =
+          d.bboxW * Math.abs(Math.cos(ar)) * pxPerDegLng +
+          d.bboxH * Math.abs(Math.sin(ar)) * pxPerDegLng * latStretch
+
+        // Estimated text width in pixels
+        const textPx = d.name.length * fontSize * CHAR_WIDTH_EM
+
+        // fitFrac: 0 = tiny text (definitely fits), 1 = text equals country span
+        const fitFrac = textPx / Math.max(1, countrySpanPx)
+        if (fitFrac > 0.90) { el.style.display = 'none'; continue }
+
+        // Smooth fade: fully visible when fitFrac ≤ 0.70, fades out 0.70→0.90
+        const fitOpacity  = Math.max(0, Math.min(1, (0.90 - fitFrac) / 0.20))
+        const zoomOpacity = Math.min(1, (zoom - TIER_ZOOM_MIN[d.tier] + 0.5) * 2)
+        const opacity     = fitOpacity * zoomOpacity
+
+        el.style.display   = 'block'
+        el.style.left      = `${x}px`
+        el.style.top       = `${y}px`
+        el.style.fontSize  = `${fontSize}px`
+        el.style.opacity   = String(opacity)
         el.style.transform = `translate(-50%, -50%) rotate(${d.angle}deg)`
       }
     }
@@ -216,17 +292,16 @@ export default function CountryLabelOverlay() {
             userSelect: 'none',
             lineHeight: 1,
             pointerEvents: 'none',
-            // Liquid glass pill
-            color: 'rgba(210, 220, 235, 0.92)',
-            background: 'rgba(140, 155, 180, 0.13)',
-            backdropFilter: 'blur(6px) saturate(0.9)',
-            WebkitBackdropFilter: 'blur(6px) saturate(0.9)',
-            border: '1px solid rgba(200, 215, 240, 0.14)',
-            borderRadius: '20px',
-            padding: '1px 7px 2px',
-            textShadow: '0 1px 6px rgba(160,185,230,0.25), 0 0 12px rgba(0,0,0,0.6)',
-            boxShadow: '0 1px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.07)',
-          }}
+            // ── Liquid glass gradient fill — no background box ──────────────
+            // Top of each glyph catches light (near-white); mid is cool glass;
+            // bottom has a subtle reflective lift.
+            background: 'linear-gradient(172deg, rgba(240,248,255,0.97) 0%, rgba(200,218,242,0.88) 28%, rgba(152,182,215,0.78) 65%, rgba(208,223,244,0.90) 100%)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+            // text-shadow fires on glyph shapes even with transparent fill
+            textShadow: '0 1px 5px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.50)',
+          } as React.CSSProperties}
         >
           {l.name}
         </div>
