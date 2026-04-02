@@ -56,7 +56,6 @@ export default function WorldMap({ children }: Props) {
         paint: {
           'hillshade-shadow-color': '#0a1a2e',
           'hillshade-highlight-color': '#c8ddf8',
-          'hillshade-illumination-altitude': 45,
           'hillshade-exaggeration': 0.3,
           'hillshade-accent-color': '#091525',
         },
