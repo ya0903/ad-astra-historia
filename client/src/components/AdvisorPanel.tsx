@@ -84,24 +84,27 @@ export default function AdvisorPanel({ gameContext }: Props) {
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="w-12 h-12 rounded-full bg-[#0d1f3c] border border-white/20 shadow-lg flex items-center justify-center hover:bg-purple-900/60 transition-colors"
+          className="w-10 h-10 rounded-full bg-[#080f1e]/85 border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-center hover:bg-purple-900/50 hover:border-purple-700/50 transition-all"
           title="Intelligence Advisor"
         >
-          <span className="text-xl">🎖️</span>
+          <span className="text-lg">🎖️</span>
         </button>
       ) : (
-        <div className="w-80 flex flex-col rounded-lg bg-[#0d1f3c]/95 border border-white/10 backdrop-blur-sm" style={{ height: '420px' }}>
+        <div className="w-80 flex flex-col rounded-2xl bg-[#080f1e]/97 border border-white/10 backdrop-blur-md shadow-2xl" style={{ height: '420px' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
             <div className="flex items-center gap-2">
               <span>🎖️</span>
-              <span className="text-sm font-semibold">Intelligence Advisor</span>
+              <div>
+                <p className="text-xs font-bold text-white">Intelligence Advisor</p>
+                <p className="text-[10px] text-gray-600">Strategic counsel</p>
+              </div>
             </div>
             <div className="flex gap-1">
               {messages.length > 0 && (
-                <button onClick={() => setMessages([])} className="text-xs text-gray-500 hover:text-gray-300 px-1" title="Clear chat">↺</button>
+                <button onClick={() => setMessages([])} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-xs" title="Clear chat">↺</button>
               )}
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white text-lg leading-none">×</button>
+              <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
             </div>
           </div>
 
@@ -113,7 +116,7 @@ export default function AdvisorPanel({ gameContext }: Props) {
                 <div className="space-y-1">
                   {QUICK_PROMPTS.map(p => (
                     <button key={p} onClick={() => sendMessage(p)}
-                      className="w-full text-left text-xs px-2 py-1.5 rounded bg-white/5 hover:bg-purple-900/30 text-gray-300 hover:text-white transition-colors">
+                      className="w-full text-left text-xs px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-purple-900/30 text-gray-400 hover:text-white transition-colors">
                       {p}
                     </button>
                   ))}
@@ -141,18 +144,18 @@ export default function AdvisorPanel({ gameContext }: Props) {
           </div>
 
           {/* Input */}
-          <div className="p-2 border-t border-white/10 shrink-0">
-            <div className="flex gap-1">
+          <div className="p-3 border-t border-white/8 shrink-0">
+            <div className="flex gap-2">
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
                 placeholder="Ask your advisor…"
                 disabled={loading}
-                className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 disabled:opacity-50"
               />
               <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-                className="px-2 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs transition-colors">
+                className="px-3 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition-colors">
                 →
               </button>
             </div>

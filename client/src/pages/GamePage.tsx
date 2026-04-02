@@ -9,6 +9,7 @@ import AdvisorPanel from '../components/AdvisorPanel'
 import DiplomacyPanel from '../components/DiplomacyPanel'
 import CheatMenu from '../components/CheatMenu'
 import TechTreePanel from '../components/TechTreePanel'
+import LorePanel from '../components/LorePanel'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult } from '@ad-astra/shared/types'
 
@@ -127,6 +128,8 @@ export default function GamePage() {
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestError, setSuggestError] = useState('')
   const [jumpError, setJumpError] = useState('')
+  const [loreOpen, setLoreOpen] = useState(false)
+  const [timelineIdx, setTimelineIdx] = useState<number | null>(null)
 
   // Backslash key toggles cheat menu
   useEffect(() => {
@@ -235,6 +238,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       // Post-process: clamp deltas to prevent irrelevant stat changes
       const clampedResults = (parsed.results ?? []).map(r => sanitiseDeltas(r, pendingActions))
       applyResults(clampedResults, period)
+      if (clampedResults.length > 0) setTimelineIdx(0)
       // Fly map to first result with a focusIso
       const focusTarget = parsed.results?.find(r => r.focusIso)?.focusIso
       if (focusTarget && mapInstance) {
@@ -273,443 +277,480 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  const timelineResult = timelineIdx !== null ? lastResults[timelineIdx] : null
+  const lore = gameState.lore ?? []
+
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0a1628] text-white overflow-hidden">
+    <div className="h-screen w-screen flex bg-[#060d1a] text-white overflow-hidden relative">
 
-      {/* ── Top Bar ── */}
-      <div className="flex items-center gap-4 px-4 py-2 bg-[#0d1f3c] border-b border-white/10 shrink-0">
-        <span className="text-sm font-mono text-blue-300">{gameState.currentDate}</span>
-        <span className="px-2 py-0.5 rounded bg-blue-900/50 text-xs text-blue-200">{gameState.era}</span>
-        <span className="font-semibold">
-          {gameState.empireName ?? player?.name ?? gameState.playerCountryId}
-        </span>
-        {gameState.empireName && (
-          <span className="text-xs text-gray-500">{player?.name}</span>
-        )}
-        <div className="flex gap-3 text-xs text-gray-400 ml-2">
-          <span>GDP: <span className="text-white">{formatStat(stats?.gdp ?? 0)}</span></span>
-          <span>Military: <span className="text-white">{stats?.military ?? 0}</span></span>
-          <span>Approval: <span className="text-white">{stats?.approval ?? 0}%</span></span>
-          <span>Soft Power: <span className="text-white">{stats?.softPower ?? 0}</span></span>
-          <span>Tech: <span className="text-white">{stats?.techLevel ?? 0}</span></span>
-        </div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={handleSave} className="px-3 py-1 rounded text-xs bg-blue-700 hover:bg-blue-600 transition-colors">
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Error!' : 'Save'}
-          </button>
-          <button
-            onClick={() => setCheatOpen(o => !o)}
-            className={`px-3 py-1 rounded text-xs transition-colors font-mono ${cheatOpen ? 'bg-green-800/60 text-green-300' : 'bg-white/5 text-gray-500 hover:text-green-400 hover:bg-green-900/30'}`}
-          >~</button>
-          <button onClick={clearGame} className="px-3 py-1 rounded text-xs bg-white/10 hover:bg-white/20 transition-colors">New Game</button>
-        </div>
-      </div>
+      {/* ── Left Sidebar ── */}
+      {sidebarOpen && (
+        <div className="w-72 shrink-0 flex flex-col bg-[#080f1e]/95 border-r border-white/8 overflow-hidden z-20">
 
-      {/* ── Main Area ── */}
-      <div className="flex flex-1 overflow-hidden relative">
-
-        {/* ── Sidebar ── */}
-        {sidebarOpen && (
-          <div className="w-80 shrink-0 flex flex-col bg-[#0d1f3c]/80 border-r border-white/10 overflow-hidden">
-
-            {/* Tabs + collapse button */}
-            <div className="flex border-b border-white/10 shrink-0">
-              {(['categories', 'free', 'suggest', 'tech', 'legend'] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-xs transition-colors ${activeTab === tab ? 'bg-blue-800/50 text-white' : 'text-gray-400 hover:text-white'}`}>
-                  {tab === 'categories' ? 'Actions' : tab === 'free' ? 'Free' : tab === 'suggest' ? 'AI' : tab === 'tech' ? 'Tech' : 'Legend'}
-                </button>
-              ))}
-              <button onClick={() => setSidebarOpen(false)} className="px-2 text-gray-500 hover:text-white transition-colors" title="Collapse sidebar">‹</button>
+          {/* Sidebar header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
+            <div>
+              <p className="text-xs font-bold text-white tracking-widest uppercase">
+                {gameState.empireName ?? player?.name ?? gameState.playerCountryId}
+              </p>
+              {gameState.empireName && <p className="text-[10px] text-gray-500 mt-0.5">{player?.name}</p>}
             </div>
+            <button onClick={() => setSidebarOpen(false)}
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">‹</button>
+          </div>
 
-            {/* ── Categories tab ── */}
-            {activeTab === 'categories' && (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="flex-1 overflow-y-auto">
-                  <div className="px-3 pt-3 pb-2 border-b border-white/10">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Sector Levels</p>
-                    <div className="grid grid-cols-2 gap-1">
-                      {sectors && Object.entries(sectors).map(([key, val]) => (
-                        <div key={key} className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
-                          <span className="text-xs text-gray-400 capitalize">{key}</span>
-                          <span className="text-xs text-white font-mono">{val}</span>
+          {/* Stats bar */}
+          <div className="grid grid-cols-2 gap-1 px-3 py-2 border-b border-white/5 shrink-0">
+            {[
+              { label: 'GDP', value: formatStat(stats?.gdp ?? 0) },
+              { label: 'Military', value: String(stats?.military ?? 0) },
+              { label: 'Approval', value: `${stats?.approval ?? 0}%` },
+              { label: 'Soft Power', value: String(stats?.softPower ?? 0) },
+              { label: 'Tech', value: String(stats?.techLevel ?? 0) },
+              { label: 'Era', value: gameState.era.split(' ')[0] },
+            ].map(s => (
+              <div key={s.label} className="flex items-center justify-between bg-white/[0.04] rounded-lg px-2 py-1.5">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">{s.label}</span>
+                <span className="text-xs text-white font-mono font-medium">{s.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-white/8 shrink-0">
+            {(['categories', 'free', 'suggest', 'tech', 'legend'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                  activeTab === tab
+                    ? 'text-blue-300 border-b-2 border-blue-400 bg-blue-950/30'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}>
+                {tab === 'categories' ? 'Act' : tab === 'free' ? 'Free' : tab === 'suggest' ? 'AI' : tab === 'tech' ? 'Tech' : 'Map'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Categories tab ── */}
+          {activeTab === 'categories' && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pt-3 pb-2 border-b border-white/5">
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Sector Levels</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {sectors && Object.entries(sectors).map(([key, val]) => (
+                      <div key={key} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2 py-1">
+                        <span className="text-[10px] text-gray-500 capitalize">{key}</span>
+                        <span className="text-xs text-white font-mono">{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-3 py-2 space-y-0.5">
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Quick Actions</p>
+                  {CATEGORIES.map(cat => (
+                    <div key={cat.id}>
+                      <button onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.06] transition-colors text-left">
+                        <span className="text-xs text-gray-300"><span className="mr-2 text-sm">{cat.icon}</span>{cat.label}</span>
+                        <span className="text-gray-600 text-[10px]">{expandedCat === cat.id ? '▲' : '▼'}</span>
+                      </button>
+                      {expandedCat === cat.id && (
+                        <div className="ml-3 mb-1 space-y-0.5">
+                          {cat.actions.map(action => (
+                            <button key={action} onClick={() => handleCategoryAction(action)}
+                              className="w-full text-left text-xs px-3 py-1.5 rounded-lg bg-white/[0.03] hover:bg-blue-900/30 text-gray-400 hover:text-white transition-colors">
+                              {action}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {actionText && (
+                <div className="p-3 border-t border-white/8 shrink-0">
+                  <div className="mb-2 px-3 py-2 rounded-xl bg-blue-950/40 border border-blue-800/30 text-xs text-blue-200 truncate">{actionText}</div>
+                  <button onClick={handleExecute} className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-semibold transition-colors shadow-lg shadow-blue-900/30">Queue Action</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Free Action tab ── */}
+          {activeTab === 'free' && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-3 border-b border-white/8 shrink-0">
+                <textarea
+                  value={actionText}
+                  onChange={e => setActionText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleExecute() } }}
+                  placeholder="Describe your action… (Enter to queue)"
+                  className="w-full h-20 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
+                />
+                <button onClick={handleExecute} disabled={!actionText.trim()}
+                  className="mt-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
+                  Queue Action
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {jumpError && <p className="text-xs text-red-400 mb-2 px-1">{jumpError}</p>}
+
+                {/* Pending actions */}
+                {pendingActions.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">
+                      Queued ({pendingActions.length})
+                    </p>
+                    <div className="space-y-1">
+                      {pendingActions.map(action => (
+                        <div key={action.id} className="rounded-xl bg-white/[0.04] border border-white/8 px-3 py-2">
+                          {editingId === action.id ? (
+                            <div>
+                              <input value={editText} onChange={e => setEditText(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(action.id); if (e.key === 'Escape') setEditingId(null) }}
+                                autoFocus
+                                className="w-full bg-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none border border-blue-500/50 mb-1.5" />
+                              <div className="flex gap-2">
+                                <button onClick={() => handleSaveEdit(action.id)} className="text-xs text-green-400 hover:text-green-300">Save</button>
+                                <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-300">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-1">
+                              <span className="text-xs text-gray-300 flex-1 leading-relaxed">{action.text}</span>
+                              <div className="flex gap-1.5 shrink-0 ml-1 mt-0.5">
+                                <button onClick={() => handleStartEdit(action.id, action.text)} className="text-gray-600 hover:text-blue-400 transition-colors" title="Edit">✎</button>
+                                <button onClick={() => removePendingAction(action.id)} className="text-gray-600 hover:text-red-400 transition-colors text-xs" title="Remove">✕</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="px-3 py-2 space-y-1">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Quick Actions</p>
-                    {CATEGORIES.map(cat => (
-                      <div key={cat.id}>
-                        <button onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
-                          className="w-full flex items-center justify-between px-2 py-2 rounded hover:bg-white/5 transition-colors text-left">
-                          <span className="text-sm"><span className="mr-2">{cat.icon}</span>{cat.label}</span>
-                          <span className="text-gray-500 text-xs">{expandedCat === cat.id ? '▲' : '▼'}</span>
-                        </button>
-                        {expandedCat === cat.id && (
-                          <div className="ml-2 mb-1 space-y-1">
-                            {cat.actions.map(action => (
-                              <button key={action} onClick={() => handleCategoryAction(action)}
-                                className="w-full text-left text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-blue-800/40 text-gray-300 hover:text-white transition-colors">
-                                {action}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                )}
+
+                {/* Natural disaster alerts */}
+                {recentDisasters.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">Disasters</p>
+                    {recentDisasters.slice(0, 3).map(d => (
+                      <div key={d.id} className="rounded-xl border border-orange-800/30 bg-orange-950/30 px-3 py-2 mb-1">
+                        <p className="text-xs font-semibold text-orange-300">⚠ {d.name}</p>
+                        <p className="text-[10px] text-orange-300/60 mt-0.5">{d.description} — GDP loss: ${(d.gdpLoss/1e9).toFixed(1)}B</p>
                       </div>
                     ))}
-                  </div>
-                </div>
-                {actionText && (
-                  <div className="p-3 border-t border-white/10 shrink-0">
-                    <div className="mb-2 px-2 py-1.5 rounded bg-blue-900/30 border border-blue-800/50 text-xs text-blue-200 truncate">{actionText}</div>
-                    <button onClick={handleExecute} className="w-full py-1.5 rounded bg-blue-700 hover:bg-blue-600 text-sm font-medium transition-colors">Queue Action</button>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* ── Free Action tab ── */}
-            {activeTab === 'free' && (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="p-3 border-b border-white/10 shrink-0">
-                  <textarea
-                    value={actionText}
-                    onChange={e => setActionText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleExecute() } }}
-                    placeholder="Describe your action… (Enter to queue)"
-                    className="w-full h-20 bg-white/5 border border-white/10 rounded p-2 text-sm resize-none focus:outline-none focus:border-blue-500 text-white placeholder-gray-500"
-                  />
-                  <button onClick={handleExecute} disabled={!actionText.trim()}
-                    className="mt-2 w-full py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium transition-colors">
-                    Queue Action
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  {pendingActions.length > 0 && (
-                    <div className="p-3 border-b border-white/10">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-                        Queued <span className="text-blue-400 normal-case">({pendingActions.length}) — executes on Jump</span>
-                      </p>
-                      <div className="space-y-1.5">
-                        {pendingActions.map(action => (
-                          <div key={action.id} className="rounded bg-white/5 border border-white/10 px-2 py-1.5">
-                            {editingId === action.id ? (
-                              <div>
-                                <input value={editText} onChange={e => setEditText(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(action.id); if (e.key === 'Escape') setEditingId(null) }}
-                                  autoFocus
-                                  className="w-full bg-white/10 rounded px-2 py-0.5 text-xs text-white focus:outline-none border border-blue-500 mb-1" />
-                                <div className="flex gap-1">
-                                  <button onClick={() => handleSaveEdit(action.id)} className="text-xs text-green-400 hover:text-green-300">Save</button>
-                                  <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-300">Cancel</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-start justify-between gap-1">
-                                <span className="text-xs text-gray-200 flex-1 leading-relaxed">{action.text}</span>
-                                <div className="flex gap-1 shrink-0 ml-1">
-                                  <button onClick={() => handleStartEdit(action.id, action.text)} className="text-xs text-gray-500 hover:text-blue-400" title="Edit">✎</button>
-                                  <button onClick={() => removePendingAction(action.id)} className="text-xs text-gray-500 hover:text-red-400" title="Remove">✕</button>
-                                </div>
-                              </div>
-                            )}
+                {/* Build queue */}
+                {buildQueue.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">Construction</p>
+                    <div className="space-y-1">
+                      {buildQueue.map(p => (
+                        <div key={p.id} className="rounded-xl bg-white/[0.03] px-3 py-2">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-300">{p.name}</span>
+                            <span className="text-gray-600 font-mono">{p.weeksRemaining}w</span>
                           </div>
-                        ))}
-                      </div>
+                          <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${Math.round((1 - p.weeksRemaining / p.totalWeeks) * 100)}%` }} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  <div className="p-3 space-y-2">
-                    {lastResults.length > 0 && (
-                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Results</p>
-                    )}
-                    {jumpError && <p className="text-xs text-red-400 mb-2">{jumpError}</p>}
-                    {/* Natural disaster alerts */}
-                    {recentDisasters.length > 0 && (
-                      <div className="mb-2 space-y-1">
-                        {recentDisasters.slice(0, 3).map(d => (
-                          <div key={d.id} className="rounded border border-orange-800/40 bg-orange-900/20 px-3 py-2">
-                            <p className="text-xs font-semibold text-orange-300">⚠ {d.name}</p>
-                            <p className="text-xs text-orange-200/70 mt-0.5">{d.description} GDP loss: ${(d.gdpLoss/1e9).toFixed(1)}B</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Build queue */}
-                    {buildQueue.length > 0 && (
-                      <div className="mb-2">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Under Construction</p>
-                        <div className="space-y-1">
-                          {buildQueue.map(p => (
-                            <div key={p.id} className="rounded bg-white/5 px-2 py-1.5">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-300">{p.name}</span>
-                                <span className="text-gray-500">{p.weeksRemaining}w left</span>
-                              </div>
-                              <div className="mt-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full transition-all"
-                                  style={{ width: `${Math.round((1 - p.weeksRemaining / p.totalWeeks) * 100)}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Research queue */}
-                    {researchQueue.length > 0 && (
-                      <div className="mb-2">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Research</p>
-                        <div className="space-y-1">
-                          {researchQueue.map(p => (
-                            <div key={p.id} className="rounded bg-white/5 px-2 py-1.5">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-300 capitalize">{p.techId.replace(/_/g, ' ')}</span>
-                                <span className="text-gray-500">{p.weeksRemaining}w left</span>
-                              </div>
-                              <div className="mt-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-purple-500 rounded-full transition-all"
-                                  style={{ width: `${Math.round((1 - p.weeksRemaining / p.totalWeeks) * 100)}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {lastResults.length === 0 && pendingActions.length === 0 && buildQueue.length === 0 && (
-                      <p className="text-xs text-gray-600 text-center py-4">Queue actions above, then press Jump to execute them.</p>
-                    )}
-                    {lastResults.map((result: ActionResult) => (
-                      <div key={result.actionId}
-                        className="rounded border border-white/10 overflow-hidden">
-                        {/* Header — always visible */}
-                        <button
-                          onClick={() => setExpandedResult(expandedResult === result.actionId ? null : result.actionId)}
-                          className="w-full text-left p-3 hover:bg-white/5 transition-colors">
-                          <p className="text-sm font-medium leading-snug">{result.summary}</p>
-                          {/* Stat pills always visible */}
-                          {Object.entries(result.statDeltas).filter(([,v]) => v !== 0).length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {Object.entries(result.statDeltas).filter(([,v]) => v !== 0).map(([key, val]) => (
-                                <span key={key} className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${val > 0 ? 'bg-green-900/60 text-green-300' : 'bg-red-900/60 text-red-300'}`}>
-                                  {key === 'gdp' ? (val > 0 ? '+' : '') + formatStat(val) : (val > 0 ? '+' : '') + val + ' ' + key}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-xs text-gray-500 mt-1">{expandedResult === result.actionId ? '▲ hide detail' : '▼ show detail'}</p>
-                        </button>
-
-                        {/* Expanded detail */}
-                        {expandedResult === result.actionId && (
-                          <div className="px-3 pb-3 space-y-3 border-t border-white/10 pt-3 bg-black/20">
-                            <p className="text-xs text-gray-200 leading-relaxed">{result.fullNarrative}</p>
-
-                            {/* Domestic reaction */}
-                            {result.domesticReaction && (
-                              <div className="rounded bg-amber-900/20 border border-amber-800/30 px-2 py-1.5">
-                                <p className="text-xs text-amber-200/70 uppercase tracking-wider mb-0.5">Public reaction</p>
-                                <p className="text-xs text-amber-100 leading-relaxed">{result.domesticReaction}</p>
-                              </div>
-                            )}
-
-                            {/* World reaction */}
-                            {result.worldReaction && (
-                              <p className="text-xs text-blue-300/80 italic leading-relaxed">{result.worldReaction}</p>
-                            )}
-
-                            {/* Country reactions */}
-                            {result.countryReactions && result.countryReactions.length > 0 && (
-                              <div className="space-y-1">
-                                <p className="text-xs text-gray-500 uppercase tracking-wider">International responses</p>
-                                {result.countryReactions.map((cr, i) => (
-                                  <div key={i} className={`rounded px-2 py-1.5 flex gap-2 items-start ${
-                                    cr.stance === 'positive' ? 'bg-green-900/20 border border-green-800/30' :
-                                    cr.stance === 'negative' ? 'bg-red-900/20 border border-red-800/30' :
-                                    'bg-white/5 border border-white/10'
-                                  }`}>
-                                    <span className="text-xs shrink-0 mt-0.5">
-                                      {cr.stance === 'positive' ? '🟢' : cr.stance === 'negative' ? '🔴' : '🟡'}
-                                    </span>
-                                    <div>
-                                      <span className="text-xs font-medium text-white">{cr.country}: </span>
-                                      <span className="text-xs text-gray-300 italic">"{cr.quote}"</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Tags */}
-                            {result.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {result.tags.map(tag => (
-                                  <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400">{tag}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
                   </div>
+                )}
+
+                {/* Research queue */}
+                {researchQueue.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">Research</p>
+                    <div className="space-y-1">
+                      {researchQueue.map(p => (
+                        <div key={p.id} className="rounded-xl bg-white/[0.03] px-3 py-2">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-300 capitalize">{p.techId.replace(/_/g, ' ')}</span>
+                            <span className="text-gray-600 font-mono">{p.weeksRemaining}w</span>
+                          </div>
+                          <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                            <div className="h-full bg-purple-500 rounded-full transition-all"
+                              style={{ width: `${Math.round((1 - p.weeksRemaining / p.totalWeeks) * 100)}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {pendingActions.length === 0 && buildQueue.length === 0 && recentDisasters.length === 0 && (
+                  <p className="text-xs text-gray-700 text-center py-6">Queue actions above, then press Jump to execute.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── AI Suggest tab ── */}
+          {activeTab === 'suggest' && (
+            <div className="flex flex-col flex-1 p-3">
+              <p className="text-xs text-gray-500 mb-3 leading-relaxed">Describe a goal — AI will turn it into a precise action.</p>
+              <textarea value={suggestText} onChange={e => setSuggestText(e.target.value)}
+                placeholder="e.g. I want to dominate East Asian trade…"
+                className="w-full h-28 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-purple-500/50 text-white placeholder-gray-600" />
+              {suggestError && <p className="text-xs text-red-400 mt-2">{suggestError}</p>}
+              <button onClick={handleAiSuggest} disabled={!suggestText.trim() || suggestLoading || !config}
+                className="mt-2 w-full py-2 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors">
+                {suggestLoading ? 'Thinking…' : 'Suggest →'}
+              </button>
+              {!config && <p className="text-xs text-amber-400/70 mt-3 text-center">No AI configured.</p>}
+            </div>
+          )}
+
+          {/* ── Tech tab ── */}
+          {activeTab === 'tech' && <TechTreePanel />}
+
+          {/* ── Legend tab ── */}
+          {activeTab === 'legend' && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Cities</p>
+                <div className="space-y-1.5">
+                  {LEGEND_ITEMS.map(item => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color, boxShadow: `0 0 4px ${item.color}` }} />
+                      <span className="text-xs text-gray-400">{item.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-
-            {/* ── AI Suggest tab ── */}
-            {activeTab === 'suggest' && (
-              <div className="flex flex-col flex-1 p-3">
-                <p className="text-xs text-gray-400 mb-2">Describe a goal — AI will refine it into a precise action and send it to Free Action.</p>
-                <textarea value={suggestText} onChange={e => setSuggestText(e.target.value)}
-                  placeholder="e.g. I want to become dominant in East Asia…"
-                  className="w-full h-28 bg-white/5 border border-white/10 rounded p-2 text-sm resize-none focus:outline-none focus:border-blue-500 text-white placeholder-gray-500" />
-                {suggestError && <p className="text-xs text-red-400 mt-1">{suggestError}</p>}
-                <button onClick={handleAiSuggest} disabled={!suggestText.trim() || suggestLoading || !config}
-                  className="mt-2 w-full py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium transition-colors">
-                  {suggestLoading ? 'Thinking…' : 'AI Suggest →'}
-                </button>
-                {!config && <p className="text-xs text-amber-400 mt-3 text-center">No AI configured — set up your API key on the setup screen.</p>}
-              </div>
-            )}
-
-            {/* ── Tech tab ── */}
-            {activeTab === 'tech' && <TechTreePanel />}
-
-            {/* ── Legend tab ── */}
-            {activeTab === 'legend' && (
-              <div className="flex-1 overflow-y-auto p-3 space-y-4">
-
-                {/* City dots */}
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Cities</p>
+              {INFRA_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">{group.label}</p>
                   <div className="space-y-1.5">
-                    {LEGEND_ITEMS.map(item => (
-                      <div key={item.label} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full shrink-0 border border-[#0a1628]"
-                          style={{ backgroundColor: item.color, boxShadow: `0 0 4px ${item.color}` }} />
-                        <div>
-                          <span className="text-xs text-white">{item.label}</span>
-                          <span className="text-xs text-gray-500 ml-1">— {item.desc}</span>
+                    {group.items.map(type => {
+                      const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
+                      return (
+                        <div key={type} className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour, boxShadow: `0 0 5px ${colour}80` }} />
+                          <span className="text-xs text-gray-400">{INFRA_LABELS[type] ?? type}</span>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
-
-                {/* Infrastructure by group */}
-                {INFRA_GROUPS.map(group => (
-                  <div key={group.label}>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{group.label}</p>
-                    <div className="space-y-1.5">
-                      {group.items.map(type => {
-                        const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
-                        return (
-                          <div key={type} className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                              style={{ backgroundColor: colour, boxShadow: `0 0 6px ${colour}80` }} />
-                            <span className="text-xs text-white">{INFRA_LABELS[type] ?? type}</span>
-                          </div>
-                        )
-                      })}
+              ))}
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Rail Lines</p>
+                <div className="space-y-1.5">
+                  {Object.entries(RAIL_COLOURS).map(([type, colour]) => (
+                    <div key={type} className="flex items-center gap-2">
+                      <div className="w-5 h-0.5 rounded shrink-0" style={{ backgroundColor: colour }} />
+                      <span className="text-xs text-gray-400 capitalize">{type.replace(/_/g, ' ')}</span>
                     </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sidebar open tab */}
+      {!sidebarOpen && (
+        <button onClick={() => setSidebarOpen(true)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-5 h-14 bg-[#080f1e]/90 border border-white/10 border-l-0 rounded-r-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-blue-900/40 transition-colors">›</button>
+      )}
+
+      {/* ── Map area ── */}
+      <div className="flex-1 relative overflow-hidden">
+        <WorldMap>
+          <CountryLayer />
+          <DamageLayer />
+          <CitiesLayer />
+          <InfraLayer />
+          <RailLayer />
+          <LandUseLayer />
+        </WorldMap>
+        <OrgPanel />
+
+        {/* ── Top HUD ── */}
+        <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pt-3 pointer-events-none z-10">
+          {/* Date + era pill */}
+          <div className="pointer-events-auto flex items-center gap-2 bg-[#080f1e]/80 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 shadow-xl">
+            <span className="text-sm font-mono text-white font-semibold">{gameState.currentDate}</span>
+            <span className="h-3 w-px bg-white/20" />
+            <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
+          </div>
+
+          {/* Right HUD: Lore + Save + New Game */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            <button onClick={() => setLoreOpen(o => !o)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-md text-xs font-semibold transition-all shadow-xl ${
+                loreOpen
+                  ? 'bg-amber-900/60 border-amber-700/60 text-amber-200'
+                  : 'bg-[#080f1e]/80 border-white/10 text-gray-300 hover:text-white hover:border-white/20'
+              }`}>
+              <span>📖</span>
+              <span>Lore</span>
+              {lore.length > 0 && <span className="bg-amber-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{lore.length}</span>}
+            </button>
+            <button onClick={handleSave}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-300 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
+              {saveStatus === 'saving' ? '⏳' : saveStatus === 'saved' ? '✓' : saveStatus === 'error' ? '!' : '💾'}
+              <span>{saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Error' : 'Save'}</span>
+            </button>
+            <button onClick={clearGame}
+              className="px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
+              New Game
+            </button>
+          </div>
+        </div>
+
+        {/* ── Timeline event card (Pax Historia style) ── */}
+        {timelineResult !== null && (
+          <div className="absolute top-16 left-4 z-20 w-80 bg-[#080f1e]/97 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Timeline</p>
+                <p className="text-[10px] text-gray-600 font-mono mt-0.5">from {gameState.currentDate}</p>
+              </div>
+              <button onClick={() => setTimelineIdx(null)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-xs">✕</button>
+            </div>
+
+            {/* Country tags */}
+            {timelineResult.countryReactions && timelineResult.countryReactions.length > 0 && (
+              <div className="flex flex-wrap gap-1 px-4 pt-2">
+                {timelineResult.countryReactions.map(cr => (
+                  <span key={cr.country} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                    cr.stance === 'positive' ? 'bg-emerald-950/60 border-emerald-800/40 text-emerald-300' :
+                    cr.stance === 'negative' ? 'bg-red-950/60 border-red-800/40 text-red-300' :
+                    'bg-white/5 border-white/10 text-gray-400'
+                  }`}>{cr.country}</span>
                 ))}
-
-                {/* Rail lines */}
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Rail Lines</p>
-                  <div className="space-y-1.5">
-                    {Object.entries(RAIL_COLOURS).map(([type, colour]) => (
-                      <div key={type} className="flex items-center gap-2">
-                        <div className="w-6 h-1 rounded shrink-0" style={{ backgroundColor: colour }} />
-                        <span className="text-xs text-white capitalize">{type.replace(/_/g, ' ')}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Country colours */}
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Countries</p>
-                  <p className="text-xs text-gray-400">Each country has a unique colour. Yours appears lighter.</p>
-                </div>
-
-                {/* Zoom guide */}
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Zoom Guide</p>
-                  <div className="space-y-0.5 text-xs text-gray-400">
-                    <p>1–5 · Country names</p>
-                    <p>4+ · Major cities</p>
-                    <p>5+ · City labels</p>
-                    <p>4+ · Infrastructure dots (zoom in to see)</p>
-                  </div>
-                </div>
               </div>
             )}
+
+            {/* Title */}
+            <div className="px-4 py-3">
+              <h3 className="text-sm font-bold text-white leading-snug uppercase tracking-wide">{timelineResult.summary}</h3>
+            </div>
+
+            {/* Narrative */}
+            <div className="px-4 pb-3 max-h-48 overflow-y-auto">
+              <p className="text-xs text-gray-300 leading-relaxed">{timelineResult.fullNarrative}</p>
+
+              {timelineResult.domesticReaction && (
+                <div className="mt-2 rounded-xl bg-amber-950/40 border border-amber-800/20 px-3 py-2">
+                  <p className="text-[10px] text-amber-400 uppercase tracking-wider mb-0.5">Public</p>
+                  <p className="text-xs text-amber-200/80 leading-relaxed">{timelineResult.domesticReaction}</p>
+                </div>
+              )}
+
+              {timelineResult.worldReaction && (
+                <p className="text-xs text-blue-300/70 italic mt-2 leading-relaxed">{timelineResult.worldReaction}</p>
+              )}
+            </div>
+
+            {/* Stat deltas */}
+            {Object.entries(timelineResult.statDeltas).filter(([,v]) => v !== 0).length > 0 && (
+              <div className="flex flex-wrap gap-1 px-4 pb-2">
+                {Object.entries(timelineResult.statDeltas).filter(([,v]) => v !== 0).map(([key, val]) => (
+                  <span key={key} className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${val > 0 ? 'bg-emerald-950/60 border-emerald-800/40 text-emerald-300' : 'bg-red-950/60 border-red-800/40 text-red-300'}`}>
+                    {key === 'gdp' ? (val > 0 ? '+' : '') + formatStat(val) : (val > 0 ? '+' : '') + val + ' ' + key}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-white/8">
+              <button
+                onClick={() => setTimelineIdx(i => i !== null && i > 0 ? i - 1 : i)}
+                disabled={timelineIdx === 0}
+                className="px-3 py-1.5 rounded-xl text-xs bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 transition-colors font-medium">
+                ← Prev
+              </button>
+              <span className="text-[10px] text-gray-600 flex-1 text-center font-mono">
+                {(timelineIdx ?? 0) + 1} / {lastResults.length}
+              </span>
+              <button
+                onClick={() => setTimelineIdx(i => i !== null && i < lastResults.length - 1 ? i + 1 : i)}
+                disabled={timelineIdx === lastResults.length - 1}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors font-semibold">
+                Next Event →
+              </button>
+            </div>
           </div>
         )}
 
-        {/* ── Collapse toggle (when sidebar hidden) ── */}
-        {!sidebarOpen && (
-          <button onClick={() => setSidebarOpen(true)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-5 h-16 bg-[#0d1f3c]/90 border border-white/10 rounded-r flex items-center justify-center text-gray-400 hover:text-white hover:bg-blue-900/50 transition-colors"
-            title="Open sidebar">›</button>
-        )}
+        {/* ── Bottom-left floating buttons ── */}
+        <div className="absolute bottom-20 left-4 z-10 flex flex-col items-start gap-2">
+          <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
+          <DiplomacyPanel gameContext={{
+            playerCountry: player?.name ?? gameState.playerCountryId,
+            currentDate: gameState.currentDate,
+            era: gameState.era,
+            yesman: gameState.yesman ?? false,
+            countryNames: Object.values(gameState.countries).map(c => c.name).filter(n => n !== (player?.name ?? '')),
+            stats: stats as unknown as Record<string, number> ?? {},
+            recentHistory,
+            warDamageSummary,
+          }} />
+          <button onClick={() => setCheatOpen(o => !o)}
+            className={`w-10 h-10 rounded-full border shadow-xl backdrop-blur-md flex items-center justify-center text-xs font-mono transition-all ${
+              cheatOpen ? 'bg-green-900/70 border-green-700/60 text-green-300' : 'bg-[#080f1e]/80 border-white/10 text-gray-500 hover:text-green-400 hover:border-green-800/50'
+            }`} title="Cheat console">~</button>
+        </div>
 
-        {/* ── Map ── */}
-        <div className="flex-1 relative">
-          <WorldMap>
-            <CountryLayer />
-            <DamageLayer />
-            <CitiesLayer />
-            <InfraLayer />
-            <RailLayer />
-            <LandUseLayer />
-          </WorldMap>
-          <OrgPanel />
-          {/* Floating panels — stacked bottom-right */}
-          <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
-            <DiplomacyPanel gameContext={{
-              playerCountry: player?.name ?? gameState.playerCountryId,
-              currentDate: gameState.currentDate,
-              era: gameState.era,
-              yesman: gameState.yesman ?? false,
-              countryNames: Object.values(gameState.countries).map(c => c.name).filter(n => n !== (player?.name ?? '')),
-              stats: stats as unknown as Record<string, number> ?? {},
-              recentHistory,
-              warDamageSummary,
-            }} />
-            <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
-          </div>
+        {/* ── Jump Forward controls ── */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+          {isJumping ? (
+            <div className="flex items-center gap-3 bg-[#080f1e]/90 backdrop-blur-md border border-blue-700/40 rounded-2xl px-6 py-3 shadow-2xl">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-blue-300 font-semibold">Processing…</span>
+            </div>
+          ) : (
+            <>
+              {(['week', 'month', 'year'] as const).map(period => (
+                <button key={period} onClick={() => handleJump(period)}
+                  className="px-4 py-2.5 rounded-xl bg-[#080f1e]/85 backdrop-blur-md border border-white/10 hover:border-blue-500/50 hover:bg-blue-950/50 text-sm font-semibold text-gray-300 hover:text-white transition-all shadow-xl">
+                  +{period.charAt(0).toUpperCase() + period.slice(1)}
+                </button>
+              ))}
+              <button onClick={() => handleJump('month')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-500/50 text-sm font-bold text-white transition-all shadow-2xl shadow-blue-900/40">
+                <span>▶</span>
+                <div className="text-left">
+                  <div className="text-xs font-bold leading-none">Jump Forward</div>
+                  <div className="text-[9px] text-blue-200/70 leading-none mt-0.5">Simulate Future Events</div>
+                </div>
+              </button>
+              {pendingActions.length > 0 && (
+                <span className="text-xs text-blue-300 font-semibold bg-blue-900/40 rounded-xl px-3 py-2.5 border border-blue-800/30">
+                  {pendingActions.length} queued
+                </span>
+              )}
+            </>
+          )}
         </div>
       </div>
 
+      {/* ── Lore Panel (right side) ── */}
+      {loreOpen && (
+        <LorePanel
+          entries={lore}
+          currentDate={gameState.currentDate}
+          onClose={() => setLoreOpen(false)}
+        />
+      )}
+
       {/* ── Cheat Console ── */}
       {cheatOpen && <CheatMenu onClose={() => setCheatOpen(false)} />}
-
-      {/* ── Time Bar ── */}
-      <div className="flex items-center justify-center gap-3 px-4 py-2 bg-[#0d1f3c] border-t border-white/10 shrink-0">
-        {(['week', 'month', 'year'] as const).map(period => (
-          <button key={period} onClick={() => handleJump(period)} disabled={isJumping}
-            className="px-4 py-1.5 rounded bg-white/10 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors">
-            {isJumping ? '…' : `Jump ${period.charAt(0).toUpperCase() + period.slice(1)}`}
-          </button>
-        ))}
-        <button onClick={() => handleJump('week')} disabled={isJumping}
-          className="px-4 py-1.5 rounded bg-white/10 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors">
-          {isJumping ? 'Processing…' : 'Next Event'}
-        </button>
-        {pendingActions.length > 0 && !isJumping && (
-          <span className="text-xs text-blue-300 ml-2">{pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} queued</span>
-        )}
-        {isJumping && <span className="text-xs text-amber-300 ml-2 animate-pulse">AI processing actions…</span>}
-      </div>
     </div>
   )
 }

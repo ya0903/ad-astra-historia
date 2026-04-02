@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   GameState, EraStartConditions, Difficulty, GameAction, ActionResult,
-  BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType,
+  BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 
@@ -135,6 +135,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       unlockedTechs: [],
       recentDisasters: [],
       warDamage: {},
+      lore: [],
       yesman: false,
     }
     set({ state: newState, error: null })
@@ -148,6 +149,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       unlockedTechs: saved.unlockedTechs ?? [],
       recentDisasters: saved.recentDisasters ?? [],
       warDamage: saved.warDamage ?? {},
+      lore: saved.lore ?? [],
       yesman: saved.yesman ?? false,
     },
     error: null,
@@ -303,6 +305,16 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       ...results.map(r => ({ date: s.currentDate, action: r.summary, outcome: r.fullNarrative })),
     ]
 
+    const newLoreEntries: LoreEntry[] = results.map(r => ({
+      id: `lore-${Date.now()}-${r.actionId}`,
+      date: s.currentDate,
+      title: r.summary,
+      narrative: r.fullNarrative,
+      tags: r.tags ?? [],
+      involvedCountries: (r.countryReactions ?? []).map(cr => cr.country),
+      statDeltas: r.statDeltas ?? {},
+    }))
+
     return {
       isJumping: false,
       state: {
@@ -310,6 +322,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         currentDate: advanceDateStr(s.currentDate, advancePeriod),
         countries: { ...s.countries, [pid]: { ...player, stats: newStats } },
         lastResults: results,
+        lore: [...(s.lore ?? []), ...newLoreEntries],
         pendingActions: [],
         actionHistory: newHistory,
         buildQueue: [...(s.buildQueue ?? []), ...newBuilds],

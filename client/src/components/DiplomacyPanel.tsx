@@ -98,8 +98,8 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-12 h-12 rounded-full bg-[#0d1f3c] border border-white/20 shadow-lg flex items-center justify-center text-xl hover:bg-blue-900/60 transition-colors"
-        title="Diplomacy"
+        className="w-10 h-10 rounded-full bg-[#080f1e]/85 border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-center text-lg hover:bg-blue-900/50 hover:border-blue-700/50 transition-all"
+        title="Diplomatic Chats"
       >
         🤝
       </button>
@@ -107,30 +107,34 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   }
 
   return (
-    <div className="w-80 bg-[#0a1628]/95 border border-blue-800/60 rounded-xl shadow-2xl backdrop-blur-sm flex flex-col"
+    <div className="w-80 bg-[#080f1e]/97 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col"
       style={{ maxHeight: '420px' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-blue-900/40 shrink-0">
-        <span className="text-xs font-semibold text-blue-300 tracking-wide uppercase">
-          {targetCountry ? `Talks with ${targetCountry}` : 'Diplomacy'}
-        </span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
+        <div className="flex items-center gap-2">
+          <span>🤝</span>
+          <div>
+            <p className="text-xs font-bold text-white">{targetCountry ? `Talks with ${targetCountry}` : 'Diplomatic Chats'}</p>
+            <p className="text-[10px] text-gray-600">Foreign relations</p>
+          </div>
+        </div>
         <div className="flex gap-1">
           {targetCountry && (
-            <button onClick={reset} className="text-blue-600 hover:text-blue-300 text-xs px-1">← Back</button>
+            <button onClick={reset} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-[10px] font-bold">←</button>
           )}
-          <button onClick={() => setOpen(false)} className="text-blue-600 hover:text-blue-300 text-sm leading-none">✕</button>
+          <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">✕</button>
         </div>
       </div>
 
       {/* Country picker */}
       {!targetCountry && (
         <div className="flex-1 overflow-y-auto px-3 py-2" style={{ minHeight: 0 }}>
-          <p className="text-xs text-gray-500 mb-2">Select a country to open talks:</p>
+          <p className="text-[10px] text-gray-600 mb-2 uppercase tracking-wider">Select a nation to open talks</p>
           <input
             autoFocus
             placeholder="Search country…"
-            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-600 outline-none focus:border-blue-500 mb-2"
+            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-blue-500/50 mb-2"
             onChange={e => {
               const el = document.getElementById('diplo-list')
               if (el) el.setAttribute('data-filter', e.target.value.toLowerCase())
@@ -139,7 +143,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           <div id="diplo-list" className="space-y-0.5">
             {gameContext.countryNames.sort().map(name => (
               <button key={name} onClick={() => startTalks(name)}
-                className="w-full text-left px-2 py-1.5 rounded text-xs text-gray-300 hover:bg-blue-800/40 hover:text-white transition-colors">
+                className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-400 hover:bg-blue-900/30 hover:text-white transition-colors">
                 {name}
               </button>
             ))}
@@ -176,18 +180,18 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
             <div ref={bottomRef} />
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 border-t border-blue-900/40 shrink-0">
+          <div className="flex items-center gap-2 px-3 py-3 border-t border-white/8 shrink-0">
             <input
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') sendMessage() }}
               placeholder="Your proposal…"
-              className="flex-1 bg-transparent text-white text-xs outline-none placeholder-gray-600"
+              className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
               autoComplete="off"
             />
             <button onClick={sendMessage} disabled={loading || !input.trim()}
-              className="px-2 py-1 rounded text-xs bg-blue-700 hover:bg-blue-600 disabled:opacity-40 transition-colors">
+              className="px-3 py-2 rounded-xl text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors font-semibold">
               Send
             </button>
           </div>

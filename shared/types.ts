@@ -235,6 +235,16 @@ export interface ActionResult {
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
 }
 
+export interface LoreEntry {
+  id: string
+  date: string
+  title: string
+  narrative: string
+  tags: string[]
+  involvedCountries: string[]
+  statDeltas: Record<string, number>
+}
+
 export interface GameState {
   era: Era
   currentDate: string
@@ -264,6 +274,8 @@ export interface GameState {
   recentDisasters: DisasterEvent[]
   // War damage overlay — persists on map
   warDamage: Record<string, 'bombed' | 'nuked'>
+  // Lore log — accumulates every event ever fired
+  lore: LoreEntry[]
   // Game flags
   yesman: boolean              // countries auto-accept proposals
 }
