@@ -83,6 +83,9 @@ function repairJson(raw: string): string {
   // Remove trailing commas before } or ]
   s = s.replace(/,(\s*[}\]])/g, '$1')
 
+  // Fix "key![ → "key": [ (model occasionally drops the colon)
+  s = s.replace(/"(\w+)!\[/g, '"$1": [')
+
   // Python-style literals
   s = s.replace(/\bNone\b/g, 'null').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false')
 

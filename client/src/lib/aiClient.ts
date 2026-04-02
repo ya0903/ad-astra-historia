@@ -33,7 +33,19 @@ export async function callAI(config: AIConfig, system: string, messages: AIMessa
     }
     if (jsonMode) body['response_format'] = { type: 'json_object' }
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
-    if (!res.ok) throw new Error(`${url} → ${res.status}: ${await res.text()}`)
+    if (!res.ok) {
+      const errText = await res.text()
+      // Groq (and some others) return failed_generation when JSON mode produces
+      // invalid JSON. Extract it so repairJson can attempt to salvage it.
+      if (jsonMode) {
+        try {
+          const errJson = JSON.parse(errText) as { error?: { failed_generation?: string } }
+          const failed = errJson?.error?.failed_generation
+          if (failed) return failed
+        } catch { /* fall through */ }
+      }
+      throw new Error(`${url} → ${res.status}: ${errText}`)
+    }
     const data = await res.json() as { choices: Array<{ message: { content: string } }> }
     return data.choices[0]?.message?.content ?? ''
 
