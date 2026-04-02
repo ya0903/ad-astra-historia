@@ -155,7 +155,8 @@ export default function GamePage() {
 
   const [actionText, setActionText] = useState('')
   const [suggestText, setSuggestText] = useState('')
-  const [activeTab, setActiveTab] = useState<'categories' | 'free' | 'suggest' | 'legend' | 'tech'>('free')
+  const [showAiRefine, setShowAiRefine] = useState(false)
+  const [activeTab, setActiveTab] = useState<'categories' | 'free' | 'legend' | 'tech'>('free')
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -314,10 +315,10 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
     if (!text || !config) return
     setSuggestLoading(true); setSuggestError('')
     try {
-      const system = `You are a geopolitical strategy advisor for ${player?.name ?? gameState.playerCountryId} on ${gameState.currentDate}. Refine the idea into one specific actionable policy decision using real place names, resource names, and institutions from ${player?.name ?? gameState.playerCountryId} (e.g. "Nationalise the Thar Coal fields" not "nationalise key industry", "Construct Gwadar free-trade zone" not "build port"). Under 20 words. Return only the action text.`
+      const system = `You are a geopolitical strategy advisor for ${player?.name ?? gameState.playerCountryId} on ${gameState.currentDate}. Refine the idea into one specific actionable policy decision using real place names, resource names, and institutions from ${player?.name ?? gameState.playerCountryId} (e.g. "Nationalise the Thar Coal fields" not "nationalise key industry", "Construct Gwadar free-trade zone" not "build port"). Under 20 words. RESPOND IN ENGLISH ONLY. Output only the refined action text, nothing else.`
       const suggestion = await callAI(config, system, [{ role: 'user', content: text }])
       setActionText(suggestion.trim())
-      setSuggestText(''); setActiveTab('free')
+      setSuggestText(''); setShowAiRefine(false)
     } catch (e) { setSuggestError(e instanceof Error ? e.message : 'AI error') }
     finally { setSuggestLoading(false) }
   }
@@ -365,14 +366,14 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
           {/* Tabs */}
           <div className="flex border-b border-white/8 shrink-0">
-            {(['categories', 'free', 'suggest', 'tech', 'legend'] as const).map(tab => (
+            {(['categories', 'free', 'tech', 'legend'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2 text-[10px] font-medium uppercase tracking-wider transition-colors ${
                   activeTab === tab
                     ? 'text-blue-300 border-b-2 border-blue-400 bg-blue-950/30'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}>
-                {tab === 'categories' ? 'Act' : tab === 'free' ? 'Free' : tab === 'suggest' ? 'AI' : tab === 'tech' ? 'Tech' : 'Map'}
+                {tab === 'categories' ? 'Act' : tab === 'free' ? 'Free' : tab === 'tech' ? 'Tech' : 'Map'}
               </button>
             ))}
           </div>
@@ -422,13 +423,40 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           {activeTab === 'free' && (
             <div className="flex flex-col flex-1 overflow-hidden">
               <div className="p-3 border-b border-white/8 shrink-0">
-                <textarea
-                  value={actionText}
-                  onChange={e => setActionText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleExecute() } }}
-                  placeholder="Describe your action… (Enter to queue)"
-                  className="w-full h-20 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
-                />
+                <div className="relative">
+                  <textarea
+                    value={actionText}
+                    onChange={e => setActionText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleExecute() } }}
+                    placeholder="Describe your action… (Enter to queue)"
+                    className="w-full h-20 bg-white/[0.04] border border-white/10 rounded-xl p-3 pr-9 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
+                  />
+                  <button
+                    onClick={() => { setShowAiRefine(v => !v); setSuggestError('') }}
+                    title="AI Refine"
+                    className={`absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-sm ${
+                      showAiRefine ? 'bg-purple-600/60 text-purple-200' : 'bg-white/[0.06] text-gray-500 hover:text-purple-300 hover:bg-purple-900/30'
+                    }`}>
+                    ✦
+                  </button>
+                </div>
+                {showAiRefine && (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={suggestText}
+                      onChange={e => setSuggestText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiSuggest() } }}
+                      placeholder="Describe a goal — AI will refine it into an action…"
+                      className="w-full h-16 bg-purple-950/30 border border-purple-500/20 rounded-xl p-3 text-xs resize-none focus:outline-none focus:border-purple-500/50 text-white placeholder-gray-600"
+                    />
+                    {suggestError && <p className="text-xs text-red-400">{suggestError}</p>}
+                    <button onClick={handleAiSuggest} disabled={!suggestText.trim() || suggestLoading || !config}
+                      className="w-full py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold transition-colors">
+                      {suggestLoading ? 'Thinking…' : '✦ Refine with AI'}
+                    </button>
+                    {!config && <p className="text-[10px] text-amber-400/70 text-center">No AI configured.</p>}
+                  </div>
+                )}
                 <button onClick={handleExecute} disabled={!actionText.trim()}
                   className="mt-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
                   Queue Action
@@ -532,22 +560,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                   <p className="text-xs text-gray-700 text-center py-6">Queue actions above, then press Jump to execute.</p>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ── AI Suggest tab ── */}
-          {activeTab === 'suggest' && (
-            <div className="flex flex-col flex-1 p-3">
-              <p className="text-xs text-gray-500 mb-3 leading-relaxed">Describe a goal — AI will turn it into a precise action.</p>
-              <textarea value={suggestText} onChange={e => setSuggestText(e.target.value)}
-                placeholder="e.g. I want to dominate East Asian trade…"
-                className="w-full h-28 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-purple-500/50 text-white placeholder-gray-600" />
-              {suggestError && <p className="text-xs text-red-400 mt-2">{suggestError}</p>}
-              <button onClick={handleAiSuggest} disabled={!suggestText.trim() || suggestLoading || !config}
-                className="mt-2 w-full py-2 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors">
-                {suggestLoading ? 'Thinking…' : 'Suggest →'}
-              </button>
-              {!config && <p className="text-xs text-amber-400/70 mt-3 text-center">No AI configured.</p>}
             </div>
           )}
 
