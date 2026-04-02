@@ -194,11 +194,14 @@ export default function CountryLayer() {
           id: 'country-fills', type: 'fill', source: 'countries',
           paint: {
             'fill-color': colourExpression,
-            // Fade country fill as zoom increases so biome detail shows through
-            'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-              2, ['case', ['==', ['get', 'ISO_A3'], playerCountryId], 0.75, 0.50],
-              5, ['case', ['==', ['get', 'ISO_A3'], playerCountryId], 0.55, 0.38],
-              7, ['case', ['==', ['get', 'ISO_A3'], playerCountryId], 0.22, 0.14],
+            // Fade country fill as zoom increases so biome detail shows through.
+            // step is used (not interpolate) to avoid nested-expression issues.
+            'fill-opacity': ['step', ['zoom'],
+              0.50,   // zoom < 3
+              3, 0.45,
+              4, 0.35,
+              5, 0.20,
+              6, 0.08,
             ] as ExpressionSpecification,
           },
         })
