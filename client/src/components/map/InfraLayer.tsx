@@ -86,9 +86,28 @@ export default function InfraLayer() {
       if (!popupRef.current) {
         popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
       }
+      const colour = (e.features[0].properties as { colour?: string }).colour ?? '#94a3b8'
       popupRef.current
         .setLngLat(e.lngLat)
-        .setHTML(`<div style="color:#fff;background:#1e293b;padding:4px 8px;border-radius:4px;font-size:12px"><b>${props.name}</b><br/>${props.type} (lv ${props.level})</div>`)
+        .setHTML(`
+          <div style="
+            background:#0d1b31;
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:10px;
+            padding:8px 12px;
+            font-family:system-ui,sans-serif;
+            font-size:12px;
+            line-height:1.5;
+            min-width:120px;
+            box-shadow:0 4px 20px rgba(0,0,0,0.6);
+          ">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0;display:inline-block"></span>
+              <span style="color:#fff;font-weight:600;font-size:13px">${props.name}</span>
+            </div>
+            <div style="color:#64748b;font-size:11px;margin-top:2px;text-transform:capitalize">${props.type} · Level ${props.level}</div>
+          </div>
+        `)
         .addTo(map)
     }
 

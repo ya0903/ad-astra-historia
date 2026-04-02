@@ -204,6 +204,15 @@ const CITY_CENTRES: Record<string, [number, number, number]> = {
   yangon: [96.2, 16.8, 9],
 }
 
+/** Returns [lng, lat] for a city name (case-insensitive substring match), or null */
+export function getCityCentre(name: string): [number, number] | null {
+  const lower = name.toLowerCase()
+  for (const [key, coords] of Object.entries(CITY_CENTRES)) {
+    if (lower.includes(key)) return [coords[0], coords[1]]
+  }
+  return null
+}
+
 /** Returns [lng, lat] for an ISO_A3 code, or null if unknown */
 export function getCountryCentre(iso: string): [number, number] | null {
   const e = COUNTRY_CENTRES[iso.toUpperCase()]

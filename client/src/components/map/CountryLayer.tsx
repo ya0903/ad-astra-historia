@@ -66,11 +66,12 @@ function computeLabelAngle(ring: Ring): number {
     const dx = x - mx, dy = y - my
     cxx += dx * dx; cyy += dy * dy; cxy += dx * dy
   }
-  let deg = Math.atan2(2 * cxy, cxx - cyy) * (90 / Math.PI)
-  // Keep in -55..55 range so text never reads upside-down
-  if (deg > 55) deg -= 90
-  if (deg < -55) deg += 90
-  return Math.round(deg * 10) / 10
+  // Principal axis angle in degrees. Formula: 0.5 * atan2(2*Cxy, Cxx-Cyy)
+  // = atan2(2*Cxy, Cxx-Cyy) * (90/π)  [range -90..90]
+  // Negate because screen y-axis is inverted vs geographic y (lat)
+  const deg = -Math.atan2(2 * cxy, cxx - cyy) * (90 / Math.PI)
+  // Clamp to ±70° — beyond that text is hard to read
+  return Math.max(-70, Math.min(70, Math.round(deg * 10) / 10))
 }
 
 // ── Name abbreviations ────────────────────────────────────────────────────────

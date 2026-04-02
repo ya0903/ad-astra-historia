@@ -6,7 +6,7 @@ import type {
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
-import { getCountryCentre } from '../lib/mapFly'
+import { getCountryCentre, getCityCentre } from '../lib/mapFly'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
 const GDP_GROWTH_BASE = 0.025 // 2.5% default
@@ -311,7 +311,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       if (r.buildProject) {
         const weeks = BUILD_WEEKS[r.buildProject.type] ?? 52
         const targetIso = r.focusIso ?? pid
-        const centre = getCountryCentre(targetIso) ?? getCountryCentre(pid)
+        // Prefer city coords (parsed from name), fall back to country centre
+        const cityCoords = getCityCentre(r.buildProject.name)
+        const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
         newBuilds.push({
           id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           type: r.buildProject.type,

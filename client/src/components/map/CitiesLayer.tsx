@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { useMap } from './MapContext'
+import { useGameStore } from '../../stores'
+import { INFRA_COLOURS } from '@ad-astra/shared/infraColours'
+import type { Infrastructure } from '@ad-astra/shared/types'
 
 // SCALERANK in Natural Earth 10m populated places:
 //   1–2  = world capitals + megacities (London, NYC, Tokyo)
@@ -11,9 +14,18 @@ import { useMap } from './MapContext'
 // Zoom-dependent filter — shows progressively more cities as you zoom in.
 // This naturally gives ~1-2 cities for Bhutan, ~5 for Pakistan, ~10-15 for India.
 
+const NEARBY_RADIUS = 0.6 // degrees (~65 km) — buildings within this distance shown on city hover
+
 export default function CitiesLayer() {
   const map = useMap()
   const popupRef = useRef<maplibregl.Popup | null>(null)
+  const infraRef = useRef<Infrastructure[]>([])
+  const gameState = useGameStore(s => s.state)
+
+  // Keep infraRef current so the hover closure always sees latest buildings
+  useEffect(() => {
+    infraRef.current = gameState?.infrastructureMap ?? []
+  }, [gameState?.infrastructureMap])
 
   useEffect(() => {
     if (!map) return
@@ -90,7 +102,7 @@ export default function CitiesLayer() {
           },
         })
 
-        // Hover popup showing city + country + population
+        // Hover popup showing city + country + population + nearby buildings
         const onMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
           if (!e.features?.length) return
           map.getCanvas().style.cursor = 'pointer'
@@ -105,6 +117,22 @@ export default function CitiesLayer() {
               ? `${(props.POP_MAX / 1e6).toFixed(1)}M`
               : `${Math.round(props.POP_MAX / 1000)}K`
             : null
+
+          // Find buildings near this city
+          const cityLng = e.lngLat.lng
+          const cityLat = e.lngLat.lat
+          const nearby = infraRef.current.filter(b =>
+            Math.abs(b.lng - cityLng) < NEARBY_RADIUS && Math.abs(b.lat - cityLat) < NEARBY_RADIUS
+          )
+
+          const buildingRows = nearby.map(b => {
+            const colour = INFRA_COLOURS[b.type] ?? '#94a3b8'
+            return `<div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+              <span style="width:7px;height:7px;border-radius:50%;background:${colour};flex-shrink:0;display:inline-block"></span>
+              <span style="color:#cbd5e1;font-size:11px;text-transform:capitalize">${b.name}</span>
+            </div>`
+          }).join('')
+
           if (!popupRef.current) {
             popupRef.current = new maplibregl.Popup({
               closeButton: false,
@@ -130,6 +158,7 @@ export default function CitiesLayer() {
                 <div style="color:#fff;font-weight:600;font-size:13px">${props.NAME}</div>
                 ${props.ADM0NAME ? `<div style="color:#64748b;font-size:11px;margin-top:1px">${props.ADM0NAME}</div>` : ''}
                 ${pop ? `<div style="color:#94a3b8;font-size:11px;margin-top:3px">Pop. ${pop}</div>` : ''}
+                ${nearby.length > 0 ? `<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:6px;padding-top:5px">${buildingRows}</div>` : ''}
               </div>
             `)
             .addTo(map)
