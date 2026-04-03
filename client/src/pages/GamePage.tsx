@@ -752,7 +752,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           <LandUseLayer />
           <LandmarksLayer />
         </WorldMap>
-        <OrgPanel />
 
         {/* ── Top HUD ── */}
         <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pt-3 pointer-events-none z-10">
@@ -908,6 +907,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── Bottom-right floating buttons ── */}
         <div className="absolute bottom-20 right-4 z-10 flex flex-col items-end gap-2">
+          <OrgPanel />
           <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
           <DiplomacyPanel gameContext={{
             playerCountry: player?.name ?? gameState.playerCountryId,

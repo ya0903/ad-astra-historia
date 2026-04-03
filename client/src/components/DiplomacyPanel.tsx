@@ -30,6 +30,9 @@ export default function DiplomacyPanel({ gameContext }: Props) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [panelW, setPanelW] = useState(320)
+  const [panelH, setPanelH] = useState(420)
+  const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
   const config = useConfigStore(s => s.config)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -37,6 +40,18 @@ export default function DiplomacyPanel({ gameContext }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      setPanelW(Math.max(260, Math.min(600, dragRef.current.w + (dragRef.current.startX - e.clientX))))
+      setPanelH(Math.max(200, Math.min(700, dragRef.current.h + (dragRef.current.startY - e.clientY))))
+    }
+    const onUp = () => { dragRef.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [])
 
   const startTalks = (country: string) => {
     setTargetCountry(country)
@@ -107,9 +122,17 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   }
 
   return (
-    <div className="w-80 bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
-      style={{ maxHeight: '420px' }}
+    <div className="relative bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
+      style={{ width: panelW, height: panelH }}
     >
+      {/* Resize handle — top-left corner drag */}
+      <div
+        onMouseDown={e => { e.preventDefault(); dragRef.current = { startX: e.clientX, startY: e.clientY, w: panelW, h: panelH } }}
+        className="absolute top-0 left-0 w-5 h-5 cursor-nw-resize z-10 flex items-center justify-center opacity-30 hover:opacity-80 transition-opacity"
+        title="Drag to resize"
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+      </div>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
         <div className="flex items-center gap-2">

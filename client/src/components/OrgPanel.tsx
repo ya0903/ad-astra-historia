@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useGameStore } from '../stores'
 import type { Organisation, Dispute, NonStateActor } from '@ad-astra/shared/types'
 
@@ -19,14 +19,36 @@ const DISPUTE_STATUS_COLOURS: Record<string, string> = {
 
 export default function OrgPanel() {
   const [open, setOpen] = useState(false)
+  const [panelW, setPanelW] = useState(288)
+  const [panelH, setPanelH] = useState(420)
+  const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
   const gameState = useGameStore(s => s.state)
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragRef.current = { startX: e.clientX, startY: e.clientY, w: panelW, h: panelH }
+  }, [panelW, panelH])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const dw = dragRef.current.startX - e.clientX
+      const dh = dragRef.current.startY - e.clientY
+      setPanelW(Math.max(220, Math.min(500, dragRef.current.w + dw)))
+      setPanelH(Math.max(200, Math.min(700, dragRef.current.h + dh)))
+    }
+    const onUp = () => { dragRef.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [])
 
   if (!gameState) return null
 
   const { organisations, disputes, nonStateActors } = gameState
 
   return (
-    <div className="absolute top-4 right-4 z-10">
+    <div>
       {!open ? (
         <button
           onClick={() => setOpen(true)}
@@ -36,13 +58,24 @@ export default function OrgPanel() {
           <span className="text-lg">🌐</span>
         </button>
       ) : (
-        <div className="w-72 max-h-[70vh] overflow-y-auto rounded-lg bg-[#0d1f3c]/95 border border-white/10 backdrop-blur-sm">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-            <span className="text-sm font-semibold">Orgs & Conflicts</span>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white text-lg leading-none">×</button>
+        <div className="rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl overflow-hidden flex flex-col"
+          style={{ width: panelW, height: panelH }}>
+          {/* Resize handle — top-left corner */}
+          <div onMouseDown={onResizeStart}
+            className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize opacity-0 hover:opacity-100 z-10"
+            style={{ background: 'radial-gradient(circle at 0 0, rgba(96,165,250,0.5) 0%, transparent 70%)' }} />
+
+          <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-2">
+              <span>🌐</span>
+              <div>
+                <p className="text-xs font-bold text-white">Organisations & Conflicts</p>
+              </div>
+            </div>
+            <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
           </div>
 
-          <div className="p-3 space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
             {/* Organisations */}
             <section>
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Organisations ({organisations.length})</p>

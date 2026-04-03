@@ -36,12 +36,27 @@ export default function AdvisorPanel({ gameContext }: Props) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [panelW, setPanelW] = useState(320)
+  const [panelH, setPanelH] = useState(420)
+  const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
   const config = useConfigStore(s => s.config)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      setPanelW(Math.max(260, Math.min(600, dragRef.current.w + (dragRef.current.startX - e.clientX))))
+      setPanelH(Math.max(200, Math.min(700, dragRef.current.h + (dragRef.current.startY - e.clientY))))
+    }
+    const onUp = () => { dragRef.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [])
 
   const sendMessage = async (text: string) => {
     const msg = text.trim()
@@ -90,7 +105,15 @@ export default function AdvisorPanel({ gameContext }: Props) {
           <span className="text-lg">🎖️</span>
         </button>
       ) : (
-        <div className="w-80 flex flex-col rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl" style={{ height: '420px' }}>
+        <div className="relative flex flex-col rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl" style={{ width: panelW, height: panelH }}>
+          {/* Resize handle — top-left corner drag */}
+          <div
+            onMouseDown={e => { e.preventDefault(); dragRef.current = { startX: e.clientX, startY: e.clientY, w: panelW, h: panelH } }}
+            className="absolute top-0 left-0 w-5 h-5 cursor-nw-resize z-10 flex items-center justify-center opacity-30 hover:opacity-80 transition-opacity"
+            title="Drag to resize"
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
             <div className="flex items-center gap-2">
