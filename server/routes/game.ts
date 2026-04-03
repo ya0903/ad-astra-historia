@@ -350,6 +350,24 @@ const ERA_COUNTRY_MAPS: Partial<Record<Era, Record<string, string>>> = {
   greek:   GREEK_MAP,
 }
 
+/**
+ * Inject a fill_colour property into every GeoJSON feature so the client
+ * MapLibre layer can use ['get', 'fill_colour'] without needing any JS imports
+ * or match expressions. This is the authoritative colour source.
+ */
+function injectFillColours(geojson: GeoJSONFeatureCollection): GeoJSONFeatureCollection {
+  return {
+    ...geojson,
+    features: geojson.features.map(f => {
+      const iso = (f.properties.ISO_A3 ?? f.properties.ADM0_A3 ?? '') as string
+      return {
+        ...f,
+        properties: { ...f.properties, fill_colour: getCountryColour(iso) },
+      }
+    }),
+  } as unknown as GeoJSONFeatureCollection
+}
+
 function remapToAncientPolities(
   modern: GeoJSONFeatureCollection,
   mapping: Record<string, string>,
@@ -403,7 +421,7 @@ gameRouter.get('/borders/:era', (req, res) => {
     const renderPath = join(ERAS_DIR, `${era}_render.geojson`)
     const renderResult = readEraFile(renderPath)
     if ('data' in renderResult) {
-      res.json(renderResult.data)
+      res.json(injectFillColours(renderResult.data))
       return
     }
 
@@ -418,7 +436,7 @@ gameRouter.get('/borders/:era', (req, res) => {
         res.status(500).json({ error: 'No border data available. Run: node shared/eras/download-historical.mjs' })
         return
       }
-      res.json(remapToAncientPolities(source.data, polityMap))
+      res.json(injectFillColours(remapToAncientPolities(source.data, polityMap)))
       return
     }
   }
@@ -433,7 +451,7 @@ gameRouter.get('/borders/:era', (req, res) => {
     res.status(500).json({ error: 'Failed to read era border file' })
     return
   }
-  res.json(result.data)
+  res.json(injectFillColours(result.data))
 })
 
 // GET /api/game/borders — 50m country polygons for rendering (includes small territories like Gaza)
@@ -443,7 +461,7 @@ gameRouter.get('/borders', (_req, res) => {
   if ('notFound' in result) {
     // Fall back to 110m if 50m not downloaded yet
     const fallback = readEraFile(join(ERAS_DIR, 'modern.geojson'))
-    if ('data' in fallback) { res.json(fallback.data); return }
+    if ('data' in fallback) { res.json(injectFillColours(fallback.data)); return }
     res.status(404).json({ error: 'borders.geojson not found. Run: node shared/eras/download.mjs' })
     return
   }
@@ -451,7 +469,7 @@ gameRouter.get('/borders', (_req, res) => {
     res.status(500).json({ error: 'Failed to read borders file' })
     return
   }
-  res.json(result.data)
+  res.json(injectFillColours(result.data))
 })
 
 // GET /api/game/ocean — Natural Earth 110m ocean polygons (used to mask hillshade over sea)
