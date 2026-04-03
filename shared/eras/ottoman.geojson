@@ -1,0 +1,105 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "OTT", "ADM0_A3": "OTT", "ADMIN": "Ottoman Empire", "NAME": "Ottoman Empire", "GDP_MD": 40000, "POP_EST": 30000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [13.0,30.0],[25.0,30.0],[29.0,31.0],[35.0,34.0],[36.5,37.0],[44.0,38.5],[44.0,41.5],[38.0,42.0],[34.0,42.0],[27.0,42.0],[22.0,42.0],[18.5,42.5],[15.0,40.5],[13.0,37.5],[13.0,30.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SAF", "ADM0_A3": "SAF", "ADMIN": "Safavid Persia", "NAME": "Safavid Persia", "GDP_MD": 20000, "POP_EST": 10000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [44.0,38.5],[55.0,42.0],[63.0,38.0],[65.0,35.0],[65.0,26.0],[60.0,24.0],[56.0,27.0],[50.0,30.0],[44.0,28.0],[44.0,34.0],[44.0,38.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "HAB", "ADM0_A3": "HAB", "ADMIN": "Habsburg Empire", "NAME": "Habsburg Empire", "GDP_MD": 35000, "POP_EST": 25000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [10.0,46.5],[18.5,42.5],[22.0,42.0],[22.0,47.0],[16.0,50.0],[13.5,52.0],[10.0,52.0],[6.0,50.5],[8.0,46.5],[10.0,46.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "HRE", "ADM0_A3": "HRE", "ADMIN": "Holy Roman Empire (North)", "NAME": "Holy Roman Empire (North)", "GDP_MD": 25000, "POP_EST": 18000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [6.0,50.5],[10.0,52.0],[13.5,52.0],[16.0,50.0],[22.0,47.0],[22.0,53.0],[14.0,55.0],[8.0,55.0],[4.0,53.0],[4.0,51.0],[6.0,50.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "FRA", "ADM0_A3": "FRA", "ADMIN": "Kingdom of France", "NAME": "Kingdom of France", "GDP_MD": 30000, "POP_EST": 18000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-4.5,48.5],[4.0,51.0],[8.0,47.5],[7.0,43.8],[3.0,43.5],[0.0,43.5],[-1.5,44.5],[-4.5,47.0],[-4.5,48.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ENG", "ADM0_A3": "ENG", "ADMIN": "Kingdom of England", "NAME": "Kingdom of England", "GDP_MD": 18000, "POP_EST": 5000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-5.5,50.0],[2.0,51.0],[2.0,53.5],[-0.5,55.5],[-5.5,55.5],[-5.5,50.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SCO", "ADM0_A3": "SCO", "ADMIN": "Kingdom of Scotland", "NAME": "Kingdom of Scotland", "GDP_MD": 3000, "POP_EST": 1000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-5.5,55.5],[-0.5,55.5],[-3.5,60.5],[-7.5,58.5],[-5.5,55.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "PLT", "ADM0_A3": "PLT", "ADMIN": "Poland-Lithuania", "NAME": "Poland-Lithuania", "GDP_MD": 18000, "POP_EST": 11000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [14.0,55.0],[22.0,53.0],[22.0,47.0],[26.0,47.0],[32.0,48.5],[30.0,52.0],[28.0,55.5],[22.0,57.0],[15.0,58.0],[14.0,55.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "MUS", "ADM0_A3": "MUS", "ADMIN": "Muscovy", "NAME": "Muscovy", "GDP_MD": 12000, "POP_EST": 8000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [28.0,55.5],[30.0,52.0],[38.0,50.0],[44.0,47.0],[44.0,41.5],[38.0,42.0],[34.0,47.0],[32.0,48.5],[30.0,52.0],[35.0,55.0],[40.0,60.0],[37.0,65.0],[28.0,65.0],[22.0,60.0],[22.0,57.0],[28.0,55.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "MUG", "ADM0_A3": "MUG", "ADMIN": "Mughal Empire", "NAME": "Mughal Empire", "GDP_MD": 60000, "POP_EST": 50000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [65.0,26.0],[72.0,28.0],[80.0,28.0],[80.0,18.0],[76.5,8.0],[72.0,10.0],[65.0,18.0],[63.0,22.0],[60.0,24.0],[65.0,26.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SON", "ADM0_A3": "SON", "ADMIN": "Songhai Empire", "NAME": "Songhai Empire", "GDP_MD": 4000, "POP_EST": 4000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-5.0,10.0],[5.0,10.0],[13.0,13.0],[15.0,17.0],[8.0,22.0],[0.0,20.0],[-5.0,15.0],[-5.0,10.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "MOR", "ADM0_A3": "MOR", "ADMIN": "Kingdom of Morocco", "NAME": "Kingdom of Morocco", "GDP_MD": 5000, "POP_EST": 3000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-5.0,36.0],[2.0,34.0],[0.0,20.0],[-5.0,15.0],[-17.0,21.0],[-14.0,28.5],[-5.5,36.0],[-5.0,36.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ETI", "ADM0_A3": "ETI", "ADMIN": "Ethiopian Empire", "NAME": "Ethiopian Empire", "GDP_MD": 3000, "POP_EST": 3000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [34.0,8.0],[44.0,12.0],[50.0,10.0],[44.0,4.0],[40.0,2.0],[36.5,4.0],[34.0,8.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "POR", "ADM0_A3": "POR", "ADMIN": "Kingdom of Portugal", "NAME": "Kingdom of Portugal", "GDP_MD": 15000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-9.5,37.0],[-6.5,37.0],[-6.5,42.0],[-9.5,42.0],[-9.5,37.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ESP", "ADM0_A3": "ESP", "ADMIN": "Kingdom of Spain", "NAME": "Kingdom of Spain", "GDP_MD": 25000, "POP_EST": 8000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-6.5,37.0],[3.5,37.0],[3.0,43.5],[0.0,43.5],[-1.5,44.5],[-4.5,44.0],[-6.5,43.0],[-9.5,39.0],[-9.5,37.0],[-6.5,37.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "VNC", "ADM0_A3": "VNC", "ADMIN": "Republic of Venice", "NAME": "Republic of Venice", "GDP_MD": 12000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [10.0,46.5],[13.5,44.0],[15.0,44.5],[13.5,46.5],[10.0,46.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ARA", "ADM0_A3": "ARA", "ADMIN": "Arabian Peninsula", "NAME": "Arabian Peninsula", "GDP_MD": 2000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [44.0,28.0],[56.0,27.0],[60.0,24.0],[60.0,15.0],[50.0,10.0],[44.0,12.0],[38.0,15.5],[38.0,20.0],[44.0,28.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "NUB", "ADM0_A3": "NUB", "ADMIN": "Nubia & Sudan", "NAME": "Nubia & Sudan", "GDP_MD": 1000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [23.0,10.0],[34.0,8.0],[38.0,15.5],[38.0,20.0],[35.0,24.0],[25.0,24.0],[23.0,15.0],[23.0,10.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ACH", "ADM0_A3": "ACH", "ADMIN": "Khorasan & Central Asia", "NAME": "Khorasan & Central Asia", "GDP_MD": 5000, "POP_EST": 6000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [44.0,41.5],[55.0,42.0],[63.0,45.0],[67.0,42.0],[65.0,35.0],[63.0,38.0],[55.0,42.0],[44.0,41.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "EUN", "ADM0_A3": "EUN", "ADMIN": "Scandinavia", "NAME": "Scandinavia", "GDP_MD": 3000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [4.0,57.5],[8.0,55.0],[14.0,55.0],[15.0,58.0],[22.0,57.0],[22.0,63.0],[14.0,65.0],[5.0,62.0],[4.0,57.5] ]] }
+    }
+  ]
+}

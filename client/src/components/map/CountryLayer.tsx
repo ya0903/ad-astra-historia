@@ -55,23 +55,13 @@ function sizeTier(area: number): number {
   return 3
 }
 
-// ── Label angle (principal axis via covariance) ───────────────────────────────
+// ── Label angle ───────────────────────────────────────────────────────────────
+// Default to horizontal (0°). Only LABEL_ANGLE_OVERRIDES apply non-zero values
+// for explicitly elongated countries (Chile, Norway, Sweden).
 
-function computeLabelAngle(ring: Ring): number {
-  let mx = 0, my = 0
-  for (const [x, y] of ring) { mx += x; my += y }
-  mx /= ring.length; my /= ring.length
-  let cxx = 0, cyy = 0, cxy = 0
-  for (const [x, y] of ring) {
-    const dx = x - mx, dy = y - my
-    cxx += dx * dx; cyy += dy * dy; cxy += dx * dy
-  }
-  // Principal axis angle in degrees. Formula: 0.5 * atan2(2*Cxy, Cxx-Cyy)
-  // = atan2(2*Cxy, Cxx-Cyy) * (90/π)  [range -90..90]
-  // Negate because screen y-axis is inverted vs geographic y (lat)
-  const deg = -Math.atan2(2 * cxy, cxx - cyy) * (90 / Math.PI)
-  // Clamp to ±70° — beyond that text is hard to read
-  return Math.max(-70, Math.min(70, Math.round(deg * 10) / 10))
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function computeLabelAngle(_ring: Ring): number {
+  return 0
 }
 
 // ── Name abbreviations ────────────────────────────────────────────────────────
@@ -201,18 +191,22 @@ function buildColourExpression(
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
+
 export default function CountryLayer() {
   const map = useMap()
   const countries = useGameStore(s => s.state?.countries ?? {})
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
+  const era = useGameStore(s => s.state?.era ?? 'modern')
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
 
   // ── Effect 1: set up layers once when map is ready ────────────────────────
   useEffect(() => {
     if (!map || !playerCountryId) return
 
-    fetch('/api/game/borders')
+    const bordersUrl = ANCIENT_ERAS.has(era) ? `/api/game/borders/${era}` : '/api/game/borders'
+    fetch(bordersUrl)
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
         if (map.getSource('countries')) return
@@ -324,7 +318,7 @@ export default function CountryLayer() {
       if (map.getSource('country-label-points')) map.removeSource('country-label-points')
       if (map.getSource('countries')) map.removeSource('countries')
     }
-  }, [map, playerCountryId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, playerCountryId, era]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Effect 2: update fill colours + empire borders when game state changes ──
   useEffect(() => {

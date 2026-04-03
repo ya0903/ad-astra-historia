@@ -12,12 +12,17 @@ const MODEL_HINTS: Record<AIProvider, string> = {
   custom: 'qwen2.5:14b',
 }
 
-const ERAS: { label: string; value: Era; desc: string }[] = [
-  { label: '1945', value: '1945', desc: 'Post-WWII world order' },
-  { label: '1960s', value: '1960s', desc: 'Cold War tensions' },
-  { label: '1990s', value: '1990s', desc: 'Post-Soviet realignment' },
-  { label: '2010s', value: '2010s', desc: 'Multipolar world' },
-  { label: 'Modern', value: 'modern', desc: 'Present day' },
+const ERAS: { label: string; value: Era; desc: string; group: 'ancient' | 'modern' }[] = [
+  // ── Ancient / Medieval ──────────────────────────────────────────────────────
+  { label: '431 BCE — Greek City-States', value: 'greek',   desc: 'Peloponnesian War — Athens vs Sparta, Persian Empire at its height', group: 'ancient' },
+  { label: '117 CE — Roman Empire',       value: 'roman',   desc: 'Trajan\'s Rome at its peak — Legions, roads, and the Parthian frontier', group: 'ancient' },
+  { label: '1520 CE — Ottoman Sultanate', value: 'ottoman', desc: 'Suleiman the Magnificent — Janissaries, gunpowder, and the siege of Vienna', group: 'ancient' },
+  // ── Modern ──────────────────────────────────────────────────────────────────
+  { label: '1945', value: '1945', desc: 'Post-WWII world order', group: 'modern' },
+  { label: '1960s', value: '1960s', desc: 'Cold War tensions', group: 'modern' },
+  { label: '1990s', value: '1990s', desc: 'Post-Soviet realignment', group: 'modern' },
+  { label: '2010s', value: '2010s', desc: 'Multipolar world', group: 'modern' },
+  { label: 'Modern', value: 'modern', desc: 'Present day', group: 'modern' },
 ]
 
 const DIFFICULTIES: { label: string; value: Difficulty; description: string }[] = [
@@ -366,8 +371,19 @@ export default function SetupPage() {
         {/* ── Step 2: Era Selection ── */}
         <Panel>
           <SectionTitle>Step 2 — Select Era</SectionTitle>
+          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Ancient &amp; Medieval</p>
+          <div className="flex flex-col gap-1.5 mb-4">
+            {ERAS.filter(e => e.group === 'ancient').map(({ label, value, desc }) => (
+              <button key={value} onClick={() => handleEraSelect(value)} title={desc}
+                className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors text-left ${selectedEra === value ? 'bg-amber-700 border-amber-600 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-amber-900/30 hover:border-amber-700/40'}`}>
+                <span className="font-semibold">{label}</span>
+                <span className="text-xs text-gray-400 ml-2">{desc}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Modern</p>
           <div className="flex flex-wrap gap-2">
-            {ERAS.map(({ label, value, desc }) => (
+            {ERAS.filter(e => e.group === 'modern').map(({ label, value, desc }) => (
               <button key={value} onClick={() => handleEraSelect(value)} title={desc}
                 className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors ${selectedEra === value ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
                 {label}

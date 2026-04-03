@@ -62,6 +62,25 @@ export const ERA_DISPUTES: Record<Era, Dispute[]> = {
     { id: 'irn-mod', name: 'Iran Regional Conflict', parties: ['IRN', 'ISR', 'USA', 'SAU', 'YEM', 'IRQ', 'SYR', 'LBN'], status: 'active', history: ['Iran-Israel shadow war; direct Iran-Israel strikes Apr-Oct 2024', 'Houthi Red Sea attacks disrupt global shipping', 'Axis of Resistance — Hezbollah, Hamas, Islamic Jihad, Houthis'] },
     { id: 'sah-mod', name: 'Sahel Instability', parties: ['MLI', 'NER', 'BFA', 'RUS', 'FRA', 'USA'], status: 'active', history: ['Coups in Mali 2021, Burkina Faso 2022, Niger 2023', 'France expelled; Wagner/Africa Corps deployed', 'Alliance of Sahel States formed; ECOWAS crisis'] },
   ],
+
+  // ── Ancient Eras ─────────────────────────────────────────────────────────
+  'greek': [
+    { id: 'pel-war', name: 'Peloponnesian War', parties: ['ATH', 'SPA', 'THE', 'COR'], status: 'active', history: ['Athens and Sparta clash for supremacy over Greece (431 BCE)', 'Delian League vs Peloponnesian League', 'Plague of Athens devastates the city (430 BCE)'] },
+    { id: 'ath-per', name: 'Greco-Persian Tensions', parties: ['ATH', 'SPA', 'ACH'], status: 'tense' as unknown as 'frozen', history: ['Persian Wars ended with Peace of Callias (449 BCE)', 'Persian Empire still threatens Ionian Greek cities', 'Persian gold funds Greek factions'] },
+    { id: 'sic-war', name: 'Sicilian Power Struggle', parties: ['SYR', 'CAR', 'ATH'], status: 'active', history: ['Carthage contests control of Sicily with Greek Syracuse', 'Athens eyes Sicily as strategic prize'] },
+  ],
+
+  'roman': [
+    { id: 'par-rom', name: 'Roman-Parthian Rivalry', parties: ['ROM', 'PAR', 'ARM'], status: 'active', history: ['Armenia is a contested buffer state', 'Trajan campaigns in Mesopotamia (113-117 CE)', 'Crassus defeated at Battle of Carrhae (53 BCE) — humiliation not forgotten'] },
+    { id: 'bar-raids', name: 'Germanic Border Raids', parties: ['ROM', 'GER'], status: 'active', history: ['Germanic tribes raid across the Rhine and Danube', 'Battle of Teutoburg Forest (9 CE) — three legions destroyed', 'Trajan fortifies the Danube limes'] },
+    { id: 'jud-rev', name: 'Jewish Revolts', parties: ['ROM'], status: 'active', history: ['First Jewish-Roman War ended with destruction of Jerusalem (70 CE)', 'Diaspora Revolt (115-117 CE) ongoing in Egypt, Cyrene, Cyprus'] },
+  ],
+
+  'ottoman': [
+    { id: 'hab-ott', name: 'Ottoman-Habsburg Wars', parties: ['OTT', 'HAB'], status: 'active', history: ['Battle of Mohács 1526 — Ottomans crush Hungary', 'Siege of Vienna 1529 — Ottoman advance into Europe halted', 'Ongoing border conflicts along the Danube'] },
+    { id: 'ott-saf', name: 'Ottoman-Safavid War', parties: ['OTT', 'SAF'], status: 'active', history: ['Battle of Chaldiran 1514 — Ottomans defeat Safavids', 'Religious conflict: Sunni Ottomans vs Shia Safavids', 'Control of Mesopotamia and Azerbaijan disputed'] },
+    { id: 'med-piracy', name: 'Mediterranean Piracy', parties: ['OTT', 'VEN', 'POR', 'HAB'], status: 'active', history: ['Barbary corsairs raid Christian shipping', 'Battle of Lepanto (1571) — Holy League defeats Ottoman fleet', 'Control of Mediterranean trade routes at stake'] },
+  ],
 }
 
 export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
@@ -98,5 +117,22 @@ export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
     { id: 'wagner-mod', name: 'Africa Corps (ex-Wagner)', type: 'paramilitary', regions: ['MLI', 'NER', 'BFA', 'LBY', 'CAF'], strength: 60, sponsors: ['RUS'] },
     { id: 'isis-mod', name: 'Islamic State (remnants)', type: 'terror', regions: ['IRQ', 'SYR', 'AFG', 'SAH'], strength: 35, sponsors: [] },
     { id: 'pdf-mod', name: 'Myanmar PDF', type: 'insurgency', regions: ['MMR'], strength: 50, sponsors: ['USA'] },
+  ],
+
+  'greek': [
+    { id: 'hell-pirates', name: 'Aegean Pirates', type: 'paramilitary', regions: ['ATH', 'SYR'], strength: 20, sponsors: [] },
+    { id: 'persian-satraps', name: 'Persian Satraps (rebel)', type: 'separatist', regions: ['ACH'], strength: 30, sponsors: ['ATH'] },
+  ],
+
+  'roman': [
+    { id: 'sicarii', name: 'Sicarii (Jewish rebels)', type: 'terror', regions: ['ROM'], strength: 25, sponsors: [] },
+    { id: 'parthian-nomads', name: 'Parthian Horse Archers', type: 'paramilitary', regions: ['PAR'], strength: 50, sponsors: ['PAR'] },
+    { id: 'caledonian-clans', name: 'Caledonian Clans', type: 'paramilitary', regions: ['CAL'], strength: 30, sponsors: [] },
+  ],
+
+  'ottoman': [
+    { id: 'barbary-corsairs', name: 'Barbary Corsairs', type: 'paramilitary', regions: ['OTT'], strength: 45, sponsors: ['OTT'] },
+    { id: 'safavid-qizilbash', name: 'Qizilbash Warriors', type: 'paramilitary', regions: ['SAF'], strength: 55, sponsors: ['SAF'] },
+    { id: 'cossacks', name: 'Cossack Hosts', type: 'paramilitary', regions: ['POL', 'MUS'], strength: 40, sponsors: [] },
   ],
 }

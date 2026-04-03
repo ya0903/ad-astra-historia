@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ROM", "ADM0_A3": "ROM", "ADMIN": "Roman Empire", "NAME": "Roman Empire", "GDP_MD": 50000, "POP_EST": 60000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-9.5,36.0],[2.0,34.0],[13.0,30.0],[25.0,30.0],[28.0,31.0],[30.0,32.0],[33.5,31.5],[35.0,34.0],[36.5,37.0],[34.0,38.0],[30.0,40.5],[30.0,44.0],[22.0,47.0],[17.5,48.5],[13.5,49.0],[8.0,50.5],[4.0,52.0],[2.0,51.0],[-5.5,48.5],[-9.5,44.0],[-9.5,36.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "PAR", "ADM0_A3": "PAR", "ADMIN": "Parthian Empire", "NAME": "Parthian Empire", "GDP_MD": 18000, "POP_EST": 18000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [35.0,34.0],[44.0,38.5],[55.0,42.0],[65.0,42.0],[72.0,38.0],[72.0,28.0],[65.0,18.0],[55.0,12.0],[50.0,10.0],[44.0,12.0],[38.0,15.5],[36.5,22.0],[40.0,26.0],[44.0,28.0],[50.0,30.0],[44.0,34.0],[36.5,37.0],[35.0,34.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "KUS", "ADM0_A3": "KUS", "ADMIN": "Kushan Empire", "NAME": "Kushan Empire", "GDP_MD": 8000, "POP_EST": 8000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [65.0,42.0],[72.0,38.0],[72.0,28.0],[75.0,26.0],[78.0,30.0],[80.0,34.0],[76.0,38.0],[72.0,42.0],[65.0,42.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "GER", "ADM0_A3": "GER", "ADMIN": "Germanic Tribes", "NAME": "Germanic Tribes", "GDP_MD": 1500, "POP_EST": 5000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [8.0,50.5],[13.5,49.0],[17.5,48.5],[22.0,47.0],[28.0,53.0],[22.0,57.0],[15.0,58.0],[8.0,56.0],[4.0,52.0],[8.0,50.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "CAL", "ADM0_A3": "CAL", "ADMIN": "Caledonia", "NAME": "Caledonia", "GDP_MD": 100, "POP_EST": 150000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-5.5,55.5],[0.0,55.5],[0.0,58.0],[-3.5,60.5],[-7.5,58.5],[-5.5,55.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ARK", "ADM0_A3": "ARK", "ADMIN": "Armenia", "NAME": "Armenia", "GDP_MD": 1200, "POP_EST": 1500000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [36.5,37.0],[44.0,38.5],[44.0,34.0],[40.0,34.0],[36.5,37.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "AXU", "ADM0_A3": "AXU", "ADMIN": "Kingdom of Axum", "NAME": "Kingdom of Axum", "GDP_MD": 2000, "POP_EST": 3000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [34.0,8.0],[44.0,12.0],[50.0,10.0],[44.0,4.0],[38.0,4.0],[34.0,8.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SAR", "ADM0_A3": "SAR", "ADMIN": "Sarmatia", "NAME": "Sarmatia", "GDP_MD": 600, "POP_EST": 1200000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [30.0,44.0],[44.0,44.0],[52.0,48.0],[57.0,50.0],[40.0,56.0],[28.0,53.0],[22.0,47.0],[30.0,44.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "NUB", "ADM0_A3": "NUB", "ADMIN": "Nubia", "NAME": "Nubia", "GDP_MD": 700, "POP_EST": 900000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [23.0,10.0],[34.0,8.0],[38.0,15.5],[36.5,22.0],[25.0,22.0],[23.0,15.0],[23.0,10.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ARA", "ADM0_A3": "ARA", "ADMIN": "Arabia", "NAME": "Arabia", "GDP_MD": 1000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [36.5,22.0],[50.0,10.0],[58.0,20.0],[60.0,24.0],[56.0,27.0],[50.0,30.0],[44.0,28.0],[40.0,26.0],[36.5,22.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "DEC", "ADM0_A3": "DEC", "ADMIN": "South India", "NAME": "South India", "GDP_MD": 5000, "POP_EST": 10000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [72.0,28.0],[75.0,26.0],[80.0,14.0],[80.0,8.5],[76.5,8.0],[72.0,10.0],[68.0,20.0],[65.0,18.0],[65.0,28.0],[72.0,28.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "EUN", "ADM0_A3": "EUN", "ADMIN": "Northern Europe", "NAME": "Northern Europe", "GDP_MD": 800, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [15.0,58.0],[22.0,57.0],[28.0,58.0],[30.0,62.0],[20.0,65.0],[10.0,63.0],[5.0,58.0],[8.0,56.0],[15.0,58.0] ]] }
+    }
+  ]
+}

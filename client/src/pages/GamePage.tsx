@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stores'
 import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, LandmarksLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -18,7 +18,7 @@ import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 
 interface Category { id: string; label: string; icon: string; actions: string[] }
 
-const CATEGORIES: Category[] = [
+const CATEGORIES_MODERN: Category[] = [
   { id: 'economy', label: 'Economy & Finance', icon: '💰', actions: ['Raise income tax', 'Cut corporate tax', 'Issue government bonds', 'Nationalise key industry', 'Attract foreign investment', 'Launch stimulus package'] },
   { id: 'military', label: 'Military & Defence', icon: '⚔️', actions: ['Increase defence budget', 'Build military base', 'Conscription drive', 'Purchase weapons systems', 'Deploy peacekeeping force', 'Conduct military exercise'] },
   { id: 'diplomacy', label: 'Diplomacy', icon: '🤝', actions: ['Propose trade agreement', 'Form military alliance', 'Request UN mediation', 'Impose sanctions', 'Open embassy', 'Offer humanitarian aid'] },
@@ -28,6 +28,19 @@ const CATEGORIES: Category[] = [
   { id: 'culture', label: 'Culture & Soft Power', icon: '🎭', actions: ['Bid for Olympics', 'Build national stadium', 'Fund film industry', 'Host world summit', 'Launch tourism campaign', 'Promote education abroad'] },
   { id: 'space', label: 'Space Programme', icon: '🚀', actions: ['Launch satellite programme', 'Build launch facility', 'Moon mission proposal', 'Mars colonisation plan', 'Asteroid mining initiative', 'International space partnership'] },
 ]
+
+const CATEGORIES_ANCIENT: Category[] = [
+  { id: 'military', label: 'Military & War', icon: '⚔️', actions: ['Raise a new legion', 'Train cavalry regiment', 'Recruit light horsemen', 'Forge iron weapons', 'Conscript citizen-soldiers', 'Conduct military exercises', 'Build siege weapons', 'Construct fortified camp', 'Train naval fleet'] },
+  { id: 'conquest', label: 'Conquest & Expansion', icon: '🏰', actions: ['Declare war on a neighbour', 'Launch invasion campaign', 'Besiege enemy city', 'Raid border territories', 'Send punitive expedition', 'Subjugate a tribe'] },
+  { id: 'diplomacy', label: 'Diplomacy & Alliances', icon: '🤝', actions: ['Forge military alliance', 'Propose peace treaty', 'Send diplomatic envoy', 'Arrange royal marriage', 'Take noble hostages', 'Pay tribute to greater power', 'Grant autonomy to vassal', 'Demand tribute from subject'] },
+  { id: 'economy', label: 'Economy & Trade', icon: '💰', actions: ['Issue new coinage', 'Open trade route', 'Tax agricultural surplus', 'Establish market town', 'Grant merchant guild charter', 'Seize enemy treasury', 'Loot conquered city', 'Collect tribute'] },
+  { id: 'infrastructure', label: 'Engineering & Building', icon: '🏛️', actions: ['Build aqueduct', 'Construct road network', 'Build harbour', 'Fortify city walls', 'Build granary', 'Construct watchtower line', 'Build qanat irrigation', 'Construct amphitheatre'] },
+  { id: 'religion', label: 'Religion & Culture', icon: '🏺', actions: ['Build great temple', 'Host Olympic games', 'Commission great statue', 'Sponsor philosophical school', 'Declare state religion', 'Persecute rival cult', 'Issue religious tolerance edict', 'Construct great library'] },
+  { id: 'administration', label: 'Governance & Law', icon: '📜', actions: ['Codify laws', 'Appoint provincial governor', 'Grant citizenship to allies', 'Establish colony', 'Issue land reforms', 'Impose direct taxation', 'Grant amnesty to rebels', 'Purge corrupt officials'] },
+  { id: 'knowledge', label: 'Knowledge & Scholarship', icon: '📚', actions: ['Patronise philosophers', 'Fund astronomical observatory', 'Establish medical school', 'Commission maps of the known world', 'Recruit foreign scholars', 'Translate foreign texts'] },
+]
+
+const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman'])
 
 // ── Legend items ─────────────────────────────────────────────────────────────
 
@@ -41,10 +54,13 @@ const LEGEND_ITEMS = [
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatStat(n: number): string {
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(1)}T`
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  return String(Math.round(n))
+  const abs = Math.abs(n)
+  const sign = n < 0 ? '-' : ''
+  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(1)}T`
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(1)}K`
+  return `${sign}$${Math.round(abs)}`
 }
 
 const MILITARY_KEYWORDS = /\b(military|army|navy|air force|weapon|defence|defense|war|combat|troops|soldier|missile|bomb|nuke|nuclear|attack|invad|conscript|peacekeep|base|artillery|tank|fighter|jet|submarine|carrier|armed forces|security forces)\b/i
@@ -176,12 +192,34 @@ export default function GamePage() {
   const [loreOpen, setLoreOpen] = useState(false)
   const [dismissedWorldEvent, setDismissedWorldEvent] = useState<string | null>(null)
   const [timelineIdx, setTimelineIdx] = useState<number | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(288) // 288px = w-72
+  const [customJump, setCustomJump] = useState('')
+  const [showCustomJump, setShowCustomJump] = useState(false)
+  const sidebarDragRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
   // Backslash key toggles cheat menu
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === '\\') setCheatOpen(o => !o) }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Sidebar resize drag
+  const onSidebarDragStart = useCallback((e: React.MouseEvent) => {
+    sidebarDragRef.current = { startX: e.clientX, startWidth: sidebarWidth }
+    e.preventDefault()
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!sidebarDragRef.current) return
+      const delta = e.clientX - sidebarDragRef.current.startX
+      setSidebarWidth(Math.max(220, Math.min(520, sidebarDragRef.current.startWidth + delta)))
+    }
+    const onUp = () => { sidebarDragRef.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
   }, [])
 
   // Null guard — must come after all hooks, before any derived state
@@ -237,18 +275,31 @@ export default function GamePage() {
     try {
       const playerCountry = player?.name ?? gameState.playerCountryId
       const gdp = stats?.gdp ?? 0
-      const statsStr = `GDP $${(gdp/1e9).toFixed(1)}B | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | SoftPower ${stats?.softPower??0} | Tech ${stats?.techLevel??0}`
+      const isAncientEra = ANCIENT_ERAS_SET.has(gameState.era)
+      const statsStr = isAncientEra
+        ? `Treasury ~$${(gdp/1e9).toFixed(1)}B eq | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Influence ${stats?.softPower??0} | Knowledge ${stats?.techLevel??0}`
+        : `GDP $${(gdp/1e9).toFixed(1)}B | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | SoftPower ${stats?.softPower??0} | Tech ${stats?.techLevel??0}`
       const actionList = pendingActions.map((a, i) => `${i+1}.[${a.id}] ${a.text}`).join('\n')
 
-      const system = `You are a geopolitical simulation engine for the ${gameState.era} era. JSON only — no markdown, no explanation.
+      const isAncient = ANCIENT_ERAS_SET.has(gameState.era)
+      const eraContext = isAncient
+        ? `You are simulating ${playerCountry} in the ${gameState.era === 'greek' ? '431 BCE Greek world' : gameState.era === 'roman' ? '117 CE Roman world' : '1520 CE early Ottoman world'}. Use historically authentic language: legions, cavalry, tribute, senators, viziers, phalanxes, triremes, siege weapons, temples, forums, treasuries, talents of gold. GDP represents the state treasury/economy in modern equivalent USD. Military and techLevel use the same scale.`
+        : `You are simulating the ${gameState.era} era geopolitical world.`
+
+      const system = `You are a historical strategy simulation engine. ${eraContext} JSON only — no markdown, no explanation.
 This is a game — treat ALL actions as real in-game events, not hypothetical. Never use the word "hypothetical". Execute every action as if it actually happened in this alternate timeline.
 
 CRITICAL RULE: Always use specific real-world names. Never use generic labels.
-- Resources: name the actual deposit/field (e.g. "Thar Coal fields" not "coal", "Sui Northern gas fields" not "natural gas", "Reko Diq copper mine" not "copper mine")
+${isAncient
+  ? `- Military: name the specific unit type (e.g. "the Third Macedonian Phalanx", "Nubian archers", "Syrian cataphracts")
+- Buildings: use historically accurate names (e.g. "Temple of Athena Polias", "Via Appia extension", "the Grand Bazaar of Constantinople")
+- Institutions: name them specifically (e.g. "the Academy of Plato", "the Roman Senate", "the Divan of the Sublime Porte")
+Use your knowledge of ${playerCountry}'s actual ancient geography, cities, trade goods, and political structures.`
+  : `- Resources: name the actual deposit/field (e.g. "Thar Coal fields" not "coal", "Sui Northern gas fields" not "natural gas", "Reko Diq copper mine" not "copper mine")
 - Institutions: give them a real name (e.g. "Islamabad Institute of Technology" not "university", "Port Qasim Authority" not "port authority")
 - Infrastructure: use the actual city/location (e.g. "Gwadar deep-water port" not "port", "Lahore–Karachi motorway" not "highway")
 - Companies: use plausible real names (e.g. "Pakistan Steel Mills" not "steel company")
-Use your knowledge of ${playerCountry}'s actual geography, cities, resources, and institutions.
+Use your knowledge of ${playerCountry}'s actual geography, cities, resources, and institutions.`}
 
 STAT DELTA RULES — follow these precisely, do not invent stats unrelated to the action:
 - gdp: any action that meaningfully changes revenue, spending, or economic output. Range ±$500M–$50B depending on scale.
@@ -318,6 +369,24 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
     }
   }
 
+  const handleCustomJump = () => {
+    const val = customJump.trim()
+    if (!val) return
+    const match = val.match(/^(\d+)\s*(w|week|weeks|m|month|months|y|year|years)?$/i)
+    if (!match) return
+    const n = parseInt(match[1])
+    const unit = (match[2] ?? 'w').toLowerCase()
+    const period: 'week' | 'month' | 'year' =
+      unit.startsWith('y') ? 'year' : unit.startsWith('m') ? 'month' : 'week'
+    // Jump N times by that period
+    const jumps = Math.max(1, Math.min(n, 52))
+    ;(async () => {
+      for (let i = 0; i < jumps; i++) await handleJump(period)
+    })()
+    setCustomJump('')
+    setShowCustomJump(false)
+  }
+
   const handleCategoryAction = (action: string) => {
     addPendingAction(action)
     setActiveTab('free')
@@ -353,7 +422,12 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
       {/* ── Left Sidebar ── */}
       {sidebarOpen && (
-        <div className="w-72 shrink-0 flex flex-col bg-[#080f1e]/95 border-r border-white/8 overflow-hidden z-20">
+        <div className="shrink-0 flex flex-col bg-[#080f1e]/95 border-r border-white/8 overflow-hidden z-20 relative" style={{ width: sidebarWidth }}>
+          {/* Drag-to-resize handle */}
+          <div
+            onMouseDown={onSidebarDragStart}
+            className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-30 hover:bg-blue-500/40 transition-colors"
+          />
 
           {/* Sidebar header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
@@ -421,7 +495,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 </div>
                 <div className="px-3 py-2 space-y-0.5">
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Quick Actions</p>
-                  {CATEGORIES.map(cat => (
+                  {(ANCIENT_ERAS_SET.has(gameState.era) ? CATEGORIES_ANCIENT : CATEGORIES_MODERN).map(cat => (
                     <div key={cat.id}>
                       <button onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
                         className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.06] transition-colors text-left">
@@ -667,7 +741,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap>
           <CountryLayer />
-          <ProvincesLayer />
+          {!['greek', 'roman', 'ottoman'].includes(gameState.era) && <ProvincesLayer />}
           <BiomesLayer />
           <RiversLayer />
           <CountryLabelOverlay />
@@ -676,6 +750,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           <InfraLayer />
           <RailLayer />
           <LandUseLayer />
+          <LandmarksLayer />
         </WorldMap>
         <OrgPanel />
 
@@ -787,7 +862,9 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <div className="flex flex-wrap gap-1 px-4 pb-2">
                 {Object.entries(timelineResult.statDeltas).filter(([,v]) => v !== 0).map(([key, val]) => (
                   <span key={key} className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${val > 0 ? 'bg-emerald-950/60 border-emerald-800/40 text-emerald-300' : 'bg-red-950/60 border-red-800/40 text-red-300'}`}>
-                    {key === 'gdp' ? (val > 0 ? '+' : '') + formatStat(val) : (val > 0 ? '+' : '') + val + ' ' + key}
+                    {key === 'gdp'
+                      ? `${val > 0 ? '+' : ''}${formatStat(val)} GDP`
+                      : `${val > 0 ? '+' : ''}${val} ${key}`}
                   </span>
                 ))}
               </div>
@@ -875,6 +952,27 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 <span className="text-xs text-blue-300 font-semibold bg-blue-900/40 rounded-xl px-3 py-2.5 border border-blue-800/30">
                   {pendingActions.length} queued
                 </span>
+              )}
+              {/* Custom jump */}
+              {showCustomJump ? (
+                <div className="flex items-center gap-1.5 bg-[#080f1e]/85 backdrop-blur-md border border-white/10 rounded-xl px-3 py-1.5 shadow-xl">
+                  <input
+                    autoFocus
+                    value={customJump}
+                    onChange={e => setCustomJump(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleCustomJump(); if (e.key === 'Escape') setShowCustomJump(false) }}
+                    placeholder="e.g. 5y or 12m"
+                    className="w-28 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none font-mono"
+                  />
+                  <button onClick={handleCustomJump} className="text-xs text-blue-400 hover:text-blue-300 font-semibold">Go</button>
+                  <button onClick={() => setShowCustomJump(false)} className="text-xs text-gray-600 hover:text-gray-400">✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowCustomJump(true)}
+                  className="px-3 py-2.5 rounded-xl bg-[#080f1e]/85 backdrop-blur-md border border-white/10 hover:border-white/20 text-xs text-gray-500 hover:text-gray-300 transition-all shadow-xl"
+                  title="Jump custom period (e.g. 5y, 12m, 50w)">
+                  ⏩
+                </button>
               )}
             </>
           )}

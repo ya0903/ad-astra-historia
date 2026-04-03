@@ -70,6 +70,48 @@ export const COUNTRY_COLOURS: Record<string, string> = {
   FRG: '#DD0000',   // West Germany
   YUG: '#0039A6',   // Yugoslavia
   CSK: '#D7141A',   // Czechoslovakia
+  // ── Greek era (431 BCE) ───────────────────────────────────────────────────
+  ATH: '#4A7FCB',   // Athens — navy blue
+  SPA: '#A0522D',   // Sparta — earthy red
+  THE: '#6B8E23',   // Thebes — olive
+  MAC: '#8B6914',   // Macedon — gold
+  EPI: '#5F8A5E',   // Epirus — forest green
+  THS: '#7B8B6F',   // Thessaly — muted green
+  ACH: '#8B3A3A',   // Achaemenid Persia — deep red
+  KMT: '#C89A3C',   // Egypt (Kemet) — gold
+  CAR: '#9B4A9B',   // Carthage — purple
+  SRC: '#2E8B57',   // Syracuse (ancient) — sea green
+  CEL: '#5C7A3E',   // Celtic Gaul — forest
+  SCY: '#8B7355',   // Scythia — tan
+  ITL: '#B5651D',   // Italian peoples (ancient) — brown
+  NUB: '#8B4513',   // Nubia — saddle brown
+  ARA: '#C4A35A',   // Arabia — sand
+  TRH: '#7755AA',   // Thrace — violet
+  ILY: '#5577AA',   // Illyria — slate blue
+  CRT: '#3A7A8A',   // Crete — teal
+  EUN: '#4A6A8A',   // Northern Europe (ancient) — slate
+  // ── Roman era (117 CE) ────────────────────────────────────────────────────
+  ROM: '#C0392B',   // Roman Empire — imperial red
+  PAR: '#6B3FA0',   // Parthian Empire — violet
+  KUS: '#D4841A',   // Kushan Empire — amber
+  GER: '#5D7A4A',   // Germanic tribes — forest
+  CAL: '#4A7A6A',   // Caledonia — dark teal
+  ARK: '#A05028',   // Armenia (Roman era) — terracotta
+  AXU: '#3D7A3D',   // Axum — deep green
+  SAR: '#8B7355',   // Sarmatians — tan
+  DEC: '#E07B3A',   // Deccan / South India (Roman era) — orange
+  // ── Ottoman era (1566 CE) ─────────────────────────────────────────────────
+  OTT: '#CC0000',   // Ottoman Empire — red
+  SAF: '#0055A4',   // Safavid Persia — blue
+  HAB: '#E8C400',   // Habsburg — yellow
+  PLT: '#990011',   // Poland-Lithuania — crimson
+  MUS: '#1C3A6A',   // Muscovy — dark blue
+  MUG: '#28A048',   // Mughal India — green
+  SON: '#C4841A',   // Songhai — amber
+  MOR: '#CC2200',   // Morocco — red
+  ETI: '#078930',   // Ethiopia (Ottoman era) — green
+  VNC: '#9B1B1B',   // Venice (Ottoman era) — crimson
+  HRE: '#DD0000',   // Holy Roman Empire — red
 }
 
 export const ERA_START_DATES: Record<Era, string> = {
@@ -78,6 +120,9 @@ export const ERA_START_DATES: Record<Era, string> = {
   '1990s': '1991-01-01',
   '2010s': '2010-01-01',
   'modern': '2024-01-01',
+  'greek':   '0431-01-01',
+  'roman':   '0117-01-01',
+  'ottoman': '1520-01-01',
 }
 
 export function getCountryColour(isoA3: string): string {

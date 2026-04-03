@@ -1,4 +1,4 @@
-export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern'
+export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern' | 'greek' | 'roman' | 'ottoman'
 export type Difficulty = 'passive' | 'realistic' | 'aggressive'
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'custom'
 export type RelationType = 'allied' | 'friendly' | 'neutral' | 'tense' | 'hostile' | 'at_war'
@@ -193,6 +193,17 @@ export type TechId =
   | 'semiconductors' | 'computing' | 'ai_research' | 'nuclear_fission'
   | 'nuclear_fusion' | 'space_launch' | 'satellite_network' | 'moon_landing'
   | 'biotech' | 'renewable_energy' | 'stealth_tech' | 'hypersonics'
+  // ── Ancient / Medieval ────────────────────────────────────────────────────
+  | 'bronze_working' | 'iron_working' | 'steel_forging'
+  | 'hoplite_warfare' | 'cavalry' | 'heavy_cavalry' | 'naval_warfare'
+  | 'siege_weapons' | 'fortifications' | 'professional_army'
+  | 'road_network' | 'aqueducts' | 'architecture'
+  | 'philosophy' | 'mathematics' | 'medicine' | 'astronomy'
+  | 'irrigation' | 'qanat_system' | 'crop_rotation'
+  | 'coinage' | 'trade_routes' | 'merchant_guilds'
+  | 'trebuchet' | 'gunpowder' | 'printing_press'
+  | 'plate_armour' | 'longbow' | 'crossbow'
+  | 'caravel' | 'cannon' | 'janissary_corps'
 
 export interface TechNode {
   id: TechId
@@ -201,7 +212,7 @@ export interface TechNode {
   researchWeeks: number            // realistic research time
   cost: number                     // researchPoints
   prerequisites: TechId[]
-  unlocksEra: ('1945' | '1960s' | '1990s' | '2010s' | 'modern')[] // eras where available
+  unlocksEra: Era[] // eras where available
 }
 
 export interface ResearchProject {

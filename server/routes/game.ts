@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const ERAS_DIR = join(__dirname, '../../shared/eras')
 
-const VALID_ERAS: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern']
+const VALID_ERAS: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern', 'greek', 'roman', 'ottoman']
 
 function isValidEra(era: string): era is Era {
   return VALID_ERAS.includes(era as Era)
@@ -90,8 +90,18 @@ function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection): Record<st
   return countries
 }
 
-function buildStrategicPassages(): Record<string, PassageStatus> {
+function buildStrategicPassages(era: Era): Record<string, PassageStatus> {
   const open: PassageStatus = 'open'
+  const ancientEras: Era[] = ['greek', 'roman', 'ottoman']
+  if (ancientEras.includes(era)) {
+    return {
+      bosporus: open,
+      gibraltar: open,
+      'bab-el-mandeb': open,
+      hormuz: open,
+      ...(era === 'ottoman' ? { 'red-sea': open } : {}),
+    }
+  }
   return {
     hormuz: open,
     malacca: open,
@@ -116,6 +126,25 @@ function readEraFile(filePath: string): { data: GeoJSONFeatureCollection } | { n
 }
 
 export const gameRouter = Router()
+
+// GET /api/game/borders/:era — era-specific border polygons (for ancient eras)
+gameRouter.get('/borders/:era', (req, res) => {
+  const { era } = req.params
+  if (!isValidEra(era)) {
+    res.status(400).json({ error: `Invalid era: ${era}` })
+    return
+  }
+  const result = readEraFile(getEraFilePath(era))
+  if ('notFound' in result) {
+    res.status(404).json({ error: `Border file not found for era: ${era}` })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read era border file' })
+    return
+  }
+  res.json(result.data)
+})
 
 // GET /api/game/borders — 50m country polygons for rendering (includes small territories like Gaza)
 gameRouter.get('/borders', (_req, res) => {
@@ -260,7 +289,7 @@ gameRouter.get('/era/:era', (req, res) => {
     organisations: [],
     disputes: ERA_DISPUTES[era] ?? [],
     nonStateActors: ERA_NON_STATE_ACTORS[era] ?? [],
-    strategicPassages: buildStrategicPassages(),
+    strategicPassages: buildStrategicPassages(era),
   }
 
   res.json(response)

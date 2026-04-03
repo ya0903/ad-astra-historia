@@ -1,0 +1,100 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ATH", "ADM0_A3": "ATH", "ADMIN": "Athens", "NAME": "Athens", "GDP_MD": 900, "POP_EST": 350000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [22.5,38.8],[24.8,38.8],[25.2,38.2],[24.5,37.5],[23.0,37.4],[22.3,37.8],[22.5,38.8] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SPA", "ADM0_A3": "SPA", "ADMIN": "Sparta", "NAME": "Sparta", "GDP_MD": 600, "POP_EST": 400000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [21.0,38.0],[22.3,37.8],[23.0,37.4],[23.5,36.8],[22.8,36.2],[21.5,36.3],[21.0,37.0],[21.0,38.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "THE", "ADM0_A3": "THE", "ADMIN": "Thebes", "NAME": "Thebes", "GDP_MD": 400, "POP_EST": 200000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [21.5,38.0],[22.5,38.0],[22.5,38.8],[21.8,39.2],[21.0,39.0],[21.0,38.4],[21.5,38.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "THS", "ADM0_A3": "THS", "ADMIN": "Thessaly", "NAME": "Thessaly", "GDP_MD": 300, "POP_EST": 250000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [21.8,39.2],[22.5,38.8],[24.8,38.8],[25.2,39.5],[24.0,40.0],[22.0,40.0],[21.8,39.2] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "MAC", "ADM0_A3": "MAC", "ADMIN": "Macedon", "NAME": "Macedon", "GDP_MD": 500, "POP_EST": 500000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [20.5,40.0],[24.0,40.0],[25.2,39.5],[26.0,40.5],[25.5,42.0],[22.0,42.2],[20.0,41.5],[20.5,40.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "EPI", "ADM0_A3": "EPI", "ADMIN": "Epirus", "NAME": "Epirus", "GDP_MD": 200, "POP_EST": 150000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [19.5,39.2],[21.0,39.0],[21.5,38.0],[21.0,38.0],[20.0,38.5],[19.0,39.0],[19.5,39.2] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ILY", "ADM0_A3": "ILY", "ADMIN": "Illyria", "NAME": "Illyria", "GDP_MD": 300, "POP_EST": 400000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [13.5,42.0],[20.0,41.5],[20.0,38.5],[19.0,39.0],[15.5,40.5],[13.5,42.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "TRH", "ADM0_A3": "TRH", "ADMIN": "Thrace", "NAME": "Thrace", "GDP_MD": 350, "POP_EST": 450000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [25.5,42.0],[30.0,40.5],[30.5,42.5],[28.0,43.5],[26.0,43.0],[25.5,42.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "CRT", "ADM0_A3": "CRT", "ADMIN": "Crete", "NAME": "Crete", "GDP_MD": 250, "POP_EST": 180000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [23.5,35.7],[26.5,35.7],[26.5,34.8],[23.5,34.8],[23.5,35.7] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ITL", "ADM0_A3": "ITL", "ADMIN": "Italian Peoples", "NAME": "Italian Peoples", "GDP_MD": 2000, "POP_EST": 4000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [6.5,44.0],[13.5,44.0],[15.8,41.5],[16.5,39.0],[15.5,37.5],[13.0,37.8],[10.0,38.5],[8.0,40.5],[7.0,43.5],[6.5,44.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SRC", "ADM0_A3": "SRC", "ADMIN": "Syracuse", "NAME": "Syracuse", "GDP_MD": 1500, "POP_EST": 1000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [12.5,38.3],[15.5,38.3],[16.0,37.5],[15.0,36.5],[13.5,36.7],[12.5,37.2],[12.5,38.3] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ACH", "ADM0_A3": "ACH", "ADMIN": "Achaemenid Persia", "NAME": "Achaemenid Persia", "GDP_MD": 28000, "POP_EST": 40000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [26.0,36.0],[30.0,40.5],[38.0,37.5],[44.0,38.5],[55.0,42.0],[65.0,42.0],[75.0,37.0],[76.0,28.0],[70.0,22.0],[60.0,16.0],[52.0,22.0],[44.0,12.0],[38.0,15.5],[33.5,22.0],[30.0,31.5],[28.0,33.0],[26.0,36.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "KMT", "ADM0_A3": "KMT", "ADMIN": "Egypt", "NAME": "Egypt", "GDP_MD": 3500, "POP_EST": 5000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [25.0,22.0],[33.5,22.0],[34.5,27.0],[33.5,31.5],[30.0,32.0],[28.0,31.0],[25.0,25.0],[25.0,22.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "CAR", "ADM0_A3": "CAR", "ADMIN": "Carthage", "NAME": "Carthage", "GDP_MD": 5000, "POP_EST": 3000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [5.0,37.5],[13.0,37.5],[15.5,33.5],[13.0,30.0],[6.0,30.0],[2.0,34.0],[5.0,37.5] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "CEL", "ADM0_A3": "CEL", "ADMIN": "Celtic Gaul & Iberia", "NAME": "Celtic Gaul & Iberia", "GDP_MD": 3000, "POP_EST": 8000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [-9.5,36.0],[2.0,34.0],[6.0,30.0],[6.0,37.5],[5.0,37.5],[6.5,44.0],[7.0,43.5],[9.5,47.5],[2.0,51.0],[-5.5,48.5],[-9.5,44.0],[-9.5,36.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "SCY", "ADM0_A3": "SCY", "ADMIN": "Scythia", "NAME": "Scythia", "GDP_MD": 800, "POP_EST": 1500000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [26.0,43.0],[30.5,42.5],[35.0,44.0],[44.0,44.0],[52.0,48.0],[57.0,50.0],[57.0,55.0],[40.0,56.0],[28.0,53.0],[22.0,47.0],[26.0,43.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "NUB", "ADM0_A3": "NUB", "ADMIN": "Nubia", "NAME": "Nubia", "GDP_MD": 700, "POP_EST": 900000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [23.0,10.0],[37.0,10.0],[38.0,15.5],[35.0,22.0],[33.5,22.0],[25.0,22.0],[23.0,15.0],[23.0,10.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "ARA", "ADM0_A3": "ARA", "ADMIN": "Arabia", "NAME": "Arabia", "GDP_MD": 1000, "POP_EST": 2000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [32.0,12.0],[50.0,10.0],[58.0,20.0],[60.0,24.0],[56.0,27.0],[50.0,30.0],[44.0,28.0],[38.0,24.0],[34.0,18.0],[32.0,12.0] ]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ISO_A3": "EUN", "ADM0_A3": "EUN", "ADMIN": "Northern Europe", "NAME": "Northern Europe", "GDP_MD": 1000, "POP_EST": 3000000 },
+      "geometry": { "type": "Polygon", "coordinates": [[ [9.5,47.5],[16.0,47.0],[22.0,47.0],[28.0,53.0],[22.0,57.0],[8.0,58.0],[0.0,55.0],[2.0,51.0],[9.5,47.5] ]] }
+    }
+  ]
+}
