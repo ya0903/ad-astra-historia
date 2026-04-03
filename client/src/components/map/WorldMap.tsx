@@ -175,7 +175,7 @@ export default function WorldMap({ children, era }: Props) {
       mapInstance.flyTo({ center: ANCIENT_CENTER, zoom: ANCIENT_ZOOM, duration: 1200 })
     }
     // Always clear any previously set bounds restriction
-    mapInstance.setMaxBounds(undefined as unknown as maplibregl.LngLatBoundsLike)
+    mapInstance.setMaxBounds(null as unknown as maplibregl.LngLatBoundsLike)
   }, [era, mapInstance])
 
   const isAncient = era && ANCIENT_ERAS.has(era)

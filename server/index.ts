@@ -38,8 +38,17 @@ export function createApp(options: AppOptions = {}) {
 
   // Serve built frontend in production
   if (isProd) {
-    app.use(express.static(clientDist))
+    // Hashed assets (JS/CSS with content hash in filename) can be cached long-term.
+    // index.html must never be cached — it references the current hashed bundle names.
+    app.use(express.static(clientDist, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+        }
+      },
+    }))
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       res.sendFile(join(clientDist, 'index.html'))
     })
   }
