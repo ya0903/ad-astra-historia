@@ -159,10 +159,12 @@ export default function CountryLabelOverlay() {
 
   // ── Fetch borders, compute label data ──────────────────────────────────────
   useEffect(() => {
-    // Ancient eras show no country name labels
-    if (!era || ANCIENT_ERAS.has(era)) { setLabelsData([]); return }
+    if (!era) { setLabelsData([]); return }
     const controller = new AbortController()
-    fetch('/api/game/borders', { signal: controller.signal })
+    // Ancient eras: fetch era-specific polity borders and show polity names
+    // Modern eras: fetch modern country borders
+    const url = ANCIENT_ERAS.has(era) ? `/api/game/borders/${era}` : '/api/game/borders'
+    fetch(url, { signal: controller.signal })
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
         const best = new Map<string, {

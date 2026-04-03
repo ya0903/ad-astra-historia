@@ -256,21 +256,39 @@ function remapToAncientPolities(
   const features: typeof modern.features = []
   for (const feature of modern.features) {
     const props = feature.properties
-    const iso = props.ISO_A3 ?? props.ADM0_A3 ?? ''
+    // Handle ISO_A3 = '-99' (unrecognised territories in Natural Earth)
+    const isoRaw = props.ISO_A3 ?? ''
+    const iso = (isoRaw === '-99' || isoRaw === '') ? (props.ADM0_A3 ?? '') : isoRaw
     const polity = mapping[iso]
     if (!polity) continue  // territory outside this era's known world
+    const displayName = POLITY_NAMES[polity] ?? polity
     features.push({
       ...feature,
-      properties: { ...props, ISO_A3: polity, ADM0_A3: polity },
+      properties: { ...props, ISO_A3: polity, ADM0_A3: polity, ADMIN: displayName, NAME: displayName },
     })
   }
   return { type: 'FeatureCollection', features } as unknown as GeoJSONFeatureCollection
 }
 
+// Polity display names used in rendered ancient borders
+const POLITY_NAMES: Record<string, string> = {
+  ATH:'Athens', SPA:'Sparta', THE:'Thebes', MAC:'Macedon', EPI:'Epirus',
+  THS:'Thessaly', ACH:'Achaea', ILY:'Illyria', TRH:'Anatolia', CRT:'Crete',
+  ITL:'Italian Peoples', SRC:'Syracuse', KMT:'Egypt', CAR:'Carthage',
+  CEL:'Celtic Gaul', SCY:'Scythia', NUB:'Nubia', ARA:'Arabia', EUN:'Persia',
+  ROM:'Roman Empire', PAR:'Parthian Empire', KUS:'Kushan Empire',
+  DEC:'Deccan Kingdoms', GER:'Germania', SAR:'Sarmatia', AXU:'Axum', ARK:'Armenia',
+  OTT:'Ottoman Empire', SAF:'Safavid Persia', HAB:'Habsburg Empire',
+  HRE:'Holy Roman Empire', FRA:'France', ENG:'England', PLT:'Poland-Lithuania',
+  POR:'Portugal', ESP:'Spain', VNC:'Venice', MUS:'Muscovy',
+  MUG:'Mughal Empire', SON:'Songhai', MOR:'Morocco', ETI:'Ethiopia',
+}
+
 export const gameRouter = Router()
 
 // GET /api/game/borders/:era — era-specific border polygons
-// For ancient eras: returns remapped modern borders (accurate coastlines, polity colours).
+// For ancient eras: prefer pre-downloaded historical-basemaps render file,
+// then fall back to remapped modern borders.
 gameRouter.get('/borders/:era', (req, res) => {
   const { era } = req.params
   if (!isValidEra(era)) {
@@ -278,22 +296,33 @@ gameRouter.get('/borders/:era', (req, res) => {
     return
   }
 
-  const polityMap = ERA_COUNTRY_MAPS[era as Era]
-  if (polityMap) {
-    // Load modern borders and remap features to ancient polity codes
-    const bordersPath = join(ERAS_DIR, 'borders.geojson')
-    const modernResult = readEraFile(bordersPath)
-    const source = 'data' in modernResult ? modernResult
-      : readEraFile(join(ERAS_DIR, 'modern.geojson'))
-    if (!('data' in source)) {
-      res.status(500).json({ error: 'Modern borders file missing — run download.mjs' })
+  const ancientEras: Era[] = ['greek', 'roman', 'ottoman']
+  if (ancientEras.includes(era as Era)) {
+    // 1. Try pre-downloaded historical-basemaps render file
+    const renderPath = join(ERAS_DIR, `${era}_render.geojson`)
+    const renderResult = readEraFile(renderPath)
+    if ('data' in renderResult) {
+      res.json(renderResult.data)
       return
     }
-    res.json(remapToAncientPolities(source.data, polityMap))
-    return
+
+    // 2. Fall back to remapping modern borders
+    const polityMap = ERA_COUNTRY_MAPS[era as Era]
+    if (polityMap) {
+      const bordersPath = join(ERAS_DIR, 'borders.geojson')
+      const modernResult = readEraFile(bordersPath)
+      const source = 'data' in modernResult ? modernResult
+        : readEraFile(join(ERAS_DIR, 'modern.geojson'))
+      if (!('data' in source)) {
+        res.status(500).json({ error: 'No border data available. Run: node shared/eras/download-historical.mjs' })
+        return
+      }
+      res.json(remapToAncientPolities(source.data, polityMap))
+      return
+    }
   }
 
-  // Non-ancient eras — fall back to era-specific file
+  // Non-ancient eras — era-specific file
   const result = readEraFile(getEraFilePath(era))
   if ('notFound' in result) {
     res.status(404).json({ error: `Border file not found for era: ${era}` })
