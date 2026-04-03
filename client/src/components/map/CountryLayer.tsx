@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
-import { COUNTRY_COLOURS, getCountryColour } from '@ad-astra/shared/countries'
+import { getCountryColour } from '@ad-astra/shared/countries'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
 
@@ -175,29 +175,31 @@ function buildLabelPoints(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCo
 }
 
 /**
- * Inject a `fill_colour` property into every GeoJSON feature so that the
- * MapLibre layer can use the trivial expression ['get', 'fill_colour'].
- * This completely avoids `match` expressions, which are fragile with many
- * values and easy to break with subtle type mismatches.
+ * Re-stamp player/controlled territory highlights onto GeoJSON that already
+ * has fill_colour baked in by the server. The server's fill_colour is always
+ * correct (from COUNTRY_COLOURS); we only override for player-owned territory.
+ * We deliberately ignore countries[iso].colour from game state — it may contain
+ * stale/wrong colours from old autosaves.
  */
 function injectColours(
   geojson: GeoJSON.FeatureCollection,
-  countries: Record<string, { colour: string }>,
+  _countries: Record<string, { colour: string }>,
   playerCountryId: string,
   controlledCountries: string[]
 ): GeoJSON.FeatureCollection {
-  const playerColour = countries[playerCountryId]?.colour ?? getCountryColour(playerCountryId)
+  const playerColour = getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
   return {
     ...geojson,
     features: geojson.features.map(f => {
       const p = f.properties as Record<string, unknown>
       const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
-      const raw = countries[iso]?.colour ?? COUNTRY_COLOURS[iso] ?? getCountryColour(iso)
+      // Server already set fill_colour; only override for player/controlled territory
+      const base = (p?.fill_colour as string | undefined) ?? getCountryColour(iso)
       const colour =
-        iso === playerCountryId ? lightenColour(raw) :
+        iso === playerCountryId ? lightenColour(base) :
         controlledSet.has(iso) ? tintOccupied(playerColour) :
-        raw
+        base
       return { ...f, properties: { ...p, fill_colour: colour } }
     }),
   }
