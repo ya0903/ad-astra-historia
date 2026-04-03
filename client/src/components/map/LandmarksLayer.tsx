@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
+import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import { useMap } from './MapContext'
 
 // ── Static geographic features ─────────────────────────────────────────────
 
-type LandmarkType = 'mountain_range' | 'desert' | 'basin' | 'plateau' | 'sea' | 'strait' | 'forest'
+type LandmarkType = 'ocean' | 'mountain_range' | 'desert' | 'basin' | 'plateau' | 'sea' | 'strait' | 'forest'
 
 interface Landmark {
   name: string
@@ -14,6 +15,15 @@ interface Landmark {
 }
 
 const LANDMARKS: Landmark[] = [
+  // ── Oceans (shown at all zoom levels) ───────────────────────────────────
+  { name: 'PACIFIC OCEAN', lng: 175.0, lat: 5.0, type: 'ocean', minzoom: 2 },
+  { name: 'PACIFIC OCEAN', lng: -135.0, lat: -10.0, type: 'ocean', minzoom: 2 },
+  { name: 'ATLANTIC OCEAN', lng: -28.0, lat: 10.0, type: 'ocean', minzoom: 2 },
+  { name: 'ATLANTIC OCEAN', lng: -20.0, lat: -25.0, type: 'ocean', minzoom: 2 },
+  { name: 'INDIAN OCEAN', lng: 75.0, lat: -18.0, type: 'ocean', minzoom: 2 },
+  { name: 'ARCTIC OCEAN', lng: 0.0, lat: 82.0, type: 'ocean', minzoom: 2 },
+  { name: 'SOUTHERN OCEAN', lng: 0.0, lat: -62.0, type: 'ocean', minzoom: 2 },
+
   // ── Mountain ranges ──────────────────────────────────────────────────────
   { name: 'HIMALAYAS', lng: 83.0, lat: 28.5, type: 'mountain_range', minzoom: 3 },
   { name: 'ANDES', lng: -72.0, lat: -20.0, type: 'mountain_range', minzoom: 3 },
@@ -54,13 +64,17 @@ const LANDMARKS: Landmark[] = [
 
   // ── Seas & water bodies ──────────────────────────────────────────────────
   { name: 'MEDITERRANEAN SEA', lng: 15.0, lat: 36.0, type: 'sea', minzoom: 3 },
-  { name: 'RED SEA', lng: 37.0, lat: 20.5, type: 'sea', minzoom: 4 },
-  { name: 'PERSIAN GULF', lng: 51.0, lat: 26.5, type: 'sea', minzoom: 5 },
+  { name: 'RED SEA', lng: 38.5, lat: 20.5, type: 'sea', minzoom: 4 },           // moved east — was clipping Sudan
+  { name: 'ARABIAN SEA', lng: 63.0, lat: 17.0, type: 'sea', minzoom: 3 },
+  { name: 'PERSIAN GULF', lng: 52.5, lat: 26.5, type: 'sea', minzoom: 5 },      // moved east — was inside Saudi Arabia
   { name: 'BAY OF BENGAL', lng: 88.0, lat: 14.0, type: 'sea', minzoom: 4 },
   { name: 'SOUTH CHINA SEA', lng: 113.0, lat: 12.0, type: 'sea', minzoom: 4 },
-  { name: 'CASPIAN SEA', lng: 51.5, lat: 42.0, type: 'sea', minzoom: 4 },
+  { name: 'CASPIAN SEA', lng: 50.0, lat: 42.0, type: 'sea', minzoom: 4 },       // moved west — was too far right
   { name: 'BLACK SEA', lng: 34.0, lat: 43.0, type: 'sea', minzoom: 4 },
+  { name: 'NORTH SEA', lng: 4.0, lat: 56.5, type: 'sea', minzoom: 4 },
   { name: 'BERING SEA', lng: -172.0, lat: 57.0, type: 'sea', minzoom: 4 },
+  { name: 'GULF OF MEXICO', lng: -90.0, lat: 24.0, type: 'sea', minzoom: 4 },
+  { name: 'CARIBBEAN SEA', lng: -75.0, lat: 15.0, type: 'sea', minzoom: 4 },
   { name: 'STRAIT OF HORMUZ', lng: 56.4, lat: 26.6, type: 'strait', minzoom: 5 },
   { name: 'STRAIT OF MALACCA', lng: 103.0, lat: 2.5, type: 'strait', minzoom: 5 },
   { name: 'BOSPHORUS', lng: 29.0, lat: 41.1, type: 'strait', minzoom: 6 },
@@ -70,7 +84,7 @@ const LANDMARKS: Landmark[] = [
   { name: 'GREAT LAKES', lng: -85.0, lat: 45.5, type: 'sea', minzoom: 4 },
   { name: 'LAKE VICTORIA', lng: 33.0, lat: -1.0, type: 'sea', minzoom: 5 },
   { name: 'LAKE BAIKAL', lng: 107.5, lat: 53.5, type: 'sea', minzoom: 5 },
-  { name: 'ARAL SEA', lng: 60.0, lat: 45.5, type: 'sea', minzoom: 5 },
+  // Aral Sea removed — mostly dried up in modern era; confusing at small scale
 ]
 
 function buildLandmarksGeoJSON(): GeoJSON.FeatureCollection {
@@ -87,6 +101,7 @@ function buildLandmarksGeoJSON(): GeoJSON.FeatureCollection {
 // ── Colour by type ─────────────────────────────────────────────────────────
 
 const TYPE_COLOURS: Record<LandmarkType, string> = {
+  ocean:          'rgba(100,175,230,0.60)',
   mountain_range: 'rgba(200,190,170,0.75)',
   plateau:        'rgba(200,190,170,0.65)',
   desert:         'rgba(210,180,100,0.65)',
@@ -106,44 +121,39 @@ export default function LandmarksLayer() {
     const geojson = buildLandmarksGeoJSON()
     map.addSource('landmarks', { type: 'geojson', data: geojson })
 
-    // One layer per type so we can set individual colours
-    const types: LandmarkType[] = ['mountain_range', 'plateau', 'desert', 'basin', 'forest', 'sea', 'strait']
+    // One layer per type so we can set individual colours / sizes
+    const types: LandmarkType[] = ['ocean', 'mountain_range', 'plateau', 'desert', 'basin', 'forest', 'sea', 'strait']
 
     for (const t of types) {
       const colour = TYPE_COLOURS[t]
       const layerId = `landmark-${t}`
+      const isOcean = t === 'ocean'
       map.addLayer({
         id: layerId,
         type: 'symbol',
         source: 'landmarks',
-        minzoom: 2.5,
+        minzoom: isOcean ? 1.5 : 2.5,
         filter: ['==', ['get', 'ltype'], t],
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Noto Sans Medium'],
-          'text-size': [
-            'interpolate', ['linear'], ['zoom'],
-            2.5, 8,
-            4, 10,
-            5, 12,
-            7, 14,
-          ],
-          'text-letter-spacing': 0.25,
+          'text-size': isOcean
+            ? ['interpolate', ['linear'], ['zoom'], 1.5, 9, 3, 12, 5, 16] as ExpressionSpecification
+            : ['interpolate', ['linear'], ['zoom'], 2.5, 8, 4, 10, 5, 12, 7, 14] as ExpressionSpecification,
+          'text-letter-spacing': isOcean ? 0.45 : 0.25,
           'text-transform': 'uppercase',
           'text-allow-overlap': false,
           'text-ignore-placement': false,
-          'text-max-width': 8,
+          'text-max-width': isOcean ? 10 : 8,
         },
         paint: {
           'text-color': colour,
-          'text-halo-color': 'rgba(0,0,0,0.6)',
-          'text-halo-width': 1.5,
+          'text-halo-color': 'rgba(0,0,0,0.55)',
+          'text-halo-width': isOcean ? 1.0 : 1.5,
           'text-halo-blur': 0.5,
-          'text-opacity': [
-            'interpolate', ['linear'], ['zoom'],
-            2.5, 0,
-            3, 1,
-          ],
+          'text-opacity': isOcean
+            ? ['interpolate', ['linear'], ['zoom'], 1.5, 0, 2, 1] as ExpressionSpecification
+            : ['interpolate', ['linear'], ['zoom'], 2.5, 0, 3, 1] as ExpressionSpecification,
         },
       })
     }

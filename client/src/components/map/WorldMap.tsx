@@ -140,19 +140,15 @@ export default function WorldMap({ children, era }: Props) {
             minzoom: 2,
             paint: {
               'fill-color': buildBiomeColour(),
-              // Fade biomes in gradually from zoom 2→4 so they don't pop in
-              'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 4, 1] as ExpressionSpecification,
-            },
-          })
-          map.addLayer({
-            id: 'biomes-outline',
-            type: 'line',
-            source: 'biomes',
-            minzoom: 3,
-            paint: {
-              'line-color': 'rgba(0,0,0,0.18)',
-              'line-width': 0.4,
-              'line-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.3, 6, 0.6] as ExpressionSpecification,
+              // Gradual fade in (2→4) and a slight pull-back at high zoom so
+              // the hillshade detail reads through. No outline layer — the
+              // polygon edges blend naturally into the dark base map.
+              'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, 0.35,
+                4, 0.72,
+                7, 0.55,
+              ] as ExpressionSpecification,
+              'fill-antialias': true,
             },
           })
         }

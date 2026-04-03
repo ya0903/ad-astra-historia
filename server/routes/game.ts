@@ -461,21 +461,50 @@ gameRouter.get('/era/:era', (req, res) => {
     return
   }
 
-  const result = readEraFile(getEraFilePath(era))
+  let geojsonData: GeoJSONFeatureCollection
 
-  if ('notFound' in result) {
-    res.status(404).json({ error: `GeoJSON file not found for era: ${era}` })
-    return
-  }
-  if ('error' in result) {
-    res.status(500).json({ error: 'Failed to build era start conditions' })
-    return
+  const ancientEras: Era[] = ['greek', 'roman', 'ottoman']
+  if (ancientEras.includes(era as Era)) {
+    // For ancient eras, build state.countries from the SAME polity-coded GeoJSON
+    // used for rendering, so that state.countries keys (OTT, FRA, ROM…) match the
+    // ISO_A3 values on map features and the colour expression fires correctly.
+    const renderPath = join(ERAS_DIR, `${era}_render.geojson`)
+    const renderResult = readEraFile(renderPath)
+    if ('data' in renderResult) {
+      geojsonData = renderResult.data
+    } else {
+      // Fall back to remapping modern borders (same as /borders/:era)
+      const polityMap = ERA_COUNTRY_MAPS[era as Era]
+      if (!polityMap) {
+        res.status(500).json({ error: `No polity mapping for era: ${era}` })
+        return
+      }
+      const modernResult = readEraFile(join(ERAS_DIR, 'borders.geojson'))
+      const source = 'data' in modernResult ? modernResult
+        : readEraFile(join(ERAS_DIR, 'modern.geojson'))
+      if (!('data' in source)) {
+        res.status(500).json({ error: 'No border data available. Run: node shared/eras/download-historical.mjs' })
+        return
+      }
+      geojsonData = remapToAncientPolities(source.data, polityMap)
+    }
+  } else {
+    const result = readEraFile(getEraFilePath(era))
+    if ('notFound' in result) {
+      res.status(404).json({ error: `GeoJSON file not found for era: ${era}` })
+      return
+    }
+    if ('error' in result) {
+      res.status(500).json({ error: 'Failed to build era start conditions' })
+      return
+    }
+    geojsonData = result.data
   }
 
   const response: EraStartConditions = {
     era,
     startDate: ERA_START_DATES[era],
-    countries: buildCountriesFromGeoJSON(result.data),
+    countries: buildCountriesFromGeoJSON(geojsonData),
     organisations: [],
     disputes: ERA_DISPUTES[era] ?? [],
     nonStateActors: ERA_NON_STATE_ACTORS[era] ?? [],
