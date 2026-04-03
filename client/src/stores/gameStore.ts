@@ -27,6 +27,8 @@ const DISASTER_TEMPLATES: Record<DisasterType, { names: string[]; gdpLossFractio
   wildfire:   { names: ['Forest Wildfire', 'Bushfire Crisis'], gdpLossFraction: 0.008, approvalDelta: -4 },
   tsunami:    { names: ['Tsunami Warning', 'Coastal Tsunami'], gdpLossFraction: 0.03, approvalDelta: -10 },
   pandemic:   { names: ['Disease Outbreak', 'Epidemic', 'Health Crisis'], gdpLossFraction: 0.04, approvalDelta: -12 },
+  unrest:     { names: ['Civil Unrest', 'Protests Erupt', 'Social Tensions Rise'], gdpLossFraction: 0.005, approvalDelta: -5 },
+  rebellion:  { names: ['Armed Rebellion', 'Popular Uprising', 'Separatist Revolt'], gdpLossFraction: 0.02, approvalDelta: -10 },
 }
 
 const DISASTER_TYPES: DisasterType[] = ['earthquake', 'flood', 'drought', 'hurricane', 'wildfire', 'tsunami', 'pandemic']
@@ -39,6 +41,22 @@ const DISASTER_PROB: Record<DisasterType, number> = {
   wildfire:   0.10,
   tsunami:    0.03,
   pandemic:   0.02,
+  // Political events are triggered by stability logic, not random rolls
+  unrest:     0,
+  rebellion:  0,
+}
+
+/** Compute annual stability delta based on approval and overexpansion. */
+function stabilityDrift(approval: number, controlledCount: number): number {
+  let delta = 0
+  if (approval >= 70)      delta += 3
+  else if (approval >= 55) delta += 1
+  else if (approval >= 40) delta += 0
+  else if (approval >= 25) delta -= 2
+  else                     delta -= 4
+  // Each territory beyond the home country drains stability
+  if (controlledCount > 1) delta -= (controlledCount - 1)
+  return delta
 }
 
 function rollDisasters(countryId: string, gdp: number, date: string): DisasterEvent[] {
@@ -207,6 +225,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     // GDP growth for all countries each year
     let newCountries = { ...s.countries }
     const disasters: DisasterEvent[] = []
+    let newControlledCountries: string[] | undefined
     if (period === 'year') {
       for (const [iso, country] of Object.entries(newCountries)) {
         const rate = countryGrowthRate(country.stats.gdp, country.stats.techLevel, country.sectors as unknown as Record<string, number>)
@@ -227,6 +246,55 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
             ...player,
             stats: { ...player.stats, gdp, approval },
           }
+        }
+      }
+
+      // ── Stability simulation (player country) ──────────────────────────────
+      const playerAfterDisasters = newCountries[s.playerCountryId]
+      if (playerAfterDisasters) {
+        const controlled = s.controlledCountries ?? []
+        const drift = stabilityDrift(playerAfterDisasters.stats.approval, controlled.length + 1)
+        const currentStability = playerAfterDisasters.stats.stability ?? 70
+        const newStability = Math.max(0, Math.min(100, currentStability + drift))
+
+        let { gdp, approval } = playerAfterDisasters.stats
+
+        // Political events fire probabilistically when below threshold
+        if (newStability < 20 && Math.random() < 0.12) {
+          const tmpl = DISASTER_TEMPLATES.rebellion
+          const name = tmpl.names[Math.floor(Math.random() * tmpl.names.length)]
+          const gdpLoss = Math.round(gdp * tmpl.gdpLossFraction)
+          disasters.push({
+            id: `pol-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: 'rebellion', name, date: newDate,
+            affected: s.playerCountryId, gdpLoss,
+            approvalDelta: tmpl.approvalDelta,
+            description: `${name} — public order breaking down. Separatist factions gaining strength.`,
+          })
+          gdp = Math.max(0, gdp - gdpLoss)
+          approval = Math.max(0, approval + tmpl.approvalDelta)
+          // Breakaway: lose last controlled territory
+          if (controlled.length > 0 && Math.random() < 0.3) {
+            newControlledCountries = controlled.slice(0, -1)
+          }
+        } else if (newStability < 35 && Math.random() < 0.08) {
+          const tmpl = DISASTER_TEMPLATES.unrest
+          const name = tmpl.names[Math.floor(Math.random() * tmpl.names.length)]
+          const gdpLoss = Math.round(gdp * tmpl.gdpLossFraction)
+          disasters.push({
+            id: `pol-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: 'unrest', name, date: newDate,
+            affected: s.playerCountryId, gdpLoss,
+            approvalDelta: tmpl.approvalDelta,
+            description: `${name} — citizens demanding change. Stability is deteriorating.`,
+          })
+          gdp = Math.max(0, gdp - gdpLoss)
+          approval = Math.max(0, approval + tmpl.approvalDelta)
+        }
+
+        newCountries[s.playerCountryId] = {
+          ...playerAfterDisasters,
+          stats: { ...playerAfterDisasters.stats, gdp, approval, stability: newStability },
         }
       }
     }
@@ -278,6 +346,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
+        ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
       },
     }
   }),

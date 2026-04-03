@@ -29,6 +29,7 @@ function defaultStats(gdp: number): CountryStats {
     softPower: 0,
     techLevel: 0,
     culturalReach: 0,
+    stability: 70,
   }
 }
 

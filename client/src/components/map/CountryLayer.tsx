@@ -235,7 +235,11 @@ export default function CountryLayer() {
 
         map.addLayer({
           id: 'country-borders', type: 'line', source: 'countries',
-          paint: { 'line-color': '#1e3a5f', 'line-width': 0.8 },
+          paint: {
+            'line-color': '#2a5580',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 3, 1.0, 5, 1.6, 7, 2.2] as ExpressionSpecification,
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 3, 0.75, 6, 0.9] as ExpressionSpecification,
+          },
         })
 
         const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification

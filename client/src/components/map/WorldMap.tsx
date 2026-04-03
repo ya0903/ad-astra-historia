@@ -19,31 +19,41 @@ const ANCIENT_ZOOM = 3.5
 
 // ── Biome colours ──────────────────────────────────────────────────────────────
 // FEATURECLA values from ne_10m_geography_regions_polys
+// Colors tuned for the dark (#0a1628) base: semi-transparent so the hillshade
+// topography bleeds through and gives a textured, painterly look.
 const BIOME_COLOURS: Record<string, string> = {
-  'Desert':                  'rgba(210,175,60,0.55)',
-  'Dune':                    'rgba(220,195,80,0.45)',
-  'Arid':                    'rgba(210,175,60,0.45)',
-  'Tundra':                  'rgba(180,210,240,0.40)',
-  'Ice Shelf/Tundra':        'rgba(200,230,255,0.45)',
-  'Glaciated Areas':         'rgba(220,240,255,0.50)',
-  'Forest':                  'rgba(30,110,50,0.55)',
-  'Rain Forest':             'rgba(20,130,60,0.60)',
-  'Tropical Rainforest':     'rgba(20,130,60,0.60)',
-  'Coniferous Forest':       'rgba(40,100,55,0.52)',
-  'Deciduous Forest':        'rgba(60,130,50,0.52)',
-  'Grassland':               'rgba(120,165,55,0.42)',
-  'Steppe':                  'rgba(150,175,70,0.38)',
-  'Savanna':                 'rgba(170,170,60,0.42)',
-  'Prairie':                 'rgba(130,170,55,0.40)',
-  'Wetlands':                'rgba(30,140,130,0.52)',
-  'Marsh':                   'rgba(40,150,120,0.52)',
-  'Swamp':                   'rgba(30,130,110,0.50)',
-  'Alpine':                  'rgba(160,180,200,0.45)',
-  'Highland':                'rgba(150,160,180,0.42)',
-  'Mediterranean Shrubland': 'rgba(170,140,70,0.40)',
-  'Shrubland':               'rgba(160,135,65,0.38)',
-  'Plains':                  'rgba(140,170,80,0.36)',
-  'Agricultural':            'rgba(150,180,70,0.38)',
+  // Arid / desert — warm ochre/sand
+  'Desert':                  'rgba(195,155,55,0.62)',
+  'Dune':                    'rgba(210,180,75,0.52)',
+  'Arid':                    'rgba(195,155,55,0.52)',
+  // Cold / polar
+  'Tundra':                  'rgba(155,195,225,0.44)',
+  'Ice Shelf/Tundra':        'rgba(185,220,250,0.50)',
+  'Glaciated Areas':         'rgba(210,235,255,0.55)',
+  // Forest — rich greens, varying shade by type
+  'Forest':                  'rgba(28,100,48,0.62)',
+  'Rain Forest':             'rgba(18,120,55,0.68)',
+  'Tropical Rainforest':     'rgba(18,120,55,0.68)',
+  'Coniferous Forest':       'rgba(35,90,50,0.58)',
+  'Deciduous Forest':        'rgba(55,120,48,0.58)',
+  // Grassland / steppe
+  'Grassland':               'rgba(105,152,48,0.48)',
+  'Steppe':                  'rgba(138,162,62,0.44)',
+  'Savanna':                 'rgba(158,158,52,0.48)',
+  'Prairie':                 'rgba(118,158,50,0.46)',
+  'Plains':                  'rgba(125,158,72,0.42)',
+  // Wetland
+  'Wetlands':                'rgba(28,128,118,0.58)',
+  'Marsh':                   'rgba(35,138,110,0.58)',
+  'Swamp':                   'rgba(25,118,100,0.55)',
+  // Highland / mountain
+  'Alpine':                  'rgba(148,168,192,0.50)',
+  'Highland':                'rgba(138,150,172,0.48)',
+  // Shrubland / Mediterranean
+  'Mediterranean Shrubland': 'rgba(158,128,62,0.46)',
+  'Shrubland':               'rgba(148,125,58,0.44)',
+  // Farmland
+  'Agricultural':            'rgba(138,168,62,0.44)',
 }
 
 function buildBiomeColour(): ExpressionSpecification {
@@ -127,15 +137,23 @@ export default function WorldMap({ children, era }: Props) {
             id: 'biomes-fill',
             type: 'fill',
             source: 'biomes',
-            minzoom: 4,
-            paint: { 'fill-color': buildBiomeColour(), 'fill-opacity': 1 },
+            minzoom: 2,
+            paint: {
+              'fill-color': buildBiomeColour(),
+              // Fade biomes in gradually from zoom 2→4 so they don't pop in
+              'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 4, 1] as ExpressionSpecification,
+            },
           })
           map.addLayer({
             id: 'biomes-outline',
             type: 'line',
             source: 'biomes',
-            minzoom: 4,
-            paint: { 'line-color': 'rgba(255,255,255,0.07)', 'line-width': 0.5 },
+            minzoom: 3,
+            paint: {
+              'line-color': 'rgba(0,0,0,0.18)',
+              'line-width': 0.4,
+              'line-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.3, 6, 0.6] as ExpressionSpecification,
+            },
           })
         }
 

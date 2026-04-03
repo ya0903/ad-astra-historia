@@ -277,8 +277,8 @@ export default function GamePage() {
       const gdp = stats?.gdp ?? 0
       const isAncientEra = ANCIENT_ERAS_SET.has(gameState.era)
       const statsStr = isAncientEra
-        ? `Treasury ~$${(gdp/1e9).toFixed(1)}B eq | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Influence ${stats?.softPower??0} | Knowledge ${stats?.techLevel??0}`
-        : `GDP $${(gdp/1e9).toFixed(1)}B | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | SoftPower ${stats?.softPower??0} | Tech ${stats?.techLevel??0}`
+        ? `Treasury ~$${(gdp/1e9).toFixed(1)}B eq | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Stability ${stats?.stability??70} | Influence ${stats?.softPower??0} | Knowledge ${stats?.techLevel??0}`
+        : `GDP $${(gdp/1e9).toFixed(1)}B | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Stability ${stats?.stability??70} | SoftPower ${stats?.softPower??0} | Tech ${stats?.techLevel??0}`
       const actionList = pendingActions.map((a, i) => `${i+1}.[${a.id}] ${a.text}`).join('\n')
 
       const isAncient = ANCIENT_ERAS_SET.has(gameState.era)
@@ -448,21 +448,27 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           </div>
 
           {/* Stats bar */}
-          <div className="grid grid-cols-2 gap-1 px-3 py-2 border-b border-white/5 shrink-0">
-            {[
-              { label: 'GDP', value: formatStat(stats?.gdp ?? 0) },
-              { label: 'Military', value: String(stats?.military ?? 0) },
-              { label: 'Approval', value: `${stats?.approval ?? 0}%` },
-              { label: 'Soft Power', value: String(stats?.softPower ?? 0) },
-              { label: 'Tech', value: String(stats?.techLevel ?? 0) },
-              { label: 'Era', value: gameState.era.split(' ')[0] },
-            ].map(s => (
-              <div key={s.label} className="flex items-center justify-between bg-white/[0.04] rounded-lg px-2 py-1.5">
-                <span className="text-[10px] text-gray-500 uppercase tracking-wider">{s.label}</span>
-                <span className="text-xs text-white font-mono font-medium">{s.value}</span>
+          {(() => {
+            const stability = stats?.stability ?? 70
+            const stabilityColor = stability >= 60 ? 'text-green-400' : stability >= 35 ? 'text-yellow-400' : 'text-red-400'
+            return (
+              <div className="grid grid-cols-2 gap-1 px-3 py-2 border-b border-white/5 shrink-0">
+                {[
+                  { label: 'GDP', value: formatStat(stats?.gdp ?? 0), color: 'text-white' },
+                  { label: 'Military', value: String(stats?.military ?? 0), color: 'text-white' },
+                  { label: 'Approval', value: `${stats?.approval ?? 0}%`, color: 'text-white' },
+                  { label: 'Soft Power', value: String(stats?.softPower ?? 0), color: 'text-white' },
+                  { label: 'Tech', value: String(stats?.techLevel ?? 0), color: 'text-white' },
+                  { label: 'Stability', value: `${stability}`, color: stabilityColor },
+                ].map(s => (
+                  <div key={s.label} className="flex items-center justify-between bg-white/[0.04] rounded-lg px-2 py-1.5">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">{s.label}</span>
+                    <span className={`text-xs font-mono font-medium ${s.color}`}>{s.value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()}
 
           {/* Tabs */}
           <div className="flex border-b border-white/8 shrink-0">
@@ -601,16 +607,27 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                   </div>
                 )}
 
-                {/* Natural disaster alerts */}
+                {/* Disaster & political event alerts */}
                 {recentDisasters.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">Disasters</p>
-                    {recentDisasters.slice(0, 3).map(d => (
-                      <div key={d.id} className="rounded-xl border border-orange-800/30 bg-orange-950/30 px-3 py-2 mb-1">
-                        <p className="text-xs font-semibold text-orange-300">⚠ {d.name}</p>
-                        <p className="text-[10px] text-orange-300/60 mt-0.5">{d.description} — GDP loss: ${(d.gdpLoss/1e9).toFixed(1)}B</p>
-                      </div>
-                    ))}
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 px-1">Events</p>
+                    {recentDisasters.slice(0, 4).map(d => {
+                      const isPolitical = d.type === 'unrest' || d.type === 'rebellion'
+                      return (
+                        <div key={d.id} className={`rounded-xl border px-3 py-2 mb-1 ${
+                          isPolitical
+                            ? 'border-red-800/40 bg-red-950/30'
+                            : 'border-orange-800/30 bg-orange-950/30'
+                        }`}>
+                          <p className={`text-xs font-semibold ${isPolitical ? 'text-red-300' : 'text-orange-300'}`}>
+                            {isPolitical ? '⚔' : '⚠'} {d.name}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 ${isPolitical ? 'text-red-300/60' : 'text-orange-300/60'}`}>
+                            {d.description}{d.gdpLoss > 0 ? ` — loss: $${(d.gdpLoss/1e9).toFixed(1)}B` : ''}
+                          </p>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 

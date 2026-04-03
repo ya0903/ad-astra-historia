@@ -145,7 +145,7 @@ interface LabelDatum {
 }
 
 const TIER_ZOOM_MIN = [1.5, 2.0, 3.5, 5.5]
-const TIER_BASE_PX  = [14,  12,  10,  8]
+const TIER_BASE_PX  = [15,  13,  11,  9]
 
 // Approx text width per character: uppercase serif (≈0.60em) + letter-spacing (0.12em) = 0.72em
 const CHAR_WIDTH_EM = 0.72
@@ -296,21 +296,20 @@ export default function CountryLabelOverlay() {
             display: 'none',
             fontFamily: "'Missale AS Lunea', 'IM Fell English', 'Palatino Linotype', serif",
             fontWeight: 700,
-            letterSpacing: '0.12em',
+            letterSpacing: '0.14em',
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
             userSelect: 'none',
             lineHeight: 1,
             pointerEvents: 'none',
-            // ── Liquid glass gradient fill — no background box ──────────────
-            // Top of each glyph catches light (near-white); mid is cool glass;
-            // bottom has a subtle reflective lift.
-            background: 'linear-gradient(172deg, rgba(240,248,255,0.97) 0%, rgba(200,218,242,0.88) 28%, rgba(152,182,215,0.78) 65%, rgba(208,223,244,0.90) 100%)',
+            // ── Liquid glass gradient fill ──────────────────────────────────
+            // Top catches light (near-white), mid is cool steel-glass, bottom lifts.
+            background: 'linear-gradient(172deg, rgba(245,252,255,0.98) 0%, rgba(210,228,248,0.90) 30%, rgba(162,195,228,0.82) 65%, rgba(215,232,250,0.92) 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             color: 'transparent',
-            // text-shadow fires on glyph shapes even with transparent fill
-            textShadow: '0 1px 5px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.50)',
+            // Deep shadow for readability on any terrain; outer glow lifts from dark bg
+            textShadow: '0 1px 4px rgba(0,0,0,0.98), 0 0 18px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.9)',
           } as React.CSSProperties}
         >
           {l.name}

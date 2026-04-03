@@ -55,6 +55,8 @@ export interface CountryStats {
   softPower: number
   techLevel: number
   culturalReach: number
+  /** 0–100. 70 = stable, <40 = unrest, <20 = rebellion risk */
+  stability: number
 }
 
 export interface CountrySectors {
@@ -226,6 +228,7 @@ export interface ResearchProject {
 // ── Natural disasters ─────────────────────────────────────────────────────────
 
 export type DisasterType = 'earthquake' | 'flood' | 'drought' | 'hurricane' | 'wildfire' | 'tsunami' | 'pandemic'
+  | 'unrest' | 'rebellion'
 
 export interface DisasterEvent {
   id: string

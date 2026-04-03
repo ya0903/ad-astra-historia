@@ -105,6 +105,8 @@ export const COUNTRY_COLOURS: Record<string, string> = {
   SAF: '#0055A4',   // Safavid Persia — blue
   HAB: '#E8C400',   // Habsburg — yellow
   PLT: '#990011',   // Poland-Lithuania — crimson
+  ENG: '#012169',   // England (Ottoman era) — navy blue
+  POR: '#006600',   // Portugal (Ottoman era) — green
   MUS: '#1C3A6A',   // Muscovy — dark blue
   MUG: '#28A048',   // Mughal India — green
   SON: '#C4841A',   // Songhai — amber
