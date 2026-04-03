@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
+import { COUNTRY_COLOURS, getCountryColour } from '@ad-astra/shared/countries'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
 
@@ -178,13 +179,22 @@ function buildColourExpression(
   playerCountryId: string,
   controlledCountries: string[]
 ): ExpressionSpecification {
-  const playerColour = countries[playerCountryId]?.colour ?? '#1a4a7a'
+  const playerColour = countries[playerCountryId]?.colour ?? getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
-  const pairs = Object.entries(countries).flatMap(([iso, c]) => [
+
+  // Merge static COUNTRY_COLOURS with live state colours so that polity codes
+  // (OTT, FRA, ROM…) always resolve even when state.countries still holds
+  // modern ISO codes from an old localStorage save.
+  const merged: Record<string, string> = { ...COUNTRY_COLOURS }
+  for (const [iso, c] of Object.entries(countries)) {
+    merged[iso] = c.colour
+  }
+
+  const pairs = Object.entries(merged).flatMap(([iso, colour]) => [
     iso,
-    iso === playerCountryId ? lightenColour(c.colour) :
+    iso === playerCountryId ? lightenColour(colour) :
     controlledSet.has(iso) ? tintOccupied(playerColour) :
-    c.colour,
+    colour,
   ])
   return ['match', ['get', 'ISO_A3'], ...pairs, '#374151'] as unknown as ExpressionSpecification
 }

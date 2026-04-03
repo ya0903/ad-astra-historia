@@ -145,10 +145,11 @@ interface LabelDatum {
 }
 
 const TIER_ZOOM_MIN = [1.5, 2.0, 3.5, 5.5]
-const TIER_BASE_PX  = [15,  13,  11,  9]
+const TIER_BASE_PX  = [16,  14,  12,  10]
+const TIER_SCALE_PX = [18,  15,  13,  11]  // max font size at high zoom
 
-// Approx text width per character: uppercase serif (≈0.60em) + letter-spacing (0.12em) = 0.72em
-const CHAR_WIDTH_EM = 0.72
+// Approx text width per character: uppercase serif (≈0.60em) + letter-spacing (0.14em) = 0.74em
+const CHAR_WIDTH_EM = 0.74
 
 export default function CountryLabelOverlay() {
   const map = useMap()
@@ -243,26 +244,27 @@ export default function CountryLabelOverlay() {
           el.style.display = 'none'; continue
         }
 
-        const fontSize = Math.max(6, TIER_BASE_PX[d.tier] * scale)
+        const fontSize = Math.min(
+          TIER_SCALE_PX[d.tier],
+          Math.max(7, TIER_BASE_PX[d.tier] * scale)
+        )
 
         // ── Text-fit check ──────────────────────────────────────────────────
-        // Country span in pixels along the label's text direction.
-        // bboxH (latitude degrees) is stretched by Mercator (1/cos φ) relative to longitude.
         const ar = d.angle * Math.PI / 180
         const latStretch = 1 / Math.max(0.1, Math.cos(d.lat * Math.PI / 180))
         const countrySpanPx =
           d.bboxW * Math.abs(Math.cos(ar)) * pxPerDegLng +
           d.bboxH * Math.abs(Math.sin(ar)) * pxPerDegLng * latStretch
 
-        // Estimated text width in pixels
         const textPx = d.name.length * fontSize * CHAR_WIDTH_EM
 
-        // fitFrac: 0 = tiny text (definitely fits), 1 = text equals country span
+        // fitFrac: 0 = text is tiny compared to country, 1 = text fills country edge-to-edge
+        // Allow up to 0.95 — labels can slightly overflow the polygon boundary (CK-style)
         const fitFrac = textPx / Math.max(1, countrySpanPx)
-        if (fitFrac > 0.90) { el.style.display = 'none'; continue }
+        if (fitFrac > 0.95) { el.style.display = 'none'; continue }
 
-        // Smooth fade: fully visible when fitFrac ≤ 0.70, fades out 0.70→0.90
-        const fitOpacity  = Math.max(0, Math.min(1, (0.90 - fitFrac) / 0.20))
+        // Smooth fade: fully visible when fitFrac ≤ 0.75, fades 0.75→0.95
+        const fitOpacity  = Math.max(0, Math.min(1, (0.95 - fitFrac) / 0.20))
         const zoomOpacity = Math.min(1, (zoom - TIER_ZOOM_MIN[d.tier] + 0.5) * 2)
         const opacity     = fitOpacity * zoomOpacity
 
@@ -296,20 +298,25 @@ export default function CountryLabelOverlay() {
             display: 'none',
             fontFamily: "'Missale AS Lunea', 'IM Fell English', 'Palatino Linotype', serif",
             fontWeight: 700,
-            letterSpacing: '0.14em',
+            letterSpacing: '0.18em',
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
             userSelect: 'none',
             lineHeight: 1,
             pointerEvents: 'none',
-            // ── Liquid glass gradient fill ──────────────────────────────────
-            // Top catches light (near-white), mid is cool steel-glass, bottom lifts.
-            background: 'linear-gradient(172deg, rgba(245,252,255,0.98) 0%, rgba(210,228,248,0.90) 30%, rgba(162,195,228,0.82) 65%, rgba(215,232,250,0.92) 100%)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-            // Deep shadow for readability on any terrain; outer glow lifts from dark bg
-            textShadow: '0 1px 4px rgba(0,0,0,0.98), 0 0 18px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.9)',
+            // ── CK3-style: solid warm-white on a strong painted shadow ──────
+            // The thick multi-layer shadow acts as the "outline" — no background
+            // box needed. Visible on any terrain, dark or light.
+            color: 'rgba(255, 248, 225, 0.95)',
+            textShadow: [
+              '0 0 3px rgba(0,0,0,1)',
+              '0 0 6px rgba(0,0,0,1)',
+              '0 1px 2px rgba(0,0,0,1)',
+              '1px 0 2px rgba(0,0,0,0.8)',
+              '-1px 0 2px rgba(0,0,0,0.8)',
+              '0 -1px 2px rgba(0,0,0,0.8)',
+              '0 0 20px rgba(0,0,0,0.55)',
+            ].join(', '),
           } as React.CSSProperties}
         >
           {l.name}

@@ -140,13 +140,14 @@ export default function WorldMap({ children, era }: Props) {
             minzoom: 2,
             paint: {
               'fill-color': buildBiomeColour(),
-              // Gradual fade in (2→4) and a slight pull-back at high zoom so
-              // the hillshade detail reads through. No outline layer — the
-              // polygon edges blend naturally into the dark base map.
+              // Low opacity keeps polygon edges visually soft — the dark base
+              // (#0a1628) bleeds through and acts as a natural buffer between
+              // neighbouring biomes. Fade in from zoom 2, slight pull-back at
+              // high zoom so hillshade terrain detail shows through clearly.
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, 0.35,
-                4, 0.72,
-                7, 0.55,
+                2, 0.22,
+                4, 0.40,
+                7, 0.32,
               ] as ExpressionSpecification,
               'fill-antialias': true,
             },
