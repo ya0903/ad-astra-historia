@@ -239,11 +239,12 @@ export default function CountryLayer() {
             // Colour is baked into each feature property — no match expression needed
             'fill-color': ['get', 'fill_colour'] as ExpressionSpecification,
             'fill-opacity': ['step', ['zoom'],
-              0.50,
-              3, 0.45,
-              4, 0.35,
-              5, 0.20,
-              6, 0.08,
+              0.72,
+              3, 0.68,
+              4, 0.60,
+              5, 0.50,
+              6, 0.38,
+              8, 0.20,
             ] as ExpressionSpecification,
           },
         })
