@@ -739,7 +739,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
       {/* ── Map area ── */}
       <div className="flex-1 relative overflow-hidden">
-        <WorldMap>
+        <WorldMap era={gameState.era}>
           <CountryLayer />
           {!['greek', 'roman', 'ottoman'].includes(gameState.era) && <ProvincesLayer />}
           <BiomesLayer />

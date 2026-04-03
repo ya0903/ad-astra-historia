@@ -198,15 +198,17 @@ export default function CountryLayer() {
   const countries = useGameStore(s => s.state?.countries ?? {})
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
-  const era = useGameStore(s => s.state?.era ?? 'modern')
+  // No fallback to 'modern' — wait until real era is known to avoid loading wrong borders
+  const era = useGameStore(s => s.state?.era)
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
 
   // ── Effect 1: set up layers once when map is ready ────────────────────────
   useEffect(() => {
-    if (!map || !playerCountryId) return
+    if (!map || !playerCountryId || !era) return
 
+    const controller = new AbortController()
     const bordersUrl = ANCIENT_ERAS.has(era) ? `/api/game/borders/${era}` : '/api/game/borders'
-    fetch(bordersUrl)
+    fetch(bordersUrl, { signal: controller.signal })
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
         if (map.getSource('countries')) return
@@ -288,7 +290,7 @@ export default function CountryLayer() {
         map.addLayer({ id: 'country-labels-2', type: 'symbol', source: 'country-label-points', minzoom: 3.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 2] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
         map.addLayer({ id: 'country-labels-3', type: 'symbol', source: 'country-label-points', minzoom: 5.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 3] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
       })
-      .catch(console.error)
+      .catch(err => { if (err.name !== 'AbortError') console.error(err) })
 
     const onMouseMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       if (e.features && e.features.length > 0) {
@@ -310,6 +312,7 @@ export default function CountryLayer() {
     map.on('mouseleave', 'country-fills', onMouseLeave)
 
     return () => {
+      controller.abort()
       map.off('mousemove', 'country-fills', onMouseMove)
       map.off('mouseleave', 'country-fills', onMouseLeave)
       for (const id of ['country-labels-3', 'country-labels-2', 'country-labels-1', 'country-labels-0', 'player-border', 'player-border-glow', 'country-hover', 'country-borders', 'country-fills']) {

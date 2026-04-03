@@ -8,7 +8,14 @@ import { useMapStore } from '../../stores'
 
 interface Props {
   children?: ReactNode
+  era?: string
 }
+
+const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
+// Playable region for ancient eras: western Europe to India, N. Africa to Scandinavia
+const ANCIENT_BOUNDS: [[number, number], [number, number]] = [[-20, -15], [115, 72]]
+const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean
+const ANCIENT_ZOOM = 3.5
 
 // ── Biome colours ──────────────────────────────────────────────────────────────
 // FEATURECLA values from ne_10m_geography_regions_polys
@@ -44,7 +51,7 @@ function buildBiomeColour(): ExpressionSpecification {
   return ['match', ['get', 'FEATURECLA'], ...pairs, 'rgba(0,0,0,0)'] as unknown as ExpressionSpecification
 }
 
-export default function WorldMap({ children }: Props) {
+export default function WorldMap({ children, era }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
@@ -146,10 +153,34 @@ export default function WorldMap({ children }: Props) {
     }
   }, [setMapStore])
 
+  // ── Apply era-specific bounds + camera when era or map instance changes ────
+  useEffect(() => {
+    if (!mapInstance) return
+    if (era && ANCIENT_ERAS.has(era)) {
+      mapInstance.setMaxBounds(ANCIENT_BOUNDS)
+      mapInstance.flyTo({ center: ANCIENT_CENTER, zoom: ANCIENT_ZOOM, duration: 1200 })
+    } else {
+      // Remove bounds restriction for modern eras
+      mapInstance.setMaxBounds(undefined as unknown as maplibregl.LngLatBoundsLike)
+    }
+  }, [era, mapInstance])
+
+  const isAncient = era && ANCIENT_ERAS.has(era)
+
   return (
     <MapContext.Provider value={mapInstance}>
       <div className="relative w-full h-full">
         <div ref={mapContainer} className="w-full h-full" />
+        {/* CK3-style edge vignette for ancient eras */}
+        {isAncient && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              boxShadow: 'inset 0 0 120px 60px #050d1e',
+              zIndex: 3,
+            }}
+          />
+        )}
         {children}
       </div>
     </MapContext.Provider>

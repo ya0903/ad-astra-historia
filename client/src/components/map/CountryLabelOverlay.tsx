@@ -8,6 +8,9 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { useMap } from './MapContext'
+import { useGameStore } from '../../stores'
+
+const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
 
 type Ring = [number, number][]
 
@@ -149,13 +152,17 @@ const CHAR_WIDTH_EM = 0.72
 
 export default function CountryLabelOverlay() {
   const map = useMap()
+  const era = useGameStore(s => s.state?.era)
   const [labelsData, setLabelsData] = useState<LabelDatum[]>([])
   // Refs to the rendered DOM elements so we can update positions without React state
   const labelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map())
 
-  // ── Fetch borders once, compute label data ──────────────────────────────────
+  // ── Fetch borders, compute label data ──────────────────────────────────────
   useEffect(() => {
-    fetch('/api/game/borders')
+    // Ancient eras show no country name labels
+    if (!era || ANCIENT_ERAS.has(era)) { setLabelsData([]); return }
+    const controller = new AbortController()
+    fetch('/api/game/borders', { signal: controller.signal })
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
         const best = new Map<string, {
@@ -201,8 +208,9 @@ export default function CountryLabelOverlay() {
 
         setLabelsData(Array.from(best.entries()).map(([iso, d]) => ({ iso, ...d })))
       })
-      .catch(() => {})
-  }, [])
+      .catch(err => { if (err.name !== 'AbortError') console.error(err) })
+    return () => controller.abort()
+  }, [era])
 
   // ── Direct DOM update on every map render — zero React-state lag ──────────
   useEffect(() => {
