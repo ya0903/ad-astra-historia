@@ -20,16 +20,116 @@ function getEraFilePath(era: Era): string {
   return join(ERAS_DIR, `${era}.geojson`)
 }
 
-function defaultStats(gdp: number): CountryStats {
+// ── Realistic base stats by polity/ISO code ───────────────────────────────
+// military 0–100, techLevel 0–100, stability 0–100, softPower 0–100, culturalReach 0–100
+// These override the flat defaults so countries start differentiated.
+const POLITY_BASE_STATS: Record<string, { military: number; techLevel: number; stability: number; softPower: number; culturalReach: number }> = {
+  // ── Ottoman era polities (1520 CE) ─────────────────────────────────────
+  OTT: { military:85, techLevel:55, stability:72, softPower:60, culturalReach:65 },
+  SAF: { military:75, techLevel:52, stability:58, softPower:55, culturalReach:55 },
+  HAB: { military:70, techLevel:65, stability:52, softPower:52, culturalReach:50 },
+  HRE: { military:58, techLevel:62, stability:38, softPower:45, culturalReach:48 },
+  FRA: { military:65, techLevel:62, stability:65, softPower:68, culturalReach:65 },
+  ENG: { military:50, techLevel:57, stability:70, softPower:42, culturalReach:40 },
+  PLT: { military:68, techLevel:48, stability:58, softPower:38, culturalReach:35 },
+  ESP: { military:80, techLevel:60, stability:62, softPower:58, culturalReach:55 },
+  POR: { military:52, techLevel:68, stability:70, softPower:52, culturalReach:58 },
+  MUS: { military:58, techLevel:38, stability:60, softPower:28, culturalReach:25 },
+  MUG: { military:82, techLevel:55, stability:62, softPower:62, culturalReach:60 },
+  SON: { military:60, techLevel:33, stability:55, softPower:32, culturalReach:28 },
+  VNC: { military:48, techLevel:72, stability:75, softPower:75, culturalReach:72 },
+  MOR: { military:52, techLevel:43, stability:58, softPower:35, culturalReach:32 },
+  ETI: { military:55, techLevel:38, stability:65, softPower:38, culturalReach:35 },
+  ACH: { military:48, techLevel:42, stability:52, softPower:32, culturalReach:28 },
+  ARA: { military:42, techLevel:38, stability:42, softPower:48, culturalReach:45 },
+  NUB: { military:38, techLevel:32, stability:55, softPower:28, culturalReach:25 },
+  EUN: { military:62, techLevel:48, stability:48, softPower:42, culturalReach:40 },
+  // ── Greek era polities (431 BCE) ──────────────────────────────────────
+  ATH: { military:70, techLevel:78, stability:52, softPower:88, culturalReach:80 },
+  SPA: { military:92, techLevel:38, stability:65, softPower:35, culturalReach:30 },
+  MAC: { military:58, techLevel:45, stability:68, softPower:35, culturalReach:30 },
+  THE: { military:65, techLevel:52, stability:58, softPower:45, culturalReach:40 },
+  EPI: { military:48, techLevel:38, stability:62, softPower:28, culturalReach:22 },
+  ILY: { military:45, techLevel:25, stability:48, softPower:18, culturalReach:15 },
+  ITL: { military:50, techLevel:32, stability:38, softPower:22, culturalReach:18 },
+  SRC: { military:60, techLevel:58, stability:65, softPower:52, culturalReach:48 },
+  KMT: { military:65, techLevel:68, stability:70, softPower:78, culturalReach:72 },
+  CAR: { military:72, techLevel:62, stability:65, softPower:55, culturalReach:50 },
+  CEL: { military:62, techLevel:28, stability:38, softPower:18, culturalReach:15 },
+  SCY: { military:68, techLevel:22, stability:42, softPower:14, culturalReach:12 },
+  TRH: { military:44, techLevel:42, stability:48, softPower:38, culturalReach:35 },
+  // ── Roman era polities (117 CE) ──────────────────────────────────────
+  ROM: { military:95, techLevel:82, stability:62, softPower:92, culturalReach:90 },
+  PAR: { military:76, techLevel:65, stability:58, softPower:60, culturalReach:55 },
+  KUS: { military:65, techLevel:58, stability:65, softPower:52, culturalReach:48 },
+  DEC: { military:55, techLevel:52, stability:58, softPower:45, culturalReach:42 },
+  GER: { military:62, techLevel:22, stability:32, softPower:18, culturalReach:15 },
+  SAR: { military:60, techLevel:18, stability:32, softPower:14, culturalReach:12 },
+  AXU: { military:55, techLevel:45, stability:65, softPower:45, culturalReach:40 },
+  ARK: { military:50, techLevel:42, stability:55, softPower:38, culturalReach:35 },
+  // ── Major modern countries ─────────────────────────────────────────────
+  USA: { military:100, techLevel:95, stability:78, softPower:95, culturalReach:98 },
+  CHN: { military:88, techLevel:78, stability:68, softPower:65, culturalReach:72 },
+  RUS: { military:82, techLevel:72, stability:55, softPower:58, culturalReach:62 },
+  GBR: { military:68, techLevel:88, stability:80, softPower:88, culturalReach:90 },
+  FRA: { military:67, techLevel:86, stability:72, softPower:90, culturalReach:88 },
+  DEU: { military:62, techLevel:92, stability:85, softPower:82, culturalReach:82 },
+  JPN: { military:55, techLevel:94, stability:88, softPower:80, culturalReach:78 },
+  IND: { military:72, techLevel:65, stability:62, softPower:62, culturalReach:70 },
+  ISR: { military:76, techLevel:88, stability:62, softPower:52, culturalReach:48 },
+  KOR: { military:65, techLevel:92, stability:80, softPower:75, culturalReach:72 },
+  SAU: { military:65, techLevel:60, stability:68, softPower:58, culturalReach:52 },
+  IRN: { military:68, techLevel:62, stability:52, softPower:52, culturalReach:55 },
+  TUR: { military:70, techLevel:65, stability:55, softPower:60, culturalReach:58 },
+  BRA: { military:55, techLevel:60, stability:58, softPower:62, culturalReach:65 },
+  PAK: { military:65, techLevel:45, stability:45, softPower:38, culturalReach:40 },
+  NGA: { military:52, techLevel:38, stability:42, softPower:42, culturalReach:48 },
+  EGY: { military:60, techLevel:48, stability:55, softPower:52, culturalReach:58 },
+  ZAF: { military:48, techLevel:58, stability:55, softPower:52, culturalReach:52 },
+  ARG: { military:42, techLevel:62, stability:48, softPower:52, culturalReach:55 },
+  MEX: { military:42, techLevel:55, stability:48, softPower:55, culturalReach:60 },
+  IDN: { military:55, techLevel:52, stability:60, softPower:45, culturalReach:52 },
+  AUS: { military:52, techLevel:85, stability:88, softPower:72, culturalReach:68 },
+  CAN: { military:48, techLevel:85, stability:90, softPower:75, culturalReach:70 },
+  NLD: { military:42, techLevel:88, stability:90, softPower:72, culturalReach:68 },
+  SWE: { military:42, techLevel:90, stability:92, softPower:75, culturalReach:68 },
+  NOR: { military:42, techLevel:88, stability:95, softPower:72, culturalReach:62 },
+  CHE: { military:35, techLevel:92, stability:96, softPower:78, culturalReach:65 },
+  POL: { military:58, techLevel:72, stability:75, softPower:55, culturalReach:52 },
+  UKR: { military:65, techLevel:65, stability:42, softPower:42, culturalReach:45 },
+  VNM: { military:58, techLevel:55, stability:68, softPower:38, culturalReach:40 },
+  THA: { military:52, techLevel:58, stability:58, softPower:48, culturalReach:52 },
+  MYS: { military:45, techLevel:62, stability:68, softPower:45, culturalReach:48 },
+  SGP: { military:48, techLevel:90, stability:92, softPower:72, culturalReach:65 },
+  IRQ: { military:45, techLevel:38, stability:28, softPower:28, culturalReach:35 },
+  SYR: { military:38, techLevel:35, stability:18, softPower:22, culturalReach:30 },
+  AFG: { military:32, techLevel:22, stability:20, softPower:15, culturalReach:18 },
+  PRK: { military:62, techLevel:42, stability:55, softPower:15, culturalReach:12 },
+  CUB: { military:38, techLevel:52, stability:62, softPower:42, culturalReach:45 },
+  VEN: { military:38, techLevel:42, stability:28, softPower:32, culturalReach:38 },
+}
+
+/** Derive base stats for countries not in the lookup table, based on GDP tier. */
+function deriveStats(gdp: number): { military: number; techLevel: number; stability: number; softPower: number; culturalReach: number } {
+  // GDP in USD. Use log-scale to spread values.
+  const gdpT = gdp / 1e12  // trillions
+  const tech = Math.min(75, Math.round(10 + Math.sqrt(gdpT) * 45))
+  const mil  = Math.min(70, Math.round(5 + Math.sqrt(gdpT) * 40))
+  const soft = Math.min(65, Math.round(5 + Math.sqrt(gdpT) * 35))
+  return { military: mil, techLevel: tech, stability: 60, softPower: soft, culturalReach: soft - 5 }
+}
+
+function defaultStats(gdp: number, isoA3?: string): CountryStats {
+  const base = (isoA3 && POLITY_BASE_STATS[isoA3]) ? POLITY_BASE_STATS[isoA3] : deriveStats(gdp)
   return {
     gdp,
-    military: 0,
+    military: base.military,
     researchPoints: 0,
     approval: 50,
-    softPower: 0,
-    techLevel: 0,
-    culturalReach: 0,
-    stability: 70,
+    softPower: base.softPower,
+    techLevel: base.techLevel,
+    culturalReach: base.culturalReach,
+    stability: base.stability,
   }
 }
 
@@ -78,7 +178,7 @@ function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection): Record<st
       colour: getCountryColour(isoA3),
       capitalCity: '',
       majorCities: [],
-      stats: defaultStats(gdp),
+      stats: defaultStats(gdp, isoA3),
       sectors: defaultSectors(),
       infrastructure: [],
       relations: {},

@@ -174,29 +174,33 @@ function buildLabelPoints(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCo
   return { type: 'FeatureCollection', features: points }
 }
 
-function buildColourExpression(
+/**
+ * Inject a `fill_colour` property into every GeoJSON feature so that the
+ * MapLibre layer can use the trivial expression ['get', 'fill_colour'].
+ * This completely avoids `match` expressions, which are fragile with many
+ * values and easy to break with subtle type mismatches.
+ */
+function injectColours(
+  geojson: GeoJSON.FeatureCollection,
   countries: Record<string, { colour: string }>,
   playerCountryId: string,
   controlledCountries: string[]
-): ExpressionSpecification {
+): GeoJSON.FeatureCollection {
   const playerColour = countries[playerCountryId]?.colour ?? getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
-
-  // Merge static COUNTRY_COLOURS with live state colours so that polity codes
-  // (OTT, FRA, ROM…) always resolve even when state.countries still holds
-  // modern ISO codes from an old localStorage save.
-  const merged: Record<string, string> = { ...COUNTRY_COLOURS }
-  for (const [iso, c] of Object.entries(countries)) {
-    merged[iso] = c.colour
+  return {
+    ...geojson,
+    features: geojson.features.map(f => {
+      const p = f.properties as Record<string, unknown>
+      const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
+      const raw = countries[iso]?.colour ?? COUNTRY_COLOURS[iso] ?? getCountryColour(iso)
+      const colour =
+        iso === playerCountryId ? lightenColour(raw) :
+        controlledSet.has(iso) ? tintOccupied(playerColour) :
+        raw
+      return { ...f, properties: { ...p, fill_colour: colour } }
+    }),
   }
-
-  const pairs = Object.entries(merged).flatMap(([iso, colour]) => [
-    iso,
-    iso === playerCountryId ? lightenColour(colour) :
-    controlledSet.has(iso) ? tintOccupied(playerColour) :
-    colour,
-  ])
-  return ['match', ['get', 'ISO_A3'], ...pairs, '#374151'] as unknown as ExpressionSpecification
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -208,11 +212,12 @@ export default function CountryLayer() {
   const countries = useGameStore(s => s.state?.countries ?? {})
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
-  // No fallback to 'modern' — wait until real era is known to avoid loading wrong borders
   const era = useGameStore(s => s.state?.era)
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
+  // Raw GeoJSON stored after fetch — Effect 2 re-injects colours into it
+  const rawGeojsonRef = useRef<GeoJSON.FeatureCollection | null>(null)
 
-  // ── Effect 1: set up layers once when map is ready ────────────────────────
+  // ── Effect 1: fetch borders and set up layers ─────────────────────────────
   useEffect(() => {
     if (!map || !playerCountryId || !era) return
 
@@ -223,18 +228,18 @@ export default function CountryLayer() {
       .then((geojson: GeoJSON.FeatureCollection) => {
         if (map.getSource('countries')) return
 
-        const colourExpression = buildColourExpression(countries, playerCountryId, controlledCountries)
+        rawGeojsonRef.current = geojson
+        const coloured = injectColours(geojson, countries, playerCountryId, controlledCountries)
 
-        map.addSource('countries', { type: 'geojson', data: geojson })
+        map.addSource('countries', { type: 'geojson', data: coloured })
 
         map.addLayer({
           id: 'country-fills', type: 'fill', source: 'countries',
           paint: {
-            'fill-color': colourExpression,
-            // Fade country fill as zoom increases so biome detail shows through.
-            // step is used (not interpolate) to avoid nested-expression issues.
+            // Colour is baked into each feature property — no match expression needed
+            'fill-color': ['get', 'fill_colour'] as ExpressionSpecification,
             'fill-opacity': ['step', ['zoom'],
-              0.50,   // zoom < 3
+              0.50,
               3, 0.45,
               4, 0.35,
               5, 0.20,
@@ -296,8 +301,6 @@ export default function CountryLayer() {
           'text-halo-blur': 1,
         }
 
-        // These layers are kept as data sources only — CountryLabelOverlay renders
-        // the actual labels as HTML so any font (e.g. Missale AS Lunea) can be used.
         const hiddenPaint = { ...labelPaint, 'text-opacity': 0 }
         map.addLayer({ id: 'country-labels-0', type: 'symbol', source: 'country-label-points', minzoom: 1.5, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 0] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
         map.addLayer({ id: 'country-labels-1', type: 'symbol', source: 'country-label-points', minzoom: 2, maxzoom: 8, filter: ['==', ['get', 'sizeTier'], 1] as ExpressionSpecification, layout: labelLayout, paint: hiddenPaint })
@@ -327,6 +330,7 @@ export default function CountryLayer() {
 
     return () => {
       controller.abort()
+      rawGeojsonRef.current = null
       map.off('mousemove', 'country-fills', onMouseMove)
       map.off('mouseleave', 'country-fills', onMouseLeave)
       for (const id of ['country-labels-3', 'country-labels-2', 'country-labels-1', 'country-labels-0', 'player-border', 'player-border-glow', 'country-hover', 'country-borders', 'country-fills']) {
@@ -337,10 +341,14 @@ export default function CountryLayer() {
     }
   }, [map, playerCountryId, era]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Effect 2: update fill colours + empire borders when game state changes ──
+  // ── Effect 2: re-inject colours when game state changes ───────────────────
+  // Uses setData() so MapLibre picks up the new fill_colour property values
+  // without any paint expression needing to be recomputed.
   useEffect(() => {
-    if (!map || !playerCountryId || !map.getLayer('country-fills')) return
-    map.setPaintProperty('country-fills', 'fill-color', buildColourExpression(countries, playerCountryId, controlledCountries))
+    if (!map || !playerCountryId || !rawGeojsonRef.current) return
+    const src = map.getSource('countries') as maplibregl.GeoJSONSource | undefined
+    if (!src) return
+    src.setData(injectColours(rawGeojsonRef.current, countries, playerCountryId, controlledCountries))
     const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
     if (map.getLayer('player-border')) map.setFilter('player-border', empireFilter)
     if (map.getLayer('player-border-glow')) map.setFilter('player-border-glow', empireFilter)

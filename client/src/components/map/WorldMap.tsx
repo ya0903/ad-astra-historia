@@ -12,9 +12,7 @@ interface Props {
 }
 
 const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
-// Playable region for ancient eras: western Europe to India, N. Africa to Scandinavia
-const ANCIENT_BOUNDS: [[number, number], [number, number]] = [[-20, -15], [115, 72]]
-const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean
+const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean — starting camera position
 const ANCIENT_ZOOM = 3.5
 
 // ── Biome colours ──────────────────────────────────────────────────────────────
@@ -168,16 +166,16 @@ export default function WorldMap({ children, era }: Props) {
     }
   }, [setMapStore])
 
-  // ── Apply era-specific bounds + camera when era or map instance changes ────
+  // ── Apply era-specific camera when era or map instance changes ────────────
   useEffect(() => {
     if (!mapInstance) return
     if (era && ANCIENT_ERAS.has(era)) {
-      mapInstance.setMaxBounds(ANCIENT_BOUNDS)
+      // Start camera at Mediterranean for ancient eras, but don't restrict bounds
+      // — the Americas are colonised by Spain/Portugal and should be explorable
       mapInstance.flyTo({ center: ANCIENT_CENTER, zoom: ANCIENT_ZOOM, duration: 1200 })
-    } else {
-      // Remove bounds restriction for modern eras
-      mapInstance.setMaxBounds(undefined as unknown as maplibregl.LngLatBoundsLike)
     }
+    // Always clear any previously set bounds restriction
+    mapInstance.setMaxBounds(undefined as unknown as maplibregl.LngLatBoundsLike)
   }, [era, mapInstance])
 
   const isAncient = era && ANCIENT_ERAS.has(era)

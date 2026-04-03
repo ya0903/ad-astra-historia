@@ -206,6 +206,9 @@ export type TechId =
   | 'trebuchet' | 'gunpowder' | 'printing_press'
   | 'plate_armour' | 'longbow' | 'crossbow'
   | 'caravel' | 'cannon' | 'janissary_corps'
+  // ── Naval & Exploration ───────────────────────────────────────────────────
+  | 'coastal_navigation' | 'cartography' | 'compass_navigation'
+  | 'ocean_navigation' | 'deep_sea_exploration'
 
 export interface TechNode {
   id: TechId

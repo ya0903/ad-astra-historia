@@ -202,8 +202,13 @@ export const ANCIENT_TECH_TREE: TechNode[] = [
   { id: 'trade_routes', name: 'Trade Routes', description: 'Establish overland and maritime trade networks — Silk Road, spice routes.', researchWeeks: 52, cost: 80, prerequisites: ['coinage', 'naval_warfare'], unlocksEra: ['greek', 'roman', 'ottoman'] },
   { id: 'merchant_guilds', name: 'Merchant Guilds', description: 'Organised trade guilds that regulate commerce, extend credit, and fund expeditions.', researchWeeks: 52, cost: 100, prerequisites: ['trade_routes'], unlocksEra: ['ottoman'] },
 
-  // ── Naval (Early Modern) ─────────────────────────────────────────────────
+  // ── Naval & Exploration ──────────────────────────────────────────────────
+  { id: 'coastal_navigation', name: 'Coastal Navigation', description: 'Master coastal sailing using stars, landmarks, and tides. Control of nearby seas and river mouths.', researchWeeks: 26, cost: 45, prerequisites: [], unlocksEra: ['greek', 'roman', 'ottoman'] },
+  { id: 'cartography', name: 'Cartography', description: 'Systematic mapmaking of coastlines, rivers, and trade routes. Essential for empire administration and naval command.', researchWeeks: 52, cost: 80, prerequisites: ['coastal_navigation', 'astronomy'], unlocksEra: ['greek', 'roman', 'ottoman'] },
+  { id: 'compass_navigation', name: 'Compass & Astrolabe', description: 'Magnetic compass and astrolabe for celestial navigation far from familiar coastlines. Opens mid-ocean sailing.', researchWeeks: 52, cost: 110, prerequisites: ['cartography'], unlocksEra: ['ottoman'] },
   { id: 'caravel', name: 'Caravel & Ocean Navigation', description: 'Lateen-rigged ships capable of sailing against the wind — enabling ocean exploration.', researchWeeks: 78, cost: 160, prerequisites: ['naval_warfare', 'astronomy'], unlocksEra: ['ottoman'] },
+  { id: 'ocean_navigation', name: 'Ocean Navigation', description: 'Deep-water sailing techniques enabling voyages across open oceans. Unlocks exploration of the Americas and Asia by sea.', researchWeeks: 78, cost: 180, prerequisites: ['compass_navigation', 'caravel'], unlocksEra: ['ottoman'] },
+  { id: 'deep_sea_exploration', name: 'Deep Sea Exploration', description: 'Systematic exploration and mapping of distant continents. Enables colonial expansion, circumnavigation, and the spice trade.', researchWeeks: 104, cost: 240, prerequisites: ['ocean_navigation'], unlocksEra: ['ottoman'] },
 ]
 
 const ALL_TECHS: TechNode[] = [...TECH_TREE, ...ANCIENT_TECH_TREE]

@@ -38,6 +38,7 @@ const CATEGORIES_ANCIENT: Category[] = [
   { id: 'religion', label: 'Religion & Culture', icon: '🏺', actions: ['Build great temple', 'Host Olympic games', 'Commission great statue', 'Sponsor philosophical school', 'Declare state religion', 'Persecute rival cult', 'Issue religious tolerance edict', 'Construct great library'] },
   { id: 'administration', label: 'Governance & Law', icon: '📜', actions: ['Codify laws', 'Appoint provincial governor', 'Grant citizenship to allies', 'Establish colony', 'Issue land reforms', 'Impose direct taxation', 'Grant amnesty to rebels', 'Purge corrupt officials'] },
   { id: 'knowledge', label: 'Knowledge & Scholarship', icon: '📚', actions: ['Patronise philosophers', 'Fund astronomical observatory', 'Establish medical school', 'Commission maps of the known world', 'Recruit foreign scholars', 'Translate foreign texts'] },
+  { id: 'naval', label: 'Naval & Exploration', icon: '⚓', actions: ['Build war galley fleet', 'Train naval archers', 'Establish coastal trading post', 'Send exploratory fleet westward', 'Chart unknown ocean waters', 'Establish colony across the sea', 'Commission ocean-going caravel', 'Recruit experienced navigators', 'Establish naval supply depot', 'Launch transatlantic expedition', 'Claim new territory in the Americas', 'Establish Pacific spice route'] },
 ]
 
 const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman'])
