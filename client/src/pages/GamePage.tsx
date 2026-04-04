@@ -9,7 +9,7 @@ import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
 import DiplomacyPanel from '../components/DiplomacyPanel'
 import CheatMenu from '../components/CheatMenu'
-import TechTreePanel from '../components/TechTreePanel'
+import TechTreeFullscreen from '../components/TechTreeFullscreen'
 import LorePanel from '../components/LorePanel'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
@@ -167,6 +167,9 @@ export default function GamePage() {
   const clearGame = useGameStore(s => s.clearGame)
   const { username, clearAuth } = useAuthStore()
   const handleLogout = async () => { await logout().catch(() => {}); clearAuth(); clearGame() }
+  const isPaused = useGameStore(s => s.isPaused)
+  const togglePause = useGameStore(s => s.togglePause)
+  const setPaused = useGameStore(s => s.setPaused)
   const setJumping = useGameStore(s => s.setJumping)
   const applyResults = useGameStore(s => s.applyResults)
   const advanceDate = useGameStore(s => s.advanceDate)
@@ -179,7 +182,9 @@ export default function GamePage() {
   const [actionText, setActionText] = useState('')
   const [suggestText, setSuggestText] = useState('')
   const [showAiRefine, setShowAiRefine] = useState(false)
-  const [activeTab, setActiveTab] = useState<'categories' | 'free' | 'legend' | 'tech'>('free')
+  const [activeTab, setActiveTab] = useState<'categories' | 'free'>('free')
+  const [legendOpen, setLegendOpen] = useState(false)
+  const [techTreeOpen, setTechTreeOpen] = useState(false)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -198,12 +203,15 @@ export default function GamePage() {
   const [showCustomJump, setShowCustomJump] = useState(false)
   const sidebarDragRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
-  // Backslash key toggles cheat menu
+  // Keyboard shortcuts: Escape pauses, backslash toggles cheat menu
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === '\\') setCheatOpen(o => !o) }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPaused(true)
+      if (e.key === '\\') setCheatOpen(o => !o)
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [setPaused])
 
   // Sidebar resize drag
   const onSidebarDragStart = useCallback((e: React.MouseEvent) => {
@@ -267,6 +275,7 @@ export default function GamePage() {
   }
 
   const handleJump = async (period: 'week' | 'month' | 'year') => {
+    if (isPaused) return
     setJumpError('')
     if (pendingActions.length === 0 || !config) {
       advanceDate(period)
@@ -473,14 +482,14 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
           {/* Tabs */}
           <div className="flex border-b border-white/8 shrink-0">
-            {(['categories', 'free', 'tech', 'legend'] as const).map(tab => (
+            {(['categories', 'free'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2 text-[10px] font-medium uppercase tracking-wider transition-colors ${
                   activeTab === tab
                     ? 'text-blue-300 border-b-2 border-blue-400 bg-blue-950/30'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}>
-                {tab === 'categories' ? 'Act' : tab === 'free' ? 'Free' : tab === 'tech' ? 'Tech' : 'Map'}
+                {tab === 'categories' ? 'Act' : 'Free'}
               </button>
             ))}
           </div>
@@ -681,71 +690,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
             </div>
           )}
 
-          {/* ── Tech tab ── */}
-          {activeTab === 'tech' && <TechTreePanel />}
-
-          {/* ── Legend tab ── */}
-          {activeTab === 'legend' && (
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Cities</p>
-                <div className="space-y-1.5">
-                  {LEGEND_ITEMS.map(item => (
-                    <div key={item.label} className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color, boxShadow: `0 0 4px ${item.color}` }} />
-                      <span className="text-xs text-gray-400">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {INFRA_GROUPS.map(group => (
-                <div key={group.label}>
-                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">{group.label}</p>
-                  <div className="space-y-1.5">
-                    {group.items.map(type => {
-                      const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
-                      return (
-                        <div key={type} className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour, boxShadow: `0 0 5px ${colour}80` }} />
-                          <span className="text-xs text-gray-400">{INFRA_LABELS[type] ?? type}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-              <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Rail Lines</p>
-                <div className="space-y-1.5">
-                  {Object.entries(RAIL_COLOURS).map(([type, colour]) => (
-                    <div key={type} className="flex items-center gap-2">
-                      <div className="w-5 h-0.5 rounded shrink-0" style={{ backgroundColor: colour }} />
-                      <span className="text-xs text-gray-400 capitalize">{type.replace(/_/g, ' ')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Terrain</p>
-                <div className="space-y-1.5">
-                  {[
-                    { color: 'rgba(210,175,60,0.7)',   label: 'Desert / Arid' },
-                    { color: 'rgba(30,110,50,0.7)',    label: 'Forest / Rainforest' },
-                    { color: 'rgba(120,165,55,0.7)',   label: 'Grassland / Savanna' },
-                    { color: 'rgba(30,140,130,0.7)',   label: 'Wetlands / Marsh' },
-                    { color: 'rgba(160,180,200,0.7)',  label: 'Alpine / Highland' },
-                    { color: 'rgba(200,230,255,0.7)',  label: 'Tundra / Ice' },
-                    { color: '#38bdf8',                label: 'Rivers' },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm shrink-0 border border-white/10" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs text-gray-400">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -771,17 +715,131 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           <LandmarksLayer />
         </WorldMap>
 
+        {/* ── Legend toggle button ── */}
+        <button
+          onClick={() => setLegendOpen(o => !o)}
+          title="Toggle Legend"
+          className={`absolute bottom-4 left-4 z-20 w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
+            legendOpen
+              ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
+              : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+          }`}>
+          🗺
+        </button>
+
+        {/* ── Floating Legend panel ── */}
+        {legendOpen && (
+          <div className="absolute bottom-16 left-4 z-20 w-64 max-h-96 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 flex items-center justify-between px-3 py-2 border-b border-white/8 bg-[#080f1e]/95">
+              <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Map Legend</span>
+              <button onClick={() => setLegendOpen(false)} className="text-gray-500 hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors">✕</button>
+            </div>
+            <div className="px-3 py-2 space-y-4 text-xs">
+              {/* Cities */}
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Cities</p>
+                {LEGEND_ITEMS.map(item => (
+                  <div key={item.label} className="flex items-center gap-2 mb-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-gray-400 text-xs">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Infrastructure groups */}
+              {INFRA_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">{group.label}</p>
+                  <div className="space-y-1">
+                    {group.items.map(type => {
+                      const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
+                      return (
+                        <div key={type} className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour, boxShadow: `0 0 4px ${colour}80` }} />
+                          <span className="text-gray-400">{INFRA_LABELS[type] ?? type}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {/* Rail Lines */}
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Rail Lines</p>
+                <div className="space-y-1">
+                  {Object.entries(RAIL_COLOURS).map(([type, colour]) => (
+                    <div key={type} className="flex items-center gap-2">
+                      <div className="w-5 h-0.5 rounded shrink-0" style={{ backgroundColor: colour }} />
+                      <span className="text-gray-400 capitalize">{type.replace(/_/g, ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Terrain */}
+              <div>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Terrain</p>
+                <div className="space-y-1">
+                  {[
+                    { color: 'rgba(210,175,60,0.7)',  label: 'Desert / Arid' },
+                    { color: 'rgba(30,110,50,0.7)',   label: 'Forest / Rainforest' },
+                    { color: 'rgba(120,165,55,0.7)',  label: 'Grassland / Savanna' },
+                    { color: 'rgba(30,140,130,0.7)',  label: 'Wetlands / Marsh' },
+                    { color: 'rgba(160,180,200,0.7)', label: 'Alpine / Highland' },
+                    { color: 'rgba(200,230,255,0.7)', label: 'Tundra / Ice' },
+                    { color: '#38bdf8',               label: 'Rivers' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm shrink-0 border border-white/10" style={{ backgroundColor: item.color }} />
+                      <span className="text-gray-400">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Tech Tree floating button ── */}
+        <button
+          onClick={() => setTechTreeOpen(o => !o)}
+          title="Technology Tree"
+          className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border shadow-xl text-base transition-all ${
+            techTreeOpen
+              ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
+              : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-blue-300 hover:border-blue-500/40'
+          }`}>
+          🔬
+        </button>
+
+        {/* ── Full-screen Tech Tree overlay ── */}
+        {techTreeOpen && <TechTreeFullscreen onClose={() => setTechTreeOpen(false)} />}
+
         {/* ── Top HUD ── */}
         <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pt-3 pointer-events-none z-10">
-          {/* Date + era pill */}
-          <div className="pointer-events-auto flex items-center gap-2 bg-[#080f1e]/80 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 shadow-xl">
-            <span className="text-sm font-mono text-white font-semibold">{gameState.currentDate}</span>
-            <span className="h-3 w-px bg-white/20" />
-            <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
+          {/* Date + era pill + paused indicator */}
+          <div className="flex items-center gap-2">
+            <div className="pointer-events-auto flex items-center gap-2 bg-[#080f1e]/80 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 shadow-xl">
+              <span className="text-sm font-mono text-white font-semibold">{gameState.currentDate}</span>
+              <span className="h-3 w-px bg-white/20" />
+              <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
+            </div>
+            {isPaused && (
+              <div className="pointer-events-auto flex items-center gap-1.5 bg-amber-900/70 backdrop-blur-md border border-amber-600/40 rounded-full px-3 py-1.5 text-xs text-amber-300 font-semibold shadow-lg animate-pulse">
+                ⏸ PAUSED
+              </div>
+            )}
           </div>
 
-          {/* Right HUD: Lore + Save + New Game */}
+          {/* Right HUD: Pause + Lore + Save + New Game */}
           <div className="pointer-events-auto flex items-center gap-2">
+            <button onClick={togglePause}
+              title={isPaused ? 'Resume (Esc)' : 'Pause (Esc)'}
+              className={`w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
+                isPaused
+                  ? 'bg-amber-900/60 border-amber-600/50 text-amber-300 hover:bg-amber-800/60'
+                  : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+              }`}>
+              {isPaused ? '▶' : '⏸'}
+            </button>
             <button onClick={() => setLoreOpen(o => !o)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-md text-xs font-semibold transition-all shadow-xl ${
                 loreOpen
@@ -953,13 +1011,13 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           ) : (
             <>
               {(['week', 'month', 'year'] as const).map(period => (
-                <button key={period} onClick={() => handleJump(period)}
-                  className="px-4 py-2.5 rounded-xl bg-[#080f1e]/85 backdrop-blur-md border border-white/10 hover:border-blue-500/50 hover:bg-blue-950/50 text-sm font-semibold text-gray-300 hover:text-white transition-all shadow-xl">
+                <button key={period} onClick={() => handleJump(period)} disabled={isPaused}
+                  className="px-4 py-2.5 rounded-xl bg-[#080f1e]/85 backdrop-blur-md border border-white/10 hover:border-blue-500/50 hover:bg-blue-950/50 text-sm font-semibold text-gray-300 hover:text-white transition-all shadow-xl disabled:opacity-40 disabled:cursor-not-allowed">
                   +{period.charAt(0).toUpperCase() + period.slice(1)}
                 </button>
               ))}
-              <button onClick={() => handleJump('month')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-500/50 text-sm font-bold text-white transition-all shadow-2xl shadow-blue-900/40">
+              <button onClick={() => handleJump('month')} disabled={isPaused}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-500/50 text-sm font-bold text-white transition-all shadow-2xl shadow-blue-900/40 disabled:opacity-40 disabled:cursor-not-allowed">
                 <span>▶</span>
                 <div className="text-left">
                   <div className="text-xs font-bold leading-none">Jump Forward</div>

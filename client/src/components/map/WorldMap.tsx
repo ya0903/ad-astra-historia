@@ -131,6 +131,7 @@ export default function WorldMap({ children, era }: Props) {
         // Biome tint — desert, forest, grassland, wetland, tundra overlays
         if (biomesRes.status === 'fulfilled') {
           map.addSource('biomes', { type: 'geojson', data: biomesRes.value as never })
+          // Base fill — low opacity so dark background bleeds through
           map.addLayer({
             id: 'biomes-fill',
             type: 'fill',
@@ -138,16 +139,40 @@ export default function WorldMap({ children, era }: Props) {
             minzoom: 2,
             paint: {
               'fill-color': buildBiomeColour(),
-              // Low opacity keeps polygon edges visually soft — the dark base
-              // (#0a1628) bleeds through and acts as a natural buffer between
-              // neighbouring biomes. Fade in from zoom 2, slight pull-back at
-              // high zoom so hillshade terrain detail shows through clearly.
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, 0.22,
-                4, 0.40,
-                7, 0.32,
+                2, 0.18,
+                4, 0.32,
+                7, 0.26,
               ] as ExpressionSpecification,
               'fill-antialias': true,
+            },
+          })
+          // Soft blurred edge layer — wide blurry lines along biome boundaries
+          // give the appearance of gradual gradient transitions rather than hard
+          // polygon edges. The line colour matches each biome, the blur radius
+          // creates a "halo" that overlaps adjacent biomes and blends them.
+          map.addLayer({
+            id: 'biomes-edge-blur',
+            type: 'line',
+            source: 'biomes',
+            minzoom: 2,
+            paint: {
+              'line-color': buildBiomeColour(),
+              'line-width': ['interpolate', ['linear'], ['zoom'],
+                2, 18,
+                4, 35,
+                7, 55,
+              ] as ExpressionSpecification,
+              'line-blur': ['interpolate', ['linear'], ['zoom'],
+                2, 12,
+                4, 24,
+                7, 38,
+              ] as ExpressionSpecification,
+              'line-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, 0.20,
+                4, 0.30,
+                7, 0.22,
+              ] as ExpressionSpecification,
             },
           })
         }
