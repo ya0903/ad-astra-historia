@@ -11,6 +11,8 @@ import DiplomacyPanel from '../components/DiplomacyPanel'
 import CheatMenu from '../components/CheatMenu'
 import TechTreeFullscreen from '../components/TechTreeFullscreen'
 import LorePanel from '../components/LorePanel'
+import PauseMenu from '../components/PauseMenu'
+import NewsPanel from '../components/NewsPanel'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 
@@ -178,12 +180,14 @@ export default function GamePage() {
   const updatePendingAction = useGameStore(s => s.updatePendingAction)
   const config = useConfigStore(s => s.config)
   const mapInstance = useMapStore(s => s.map)
+  const breakingNewsCount = useGameStore(s => (s.state?.newsItems ?? []).filter(n => n.importance === 'breaking').length)
 
   const [actionText, setActionText] = useState('')
   const [suggestText, setSuggestText] = useState('')
   const [showAiRefine, setShowAiRefine] = useState(false)
   const [activeTab, setActiveTab] = useState<'categories' | 'free'>('free')
   const [legendOpen, setLegendOpen] = useState(false)
+  const [newsOpen, setNewsOpen] = useState(false)
   const [techTreeOpen, setTechTreeOpen] = useState(false)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
@@ -206,12 +210,12 @@ export default function GamePage() {
   // Keyboard shortcuts: Escape pauses, backslash toggles cheat menu
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPaused(true)
+      if (e.key === 'Escape') togglePause()
       if (e.key === '\\') setCheatOpen(o => !o)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setPaused])
+  }, [togglePause])
 
   // Sidebar resize drag
   const onSidebarDragStart = useCallback((e: React.MouseEvent) => {
@@ -429,6 +433,14 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
   return (
     <div className="h-screen w-screen flex bg-[#060d1a] text-white overflow-hidden relative">
+
+      {isPaused && (
+        <PauseMenu
+          onResume={togglePause}
+          onSave={handleSave}
+          onSignOut={handleLogout}
+        />
+      )}
 
       {/* ── Left Sidebar ── */}
       {sidebarOpen && (
@@ -715,17 +727,34 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           <LandmarksLayer />
         </WorldMap>
 
-        {/* ── Legend toggle button ── */}
-        <button
-          onClick={() => setLegendOpen(o => !o)}
-          title="Toggle Legend"
-          className={`absolute bottom-4 left-4 z-20 w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
-            legendOpen
-              ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
-              : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-          }`}>
-          🗺
-        </button>
+        {/* ── Legend + News toggle buttons ── */}
+        <div className="absolute bottom-4 left-4 z-20 flex gap-2">
+          <button
+            onClick={() => { setLegendOpen(o => !o); setNewsOpen(false) }}
+            title="Toggle Legend"
+            className={`w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
+              legendOpen
+                ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
+                : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+            }`}>
+            🗺
+          </button>
+          <button
+            onClick={() => { setNewsOpen(o => !o); setLegendOpen(false) }}
+            title="World News"
+            className={`relative w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
+              newsOpen
+                ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
+                : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+            }`}>
+            📰
+            {breakingNewsCount > 0 && !newsOpen && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
+                {breakingNewsCount > 9 ? '9+' : breakingNewsCount}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* ── Floating Legend panel ── */}
         {legendOpen && (
@@ -798,6 +827,9 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           </div>
         )}
 
+        {/* ── News panel ── */}
+        {newsOpen && <NewsPanel onClose={() => setNewsOpen(false)} />}
+
         {/* ── Tech Tree floating button ── */}
         <button
           onClick={() => setTechTreeOpen(o => !o)}
@@ -822,11 +854,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <span className="h-3 w-px bg-white/20" />
               <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
             </div>
-            {isPaused && (
-              <div className="pointer-events-auto flex items-center gap-1.5 bg-amber-900/70 backdrop-blur-md border border-amber-600/40 rounded-full px-3 py-1.5 text-xs text-amber-300 font-semibold shadow-lg animate-pulse">
-                ⏸ PAUSED
-              </div>
-            )}
           </div>
 
           {/* Right HUD: Pause + Lore + Save + New Game */}

@@ -259,6 +259,19 @@ export interface WorldEvent {
   annexedRegion?: string        // province/region name that gains independence
 }
 
+export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world'
+export type NewsImportance = 'breaking' | 'major' | 'minor'
+
+export interface NewsItem {
+  id: string
+  date: string                  // YYYY-MM-DD
+  headline: string
+  body?: string                 // optional 1-2 sentence detail
+  category: NewsCategory
+  importance: NewsImportance
+  country?: string              // ISO_A3 of primary country
+}
+
 export interface ActionResult {
   actionId: string
   outcome: 'success' | 'partial' | 'failure'
@@ -333,9 +346,15 @@ export interface GameState {
   warDamage: Record<string, 'bombed' | 'nuked'>
   // Lore log — accumulates every event ever fired
   lore: LoreEntry[]
+  // News feed
+  newsItems?: NewsItem[]       // recent world headlines
+  // Diplomacy
+  allies?: string[]            // ISO_A3 of allied nations
+  atWarWith?: string[]         // ISO_A3 of nations at war with player
   // Game flags
   yesman: boolean              // countries auto-accept proposals
   isPaused?: boolean
+  revealMap?: boolean          // cheat: full map visibility
 }
 
 export interface AIConfig {

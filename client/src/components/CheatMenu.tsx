@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useGameStore } from '../stores'
+import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
 
 // ── Command parser ────────────────────────────────────────────────────────────
 // Supported commands:
 //   help
-//   set gdp <number>         e.g. set gdp 5t / 500b / 200m / 100000
+//   set gdp <number>              e.g. set gdp 5t / 500b / 200m / 100000
 //   set military <number>
 //   set approval <number>
 //   set softpower <number>
@@ -12,15 +13,26 @@ import { useGameStore } from '../stores'
 //   set research <number>
 //   set cultural <number>
 //   set date <YYYY-MM-DD>
-//   set sector <name> <number>   e.g. set sector defence 80
-//   empire <name>            rename your empire
-//   god                      max all stats
-//   instabuild               complete all build queue instantly
-//   instaresearch            complete all research instantly
-//   yesman                   toggle yesman mode (countries auto-accept)
+//   set sector <name> <number>    e.g. set sector defence 80
+//   stability <0-100>             set player stability directly
+//   empire <name>                 rename your empire
+//   god                           max all stats
+//   instabuild                    complete all build queue instantly
+//   instaresearch                 complete all research instantly
+//   yesman                        toggle yesman mode (countries auto-accept)
+//   unlocktech <tech_id>          unlock a tech immediately
+//   listtech                      list all tech IDs for current era
+//   annex <iso_a3>                annex a country to your empire
+//   knowledge_transfer <iso> <tech_id>  grant tech via knowledge transfer
+//   ally <iso>                    form alliance with a country
+//   war <iso>                     declare war on a country
+//   peace <iso>                   make peace with a country
+//   addmoney <amount>             add to GDP (e.g. addmoney 10b)
+//   spawnnews <text…>             add a custom news headline
+//   revealmap                     toggle reveal map mode
 
 const HELP = `Available commands:
-  set gdp <value>          e.g. set gdp 5t  2b  500m
+  set gdp <value>                 e.g. set gdp 5t  2b  500m
   set military <0-100>
   set approval <0-100>
   set softpower <0-100>
@@ -31,12 +43,23 @@ const HELP = `Available commands:
   set sector <name> <0-100>
     sectors: defence technology batteries microchips
              space pharmaceuticals agriculture finance
-  empire <name>            rename your empire
-  god                      max out everything
-  instabuild               finish all builds instantly
-  instaresearch            complete all research instantly
-  yesman                   toggle auto-diplomacy accept
-  clear                    clear console`
+  stability <0-100>               set stability directly
+  empire <name>                   rename your empire
+  god                             max out everything
+  instabuild                      finish all builds instantly
+  instaresearch                   complete all research instantly
+  yesman                          toggle auto-diplomacy accept
+  unlocktech <tech_id>            unlock a tech immediately
+  listtech                        list tech IDs available this era
+  annex <iso_a3>                  annex a country (e.g. annex ind)
+  knowledge_transfer <iso> <id>   grant tech via transfer
+  ally <iso>                      form alliance with a country
+  war <iso>                       declare war on a country
+  peace <iso>                     end war with a country
+  addmoney <amount>               add to GDP (e.g. addmoney 10b)
+  spawnnews <text…>               inject a custom news headline
+  revealmap                       toggle map reveal mode
+  clear                           clear console`
 
 function parseValue(raw: string): number | null {
   const s = raw.toLowerCase().trim()
@@ -51,6 +74,10 @@ function parseValue(raw: string): number | null {
 const STAT_KEYS = ['gdp', 'military', 'approval', 'softpower', 'tech', 'research', 'cultural'] as const
 const SECTOR_KEYS = ['defence', 'technology', 'batteries', 'microchips', 'space', 'pharmaceuticals', 'agriculture', 'finance'] as const
 
+// ── All tech IDs for quick lookup ─────────────────────────────────────────────
+const ALL_TECH_NODES = [...TECH_TREE, ...ANCIENT_TECH_TREE]
+const ALL_TECH_IDS = new Set(ALL_TECH_NODES.map(t => t.id))
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CheatMenu({ onClose }: { onClose: () => void }) {
   const gameState = useGameStore(s => s.state)
@@ -58,6 +85,8 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
   const setEmpireName = useGameStore(s => s.setEmpireName)
   const instaBuild = useGameStore(s => s.instaBuild)
   const instaResearch = useGameStore(s => s.instaResearch)
+  const cheatUnlockTech = useGameStore(s => s.cheatUnlockTech)
+  const cheatAnnex = useGameStore(s => s.cheatAnnex)
   const [input, setInput] = useState('')
   const [lines, setLines] = useState<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }[]>([
     { text: 'Cheat Console — type "help" for commands', type: 'info' },
@@ -161,6 +190,133 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
       cheatPatch({ stats: { [statMap[key]]: val } })
       const display = val >= 1e12 ? `${(val/1e12).toFixed(2)}T` : val >= 1e9 ? `${(val/1e9).toFixed(2)}B` : val >= 1e6 ? `${(val/1e6).toFixed(2)}M` : String(val)
       push(`${key} set to ${display}.`, 'ok')
+      return
+    }
+
+    // stability <0-100>
+    if (parts[0] === 'stability') {
+      const val = parts[1] !== undefined ? parseValue(parts[1]) : null
+      if (val === null || val < 0 || val > 100) { push('Usage: stability <0-100>', 'err'); return }
+      cheatPatch({ stats: { stability: val } })
+      push(`Stability set to ${val}.`, 'ok')
+      return
+    }
+
+    // unlocktech <tech_id>
+    if (parts[0] === 'unlocktech') {
+      const techId = parts[1]
+      if (!techId) { push('Usage: unlocktech <tech_id>  — type "listtech" to see IDs', 'err'); return }
+      if (!ALL_TECH_IDS.has(techId as any)) {
+        push(`Unknown tech "${techId}". Available IDs: ${[...ALL_TECH_IDS].join(', ')}`, 'err')
+        return
+      }
+      cheatUnlockTech(techId)
+      const node = ALL_TECH_NODES.find(t => t.id === techId)
+      push(`Tech unlocked: ${node?.name ?? techId}.`, 'ok')
+      return
+    }
+
+    // listtech
+    if (parts[0] === 'listtech') {
+      const era = gameState.era
+      const eraTechs = ALL_TECH_NODES.filter(t => t.unlocksEra.includes(era))
+      const unlocked = new Set(gameState.unlockedTechs ?? [])
+      const available = eraTechs.filter(t => !unlocked.has(t.id)).map(t => t.id)
+      const alreadyOwned = eraTechs.filter(t => unlocked.has(t.id)).map(t => t.id)
+      push(`Era: ${era}`, 'info')
+      push(`Available (not yet unlocked): ${available.length ? available.join(', ') : 'none'}`, 'info')
+      push(`Already unlocked: ${alreadyOwned.length ? alreadyOwned.join(', ') : 'none'}`, 'info')
+      return
+    }
+
+    // annex <iso>
+    if (parts[0] === 'annex') {
+      const iso = parts[1]
+      if (!iso) { push('Usage: annex <iso_a3>  e.g. annex ind', 'err'); return }
+      cheatAnnex(iso)
+      push(`Annexed ${iso.toUpperCase()} — added to controlled territories.`, 'ok')
+      return
+    }
+
+    // knowledge_transfer <iso> <tech_id>
+    if (parts[0] === 'knowledge_transfer') {
+      const iso = parts[1]
+      const techId = parts[2]
+      if (!iso || !techId) { push('Usage: knowledge_transfer <iso> <tech_id>  e.g. knowledge_transfer chn high_speed_rail', 'err'); return }
+      if (!ALL_TECH_IDS.has(techId as any)) {
+        push(`Unknown tech "${techId}". Type "listtech" to see available IDs.`, 'err')
+        return
+      }
+      cheatUnlockTech(techId)
+      const node = ALL_TECH_NODES.find(t => t.id === techId)
+      push(`Knowledge transfer from ${iso.toUpperCase()} successful — acquired: ${node?.name ?? techId}.`, 'ok')
+      return
+    }
+
+    // ally <iso>
+    if (parts[0] === 'ally') {
+      const iso = parts[1]
+      if (!iso) { push('Usage: ally <iso_a3>  e.g. ally fra', 'err'); return }
+      const isoUpper = iso.toUpperCase()
+      const current = gameState.allies ?? []
+      if (current.includes(isoUpper)) { push(`${isoUpper} is already an ally.`, 'info'); return }
+      cheatPatch({ allies: [...current, isoUpper] })
+      push(`Diplomatic alliance established with ${isoUpper}.`, 'ok')
+      return
+    }
+
+    // war <iso>
+    if (parts[0] === 'war') {
+      const iso = parts[1]
+      if (!iso) { push('Usage: war <iso_a3>  e.g. war rus', 'err'); return }
+      const isoUpper = iso.toUpperCase()
+      const current = gameState.atWarWith ?? []
+      if (current.includes(isoUpper)) { push(`Already at war with ${isoUpper}.`, 'info'); return }
+      cheatPatch({ atWarWith: [...current, isoUpper] })
+      push(`War declared on ${isoUpper}.`, 'ok')
+      return
+    }
+
+    // peace <iso>
+    if (parts[0] === 'peace') {
+      const iso = parts[1]
+      if (!iso) { push('Usage: peace <iso_a3>  e.g. peace rus', 'err'); return }
+      const isoUpper = iso.toUpperCase()
+      const current = gameState.atWarWith ?? []
+      if (!current.includes(isoUpper)) { push(`Not currently at war with ${isoUpper}.`, 'info'); return }
+      cheatPatch({ atWarWith: current.filter((c: string) => c !== isoUpper) })
+      push(`Peace agreement reached with ${isoUpper}.`, 'ok')
+      return
+    }
+
+    // addmoney <amount>
+    if (parts[0] === 'addmoney') {
+      const amount = parts[1] !== undefined ? parseValue(parts[1]) : null
+      if (amount === null || amount <= 0) { push('Usage: addmoney <amount>  e.g. addmoney 10b', 'err'); return }
+      const pid = gameState.playerCountryId
+      const currentGdp = gameState.countries[pid]?.stats?.gdp ?? 0
+      const newGdp = currentGdp + amount
+      cheatPatch({ stats: { gdp: newGdp } })
+      const display = amount >= 1e12 ? `${(amount/1e12).toFixed(2)}T` : amount >= 1e9 ? `${(amount/1e9).toFixed(2)}B` : amount >= 1e6 ? `${(amount/1e6).toFixed(2)}M` : String(amount)
+      push(`Added ${display} to GDP. New GDP: ${newGdp >= 1e12 ? `${(newGdp/1e12).toFixed(2)}T` : newGdp >= 1e9 ? `${(newGdp/1e9).toFixed(2)}B` : `${(newGdp/1e6).toFixed(2)}M`}.`, 'ok')
+      return
+    }
+
+    // spawnnews <text…>
+    if (parts[0] === 'spawnnews') {
+      const headline = cmd.slice('spawnnews'.length).trim()
+      if (!headline) { push('Usage: spawnnews <headline text>', 'err'); return }
+      const worldEvent = { headline, narrative: `[Cheat] ${headline}` }
+      cheatPatch({ worldEvents: [...(gameState.worldEvents ?? []), worldEvent] })
+      push(`News injected: "${headline}"`, 'ok')
+      return
+    }
+
+    // revealmap
+    if (parts[0] === 'revealmap') {
+      const next = !gameState.revealMap
+      cheatPatch({ revealMap: next })
+      push(`Reveal map mode ${next ? 'ON — full map visibility enabled.' : 'OFF.'}`, 'ok')
       return
     }
 

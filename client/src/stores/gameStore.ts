@@ -3,11 +3,17 @@ import { persist } from 'zustand/middleware'
 import type {
   GameState, EraStartConditions, Difficulty, GameAction, ActionResult,
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
-  RailLine, RailType,
+  RailLine, RailType, NewsItem,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre } from '../lib/mapFly'
+import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
+import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
+import {
+  newsFromDisaster, newsFromTechUnlock, newsFromGdpGrowth,
+  newsFromStabilityEvent, newsFromActionResult, newsFromWorldEvent, newsFromAnnex,
+} from '@ad-astra/shared/newsGenerator'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
 function countryGrowthRate(gdp: number, techLevel: number, sectors: Record<string, number>, stability: number, approval: number): number {
@@ -132,6 +138,10 @@ interface GameStoreState {
     stats: Partial<GameState['countries'][string]['stats']>;
     sectors: Partial<GameState['countries'][string]['sectors']>;
     yesman: boolean;
+    allies: string[];
+    atWarWith: string[];
+    worldEvents: GameState['worldEvents'];
+    revealMap: boolean;
   }>) => void
   advanceDate: (period: 'week' | 'month' | 'year') => void
   addPendingAction: (text: string) => void
@@ -148,6 +158,9 @@ interface GameStoreState {
   // Research
   startResearch: (techId: TechId, weeksRequired: number) => void
   instaResearch: () => void
+  // Cheat actions
+  cheatUnlockTech: (techId: string) => void
+  cheatAnnex: (iso: string) => void
 }
 
 export const useGameStore = create<GameStoreState>()(persist((set) => ({
@@ -178,10 +191,11 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       strategicPassages: conditions.strategicPassages,
       buildQueue: [],
       researchQueue: [],
-      unlockedTechs: [],
+      unlockedTechs: getEraStartUnlocks(conditions.era, playerCountryId),
       recentDisasters: [],
       warDamage: {},
       lore: [],
+      newsItems: [],
       yesman: false,
     }
     set({ state: newState, error: null })
@@ -196,6 +210,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       recentDisasters: saved.recentDisasters ?? [],
       warDamage: saved.warDamage ?? {},
       lore: saved.lore ?? [],
+      newsItems: saved.newsItems ?? [],
       yesman: saved.yesman ?? false,
     },
     error: null,
@@ -217,6 +232,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         currentDate: patch.date ?? s.currentDate,
         playerCountryId: patch.countryId ?? pid,
         yesman: patch.yesman !== undefined ? patch.yesman : s.yesman,
+        allies: patch.allies !== undefined ? patch.allies : s.allies,
+        atWarWith: patch.atWarWith !== undefined ? patch.atWarWith : s.atWarWith,
+        worldEvents: patch.worldEvents !== undefined ? patch.worldEvents : s.worldEvents,
         countries: {
           ...s.countries,
           [pid]: {
@@ -390,6 +408,31 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
+    // ── Generate news for this tick ───────────────────────────────────────────
+    const newNewsItems: NewsItem[] = []
+    // News from disasters and political events
+    for (const d of disasters) {
+      if (d.type === 'rebellion' || d.type === 'unrest') {
+        newNewsItems.push(newsFromStabilityEvent(d.type, d.affected, d.date))
+      } else {
+        newNewsItems.push(newsFromDisaster(d))
+      }
+    }
+    // News from completed research
+    const allTechNodes = [...TECH_TREE, ...ANCIENT_TECH_TREE]
+    for (const techId of completedTechs) {
+      const techName = allTechNodes.find(t => t.id === techId)?.name ?? techId
+      newNewsItems.push(newsFromTechUnlock(techId as TechId, techName, newDate, s.playerCountryId))
+    }
+    // Economic news (once per year tick)
+    if (period === 'year') {
+      const playerCountryAfter = newCountries[s.playerCountryId]
+      if (playerCountryAfter) {
+        const item = newsFromGdpGrowth(s.playerCountryId, playerCountryAfter.stats.gdp / 1e9, playerGdpGrowth.rate, newDate)
+        if (item) newNewsItems.push(item)
+      }
+    }
+
     return {
       state: {
         ...s,
@@ -401,6 +444,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
+        newsItems: [...newNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
       },
     }
@@ -534,6 +578,21 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       })
     }
 
+    // ── Generate news from action results ─────────────────────────────────────
+    const actionNewsItems: NewsItem[] = []
+    for (const r of results) {
+      if (r.outcome !== 'failure' || r.tags?.some(t => ['military', 'diplomacy'].includes(t))) {
+        actionNewsItems.push(newsFromActionResult(r.summary, s.currentDate, pid, r.outcome, r.tags ?? []))
+      }
+      // Annex news
+      if (r.annexedCountry) {
+        actionNewsItems.push(newsFromAnnex(pid, r.annexedCountry, s.currentDate))
+      }
+    }
+    if (worldEvent) {
+      actionNewsItems.push(newsFromWorldEvent(worldEvent, s.currentDate))
+    }
+
     return {
       isJumping: false,
       state: {
@@ -545,6 +604,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         pendingActions: [],
         actionHistory: newHistory,
         buildQueue: [...(s.buildQueue ?? []), ...newBuilds],
+        newsItems: [...actionNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         warDamage: results.reduce((dmg, r) => {
           const updated = { ...dmg }
           for (const iso of r.nuclearStrike ?? []) updated[iso] = 'nuked'
@@ -657,5 +717,20 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         unlockedTechs: [...new Set([...(s.unlockedTechs ?? []), ...completedTechs])],
       },
     }
+  }),
+
+  cheatUnlockTech: (techId) => set(s => {
+    if (!s.state) return {}
+    const current = s.state.unlockedTechs ?? []
+    if (current.includes(techId as TechId)) return {}
+    return { state: { ...s.state, unlockedTechs: [...current, techId as TechId] } }
+  }),
+
+  cheatAnnex: (iso) => set(s => {
+    if (!s.state) return {}
+    const isoUpper = iso.toUpperCase()
+    const controlled = s.state.controlledCountries ?? []
+    if (controlled.includes(isoUpper)) return {}
+    return { state: { ...s.state, controlledCountries: [...controlled, isoUpper] } }
   }),
 }), { name: 'aah-game', partialize: (s) => ({ state: s.state }) }))
