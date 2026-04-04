@@ -10,12 +10,23 @@ import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre } from '../lib/mapFly'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
-const GDP_GROWTH_BASE = 0.025 // 2.5% default
-function countryGrowthRate(_gdp: number, techLevel: number, sectors: Record<string, number>): number {
-  const techBonus = (techLevel / 100) * 0.02
-  const financeBonus = ((sectors.finance ?? 0) / 100) * 0.01
-  const techSectorBonus = ((sectors.technology ?? 0) / 100) * 0.01
-  return GDP_GROWTH_BASE + techBonus + financeBonus + techSectorBonus
+function countryGrowthRate(gdp: number, techLevel: number, sectors: Record<string, number>, stability: number, approval: number): number {
+  // Convergence: poorer countries grow faster (catch-up effect)
+  const gdpB = gdp / 1e9  // GDP in billions
+  const convergenceBonus = gdpB < 100 ? 0.02 : gdpB < 500 ? 0.01 : gdpB < 2000 ? 0.005 : 0
+
+  // Base growth influenced by tech and stability
+  const techBonus = (techLevel / 100) * 0.025
+  const stabilityBonus = stability >= 60 ? 0.01 : stability >= 40 ? 0.005 : stability < 20 ? -0.015 : 0
+  const approvalBonus = approval >= 70 ? 0.005 : approval < 30 ? -0.01 : 0
+
+  // Sector contributions
+  const financeBonus = ((sectors.finance ?? 0) / 100) * 0.012
+  const techSectorBonus = ((sectors.technology ?? 0) / 100) * 0.012
+  const industryBonus = ((sectors.industry ?? 0) / 100) * 0.008
+
+  const base = 0.022 + convergenceBonus + techBonus + stabilityBonus + approvalBonus + financeBonus + techSectorBonus + industryBonus
+  return Math.max(-0.05, Math.min(0.15, base))  // cap at -5% to +15%
 }
 
 // ── Natural disaster table ────────────────────────────────────────────────────
@@ -46,17 +57,27 @@ const DISASTER_PROB: Record<DisasterType, number> = {
   rebellion:  0,
 }
 
-/** Compute annual stability delta based on approval and overexpansion. */
-function stabilityDrift(approval: number, controlledCount: number): number {
+/** Compute annual stability delta based on approval, overexpansion, and GDP growth. */
+function stabilityDrift(approval: number, controlledCount: number, gdpGrowth: number): number {
   let delta = 0
-  if (approval >= 70)      delta += 3
-  else if (approval >= 55) delta += 1
-  else if (approval >= 40) delta += 0
-  else if (approval >= 25) delta -= 2
-  else                     delta -= 4
-  // Each territory beyond the home country drains stability
-  if (controlledCount > 1) delta -= (controlledCount - 1)
-  return delta
+
+  // Approval-based drift
+  if (approval >= 75)      delta += 4
+  else if (approval >= 60) delta += 2
+  else if (approval >= 45) delta += 0
+  else if (approval >= 30) delta -= 2
+  else if (approval >= 15) delta -= 5
+  else                     delta -= 8
+
+  // Overexpansion penalty — each controlled territory beyond 2 drains stability
+  const overExpansion = Math.max(0, controlledCount - 2)
+  delta -= overExpansion * 1.5
+
+  // GDP growth bonus — strong economy stabilises
+  if (gdpGrowth > 0.05) delta += 2
+  else if (gdpGrowth < 0) delta -= 2
+
+  return Math.round(Math.max(-10, Math.min(6, delta)))
 }
 
 function rollDisasters(countryId: string, gdp: number, date: string): DisasterEvent[] {
@@ -98,6 +119,7 @@ interface GameStoreState {
   state: GameState | null
   isLoading: boolean
   isJumping: boolean
+  isPaused: boolean
   error: string | null
   initGame: (conditions: EraStartConditions, playerCountryId: string, difficulty: Difficulty) => void
   loadGame: (saved: GameState) => void
@@ -117,6 +139,8 @@ interface GameStoreState {
   updatePendingAction: (id: string, text: string) => void
   clearPendingActions: () => void
   applyResults: (results: ActionResult[], advancePeriod: 'week' | 'month' | 'year', worldEvent?: import('@ad-astra/shared/types').WorldEvent) => void
+  togglePause: () => void
+  setPaused: (paused: boolean) => void
   setEmpireName: (name: string) => void
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
@@ -130,6 +154,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   state: null,
   isLoading: false,
   isJumping: false,
+  isPaused: false,
   error: null,
 
   initGame: (conditions, playerCountryId, difficulty) => {
@@ -226,9 +251,17 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     let newCountries = { ...s.countries }
     const disasters: DisasterEvent[] = []
     let newControlledCountries: string[] | undefined
+    const playerGdpGrowth: { rate: number } = { rate: 0 }
     if (period === 'year') {
       for (const [iso, country] of Object.entries(newCountries)) {
-        const rate = countryGrowthRate(country.stats.gdp, country.stats.techLevel, country.sectors as unknown as Record<string, number>)
+        const rate = countryGrowthRate(
+          country.stats.gdp,
+          country.stats.techLevel,
+          country.sectors as unknown as Record<string, number>,
+          country.stats.stability ?? 70,
+          country.stats.approval,
+        )
+        if (iso === s.playerCountryId) playerGdpGrowth.rate = rate
         newCountries[iso] = {
           ...country,
           stats: { ...country.stats, gdp: Math.round(country.stats.gdp * (1 + rate)) },
@@ -253,7 +286,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       const playerAfterDisasters = newCountries[s.playerCountryId]
       if (playerAfterDisasters) {
         const controlled = s.controlledCountries ?? []
-        const drift = stabilityDrift(playerAfterDisasters.stats.approval, controlled.length + 1)
+        const drift = stabilityDrift(playerAfterDisasters.stats.approval, controlled.length + 1, playerGdpGrowth.rate)
         const currentStability = playerAfterDisasters.stats.stability ?? 70
         const newStability = Math.max(0, Math.min(100, currentStability + drift))
 
@@ -295,6 +328,28 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         newCountries[s.playerCountryId] = {
           ...playerAfterDisasters,
           stats: { ...playerAfterDisasters.stats, gdp, approval, stability: newStability },
+        }
+      }
+
+      // Neighbour events — other nations act according to their personality
+      // This is lightweight and deterministic (no AI call)
+      const allCountries = Object.values(newCountries)
+      for (const c of allCountries) {
+        if (c.id === s.playerCountryId) continue
+        if (Math.random() > 0.03) continue  // 3% chance per country per year
+
+        const personality = c.personality ?? 'diplomatic'
+        if (personality === 'aggressive' || personality === 'expansionist') {
+          // Aggressive nation destabilises region — minor approval hit to player
+          if (Math.random() < 0.4) {
+            newCountries[s.playerCountryId] = {
+              ...newCountries[s.playerCountryId],
+              stats: {
+                ...newCountries[s.playerCountryId].stats,
+                approval: Math.max(0, (newCountries[s.playerCountryId].stats.approval ?? 50) - 2),
+              },
+            }
+          }
         }
       }
     }
@@ -512,6 +567,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       },
     }
   }),
+
+  togglePause: () => set(s => ({ isPaused: !s.isPaused })),
+  setPaused: (paused) => set({ isPaused: paused }),
 
   setEmpireName: (name) => set(store => {
     if (!store.state) return {}

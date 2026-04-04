@@ -83,6 +83,7 @@ export interface Country {
   organisations: string[]
   nationalisedAssets: string[]
   laws: string[]
+  personality?: NationPersonality
 }
 
 export interface Organisation {
@@ -289,6 +290,16 @@ export interface LoreEntry {
   statDeltas: Record<string, number>
 }
 
+export type NationPersonality = 'aggressive' | 'defensive' | 'trade' | 'isolationist' | 'expansionist' | 'diplomatic'
+
+export interface NationPersonalityModifiers {
+  militaryGrowthBonus: number      // e.g. +0.1 = 10% faster military growth
+  gdpGrowthBonus: number
+  stabilityModifier: number
+  diplomaticBonus: number
+  warProbabilityMultiplier: number
+}
+
 export interface GameState {
   era: Era
   currentDate: string
@@ -324,6 +335,7 @@ export interface GameState {
   lore: LoreEntry[]
   // Game flags
   yesman: boolean              // countries auto-accept proposals
+  isPaused?: boolean
 }
 
 export interface AIConfig {
