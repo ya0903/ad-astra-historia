@@ -835,6 +835,24 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           return acc
         }, s.controlledRegions ?? []),
         worldEvents: worldEvent ? [...(s.worldEvents ?? []), worldEvent] : (s.worldEvents ?? []),
+        colonies: results.reduce((acc, r) => {
+          if (r.outcome === 'failure' || !r.foundColony) return acc
+          const fc = r.foundColony
+          // Don't add duplicate colonies at the same planet/name
+          if (acc.some(c => c.planet === fc.planet && c.name === fc.name)) return acc
+          const newColony: import('@ad-astra/shared/types').ColonyBase = {
+            id: `colony-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            planet: fc.planet,
+            name: fc.name,
+            lat: fc.lat,
+            lng: fc.lng,
+            population: 12,
+            resourceOutput: 1,
+            established: s.currentDate,
+            level: 1,
+          }
+          return [...acc, newColony]
+        }, s.colonies ?? []),
       },
     }
   }),

@@ -232,6 +232,10 @@ export default function GamePage() {
   const unlockedTechs = useGameStore(s => s.state?.unlockedTechs ?? [])
   const colonies = useGameStore(s => s.state?.colonies ?? [])
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
+  const deepEconomy = useGameStore(s => s.state?.economy)
+  const deepMilitary = useGameStore(s => s.state?.militaryState)
+  const deepPolitics = useGameStore(s => s.state?.politics)
+  const deepSociety = useGameStore(s => s.state?.society)
 
   const toggleLayerGroup = (key: string) => {
     const group = LAYER_GROUPS.find(g => g.key === key)
@@ -378,6 +382,26 @@ export default function GamePage() {
       const statsStr = isAncientEra
         ? `Treasury ~$${(gdp/1e9).toFixed(1)}B eq | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Stability ${stats?.stability??70} | Influence ${stats?.softPower??0} | Knowledge ${stats?.techLevel??0}`
         : `GDP $${(gdp/1e9).toFixed(1)}B | Military ${stats?.military??0} | Approval ${stats?.approval??0}% | Stability ${stats?.stability??70} | SoftPower ${stats?.softPower??0} | Tech ${stats?.techLevel??0}`
+
+      // Deep system context appended to prompt when relevant
+      const deepContextParts: string[] = []
+      if (deepEconomy) {
+        deepContextParts.push(`Economy: debt $${(deepEconomy.debt/1e9).toFixed(0)}B, inflation ${deepEconomy.inflation.toFixed(1)}%, industrialisation ${deepEconomy.industrialisationLevel.toFixed(0)}/100, tax rate ${deepEconomy.taxRate.toFixed(0)}%, trade balance $${(deepEconomy.tradeBalance/1e9).toFixed(1)}B`)
+      }
+      if (deepMilitary) {
+        deepContextParts.push(`Military: land ${deepMilitary.landStrength}/100, navy ${deepMilitary.navalStrength}/100, air ${deepMilitary.airStrength}/100, morale ${deepMilitary.morale}/100, mobilisation ${deepMilitary.mobilisationLevel}%, doctrine ${deepMilitary.doctrine}`)
+      }
+      if (deepPolitics) {
+        deepContextParts.push(`Politics: ${deepPolitics.governmentType}, unrest ${deepPolitics.unrestLevel.toFixed(0)}/100, corruption ${deepPolitics.corruption.toFixed(0)}/100`)
+      }
+      if (deepSociety) {
+        const pop = deepSociety.population >= 1e9 ? `${(deepSociety.population/1e9).toFixed(2)}B` : deepSociety.population >= 1e6 ? `${(deepSociety.population/1e6).toFixed(1)}M` : `${(deepSociety.population/1e3).toFixed(0)}K`
+        deepContextParts.push(`Society: pop ${pop} (+${deepSociety.populationGrowthRate.toFixed(1)}%/yr), education ${deepSociety.educationIndex.toFixed(0)}/100, happiness ${deepSociety.happinessIndex.toFixed(0)}/100, urbanisation ${deepSociety.urbanisationRate.toFixed(0)}%`)
+      }
+      if (colonies.length > 0) {
+        deepContextParts.push(`Colonies: ${colonies.map(c => `${c.name} (${c.planet}, L${c.level})`).join(', ')}`)
+      }
+      const deepContext = deepContextParts.length > 0 ? `\n${deepContextParts.join('\n')}` : ''
       const actionList = pendingActions.map((a, i) => `${i+1}.[${a.id}] ${a.text}`).join('\n')
 
       const isAncient = ANCIENT_ERAS_SET.has(gameState.era)
@@ -422,13 +446,13 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
       const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
 
-      const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}
+      const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}${deepContext}
 ${historyBlock}${damageBlock}
 Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>"}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.
@@ -439,6 +463,7 @@ Examples: Requesting Kashmir from India → failure (India rejects). Proposing t
 buildProjects: Array of ALL physical constructions triggered by this action — include one entry per distinct facility or route built. If an action builds a desalination plant in Turbat AND a nuclear plant in Karachi AND solar farms in the Cholistan Desert, buildProjects must have 3 entries. Use exactly one of these types per entry: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. Name must be specific (e.g. "Gwadar Deep-Water Port"). For point infrastructure always include "city". For rail include "cities": ["City1","City2",...] with all stops in order. CRITICAL: all cities in buildProjects must be real cities inside the country performing the construction (or inside focusIso if the action targets a foreign country). Never place infrastructure in a third country's cities — e.g. if building a Pakistani rail line, all cities must be in Pakistan. Rail lines must stay within one country's borders unless the action is explicitly a bilateral cross-border project and both countries appear in countryReactions. Omit buildProjects entirely for non-construction actions or failures.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
+foundColony: include ONLY when the action explicitly establishes a Moon or Mars base/colony. Set planet to "moon" or "mars", give a specific named base (e.g. "Armstrong Base Gamma"), and choose realistic lat/lng on that body. Omit entirely for Earth actions.
 
 2-3 countryReactions from realistic neighbours/rivals.`
 

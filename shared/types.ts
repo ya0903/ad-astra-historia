@@ -341,6 +341,12 @@ export interface ActionResult {
   buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }> // multiple builds from one action
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
+  foundColony?: {              // Moon or Mars colony founded by this action
+    planet: 'moon' | 'mars'
+    name: string               // specific base name (e.g. "Chang'e Base Alpha")
+    lat: number                // -90 to 90
+    lng: number                // -180 to 180
+  }
 }
 
 export interface LoreEntry {
