@@ -47,6 +47,17 @@ const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman'])
 
 // ── Legend items ─────────────────────────────────────────────────────────────
 
+// ── Layer toggle groups ───────────────────────────────────────────────────────
+const LAYER_GROUPS: { key: string; label: string; layers: string[] }[] = [
+  { key: 'cities',  label: 'Cities',         layers: ['city-dots', 'city-labels'] },
+  { key: 'infra',   label: 'Infrastructure', layers: ['infra-glow', 'infra-dots', 'infra-construction-ring', 'infra-construction-dot'] },
+  { key: 'rail',    label: 'Rail Lines',     layers: ['rail-line-domestic_hsr', 'rail-line-cross_continent', 'rail-line-undersea_tunnel'] },
+  { key: 'biomes',  label: 'Terrain',        layers: ['biomes-fill', 'biomes-edge-blur'] },
+  { key: 'rivers',  label: 'Rivers',         layers: ['rivers-line'] },
+  { key: 'borders', label: 'Borders',        layers: ['country-borders', 'player-border', 'player-border-glow'] },
+  { key: 'damage',  label: 'War Damage',     layers: ['damage-bombed', 'damage-nuked', 'damage-nuked-border'] },
+]
+
 const LEGEND_ITEMS = [
   { color: '#f8fafc', label: 'World capitals & megacities', desc: 'Pop > 5M or national capital', dot: true },
   { color: '#e2e8f0', label: 'Major regional cities', desc: 'Pop 500K – 5M', dot: true },
@@ -182,12 +193,31 @@ export default function GamePage() {
   const mapInstance = useMapStore(s => s.map)
   const breakingNewsCount = useGameStore(s => (s.state?.newsItems ?? []).filter(n => n.importance === 'breaking').length)
 
+  const toggleLayerGroup = (key: string) => {
+    const group = LAYER_GROUPS.find(g => g.key === key)
+    if (!group || !mapInstance) return
+    const isHidden = hiddenGroups.has(key)
+    const visibility = isHidden ? 'visible' : 'none'
+    for (const layerId of group.layers) {
+      if (mapInstance.getLayer(layerId)) {
+        mapInstance.setLayoutProperty(layerId, 'visibility', visibility)
+      }
+    }
+    setHiddenGroups(prev => {
+      const next = new Set(prev)
+      if (isHidden) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const [actionText, setActionText] = useState('')
   const [suggestText, setSuggestText] = useState('')
   const [showAiRefine, setShowAiRefine] = useState(false)
   const [activeTab, setActiveTab] = useState<'categories' | 'free'>('free')
   const [legendOpen, setLegendOpen] = useState(false)
   const [newsOpen, setNewsOpen] = useState(false)
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set())
   const [techTreeOpen, setTechTreeOpen] = useState(false)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
@@ -341,7 +371,7 @@ outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "failure": action is rejected, fails, or backfires. statDeltas should be 0 or negative (costs, backlash). No buildProjects. Require failureReason.
 Examples: Requesting Kashmir from India → failure (India rejects). Proposing trade deal with an ally → success. Imposing sanctions on a great power → partial (they retaliate). Invading a stronger neighbour → failure or partial depending on military balance.
 
-buildProjects: Array of ALL physical constructions triggered by this action — include one entry per distinct facility or route built. If an action builds a desalination plant in Turbat AND a nuclear plant in Karachi AND solar farms in the Cholistan Desert, buildProjects must have 3 entries. Use exactly one of these types per entry: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. Name must be specific (e.g. "Gwadar Deep-Water Port"). For point infrastructure always include "city". For rail include "cities": ["City1","City2",...] with all stops in order. Omit buildProjects entirely for non-construction actions or failures.
+buildProjects: Array of ALL physical constructions triggered by this action — include one entry per distinct facility or route built. If an action builds a desalination plant in Turbat AND a nuclear plant in Karachi AND solar farms in the Cholistan Desert, buildProjects must have 3 entries. Use exactly one of these types per entry: university, research_centre, port, airport, solar_farm, wind_farm, hydro_dam, fossil_fuel_plant, nuclear_plant, military_base, nuclear_silo, defence_system, financial_institution, industrial_zone, data_centre, desalination_plant, telecom_node, stadium, arts_centre, film_studio, embassy, rail_line, high_speed_rail. Name must be specific (e.g. "Gwadar Deep-Water Port"). For point infrastructure always include "city". For rail include "cities": ["City1","City2",...] with all stops in order. CRITICAL: all cities in buildProjects must be real cities inside the country performing the construction (or inside focusIso if the action targets a foreign country). Never place infrastructure in a third country's cities — e.g. if building a Pakistani rail line, all cities must be in Pakistan. Rail lines must stay within one country's borders unless the action is explicitly a bilateral cross-border project and both countries appear in countryReactions. Omit buildProjects entirely for non-construction actions or failures.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
 
@@ -758,14 +788,36 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── Floating Legend panel ── */}
         {legendOpen && (
-          <div className="absolute bottom-16 left-4 z-20 w-64 max-h-96 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-y-auto">
+          <div className="absolute bottom-16 left-4 z-20 w-64 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
             <div className="sticky top-0 flex items-center justify-between px-3 py-2 border-b border-white/8 bg-[#080f1e]/95">
               <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Map Legend</span>
               <button onClick={() => setLegendOpen(false)} className="text-gray-500 hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors">✕</button>
             </div>
-            <div className="px-3 py-2 space-y-4 text-xs">
+            {/* Layer toggles */}
+            <div className="px-3 pt-2 pb-1 border-b border-white/5">
+              <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5">Layer Toggles</p>
+              <div className="flex flex-wrap gap-1.5 mb-1">
+                {LAYER_GROUPS.map(g => {
+                  const off = hiddenGroups.has(g.key)
+                  return (
+                    <button
+                      key={g.key}
+                      onClick={() => toggleLayerGroup(g.key)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
+                        off
+                          ? 'bg-white/5 border-white/10 text-gray-600 line-through'
+                          : 'bg-blue-900/30 border-blue-500/30 text-blue-300'
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="px-3 py-2 space-y-4 text-xs overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
               {/* Cities */}
-              <div>
+              <div className={hiddenGroups.has('cities') ? 'opacity-40' : ''}>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Cities</p>
                 {LEGEND_ITEMS.map(item => (
                   <div key={item.label} className="flex items-center gap-2 mb-1.5">
@@ -775,24 +827,26 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 ))}
               </div>
               {/* Infrastructure groups */}
-              {INFRA_GROUPS.map(group => (
-                <div key={group.label}>
-                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">{group.label}</p>
-                  <div className="space-y-1">
-                    {group.items.map(type => {
-                      const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
-                      return (
-                        <div key={type} className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour, boxShadow: `0 0 4px ${colour}80` }} />
-                          <span className="text-gray-400">{INFRA_LABELS[type] ?? type}</span>
-                        </div>
-                      )
-                    })}
+              <div className={hiddenGroups.has('infra') ? 'opacity-40' : ''}>
+                {INFRA_GROUPS.map(group => (
+                  <div key={group.label} className="mb-3">
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">{group.label}</p>
+                    <div className="space-y-1">
+                      {group.items.map(type => {
+                        const colour = INFRA_COLOURS[type as keyof typeof INFRA_COLOURS]
+                        return (
+                          <div key={type} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour, boxShadow: `0 0 4px ${colour}80` }} />
+                            <span className="text-gray-400">{INFRA_LABELS[type] ?? type}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
               {/* Rail Lines */}
-              <div>
+              <div className={hiddenGroups.has('rail') ? 'opacity-40' : ''}>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Rail Lines</p>
                 <div className="space-y-1">
                   {Object.entries(RAIL_COLOURS).map(([type, colour]) => (
@@ -804,7 +858,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 </div>
               </div>
               {/* Terrain */}
-              <div>
+              <div className={hiddenGroups.has('biomes') || hiddenGroups.has('rivers') ? 'opacity-40' : ''}>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Terrain</p>
                 <div className="space-y-1">
                   {[

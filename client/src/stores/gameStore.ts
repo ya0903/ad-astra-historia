@@ -16,7 +16,15 @@ import {
 } from '@ad-astra/shared/newsGenerator'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
-function countryGrowthRate(gdp: number, techLevel: number, sectors: Record<string, number>, stability: number, approval: number): number {
+function countryGrowthRate(
+  gdp: number,
+  techLevel: number,
+  sectors: Record<string, number>,
+  stability: number,
+  approval: number,
+  infraMap: { type: string; countryId: string }[],
+  countryId: string,
+): number {
   // Convergence: poorer countries grow faster (catch-up effect)
   const gdpB = gdp / 1e9  // GDP in billions
   const convergenceBonus = gdpB < 100 ? 0.02 : gdpB < 500 ? 0.01 : gdpB < 2000 ? 0.005 : 0
@@ -31,7 +39,32 @@ function countryGrowthRate(gdp: number, techLevel: number, sectors: Record<strin
   const techSectorBonus = ((sectors.technology ?? 0) / 100) * 0.012
   const industryBonus = ((sectors.industry ?? 0) / 100) * 0.008
 
-  const base = 0.022 + convergenceBonus + techBonus + stabilityBonus + approvalBonus + financeBonus + techSectorBonus + industryBonus
+  // Infrastructure effects — each category capped to avoid runaway stacking
+  const ownInfra = infraMap.filter(i => i.countryId === countryId)
+  const count = (type: string) => ownInfra.filter(i => i.type === type).length
+  const clamp = (v: number, max: number) => Math.min(v, max)
+
+  // Economic enablers
+  const portBonus    = clamp(count('port')                * 0.003, 0.012) // ports → trade GDP
+  const airportBonus = clamp(count('airport')             * 0.002, 0.008) // airports → connectivity
+  const railBonus    = clamp(count('rail_line')           * 0.0015 + count('high_speed_rail') * 0.003, 0.012)
+  const finInstBonus = clamp(count('financial_institution')* 0.003, 0.009)
+  const indZoneBonus = clamp(count('industrial_zone')     * 0.003, 0.009)
+  const dataCentre   = clamp(count('data_centre')         * 0.002, 0.006)
+
+  // Energy — fossil fuels are cheap growth; renewables are steady
+  const energyBonus  = clamp(
+    (count('fossil_fuel_plant') * 0.004 + count('nuclear_plant') * 0.005
+     + count('solar_farm') * 0.002 + count('wind_farm') * 0.002 + count('hydro_dam') * 0.003),
+    0.015,
+  )
+
+  // Knowledge economy
+  const researchBonus = clamp((count('research_centre') + count('university')) * 0.002, 0.008)
+
+  const infraTotal = portBonus + airportBonus + railBonus + finInstBonus + indZoneBonus + dataCentre + energyBonus + researchBonus
+
+  const base = 0.022 + convergenceBonus + techBonus + stabilityBonus + approvalBonus + financeBonus + techSectorBonus + industryBonus + infraTotal
   return Math.max(-0.05, Math.min(0.15, base))  // cap at -5% to +15%
 }
 
@@ -278,6 +311,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           country.sectors as unknown as Record<string, number>,
           country.stats.stability ?? 70,
           country.stats.approval,
+          s.infrastructureMap,
+          iso,
         )
         if (iso === s.playerCountryId) playerGdpGrowth.rate = rate
         newCountries[iso] = {
