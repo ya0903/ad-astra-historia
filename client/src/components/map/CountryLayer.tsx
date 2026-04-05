@@ -23,47 +23,38 @@ const GEO_PALETTE = [
 ]
 
 /**
- * Build an adjacency map from shared polygon edges in the GeoJSON.
- * Two countries are adjacent if any pair of their coordinate points is
- * within ~0.02° of each other (shared border).
+ * Build an adjacency map from shared polygon vertices.
+ * Uses an O(total_vertices) hash approach — much faster than O(n²×coords).
+ * Round to 1dp (~11 km) so border points from adjacent polygons match.
  */
 function buildAdjacency(geojson: GeoJSON.FeatureCollection): Map<string, Set<string>> {
-  const adj = new Map<string, Set<string>>()
-
-  // Collect all boundary points per country
-  const points = new Map<string, Set<string>>() // iso → Set of "lng,lat" keys (rounded)
+  // coord-key → set of ISO codes that have a vertex there
+  const coordToIsos = new Map<string, Set<string>>()
 
   for (const f of geojson.features) {
     const p = f.properties as Record<string, unknown>
     const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
     if (!iso) continue
-    if (!adj.has(iso)) adj.set(iso, new Set())
-    if (!points.has(iso)) points.set(iso, new Set())
-
-    const coords = extractCoords(f.geometry as GeoJSON.Geometry)
-    const set = points.get(iso)!
-    for (const [lng, lat] of coords) {
-      // Round to 2dp to match shared border points
-      set.add(`${lng.toFixed(2)},${lat.toFixed(2)}`)
+    for (const [lng, lat] of extractCoords(f.geometry as GeoJSON.Geometry)) {
+      const key = `${lng.toFixed(1)},${lat.toFixed(1)}`
+      let s = coordToIsos.get(key)
+      if (!s) { s = new Set(); coordToIsos.set(key, s) }
+      s.add(iso)
     }
   }
 
-  // Countries sharing a boundary point are adjacent
-  const isoList = [...points.keys()]
-  for (let i = 0; i < isoList.length; i++) {
-    const a = isoList[i]
-    const aPoints = points.get(a)!
-    for (let j = i + 1; j < isoList.length; j++) {
-      const b = isoList[j]
-      const bPoints = points.get(b)!
-      // Check if any point is shared
-      for (const pt of aPoints) {
-        if (bPoints.has(pt)) {
-          adj.get(a)!.add(b)
-          if (!adj.has(b)) adj.set(b, new Set())
-          adj.get(b)!.add(a)
-          break
-        }
+  // Any coord shared by 2+ countries → those countries are adjacent
+  const adj = new Map<string, Set<string>>()
+  for (const isos of coordToIsos.values()) {
+    if (isos.size < 2) continue
+    const arr = [...isos]
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const a = arr[i], b = arr[j]
+        if (!adj.has(a)) adj.set(a, new Set())
+        if (!adj.has(b)) adj.set(b, new Set())
+        adj.get(a)!.add(b)
+        adj.get(b)!.add(a)
       }
     }
   }
