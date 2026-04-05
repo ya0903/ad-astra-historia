@@ -5,98 +5,14 @@ import { getCountryColour } from '@ad-astra/shared/countries'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
 
-// ── Graph-colouring palette ───────────────────────────────────────────────────
-// 10 visually distinct colours for the dark (#0a1628) base map.
-// Neighbours must never share a colour (4-colour theorem guarantees ≥4 suffices,
-// but we use 10 to maximise visual distinction).
-const GEO_PALETTE = [
-  '#1a6b9a', // deep blue
-  '#8b3a3a', // brick red
-  '#2d7a4f', // forest green
-  '#7a5f1a', // dark gold
-  '#5a2d7a', // purple
-  '#1a7a7a', // teal
-  '#7a3a5a', // mauve
-  '#3a5a1a', // olive
-  '#7a4a1a', // burnt orange
-  '#1a4a7a', // navy
-]
-
 /**
- * Build an adjacency map from shared polygon vertices.
- * Uses an O(total_vertices) hash approach — much faster than O(n²×coords).
- * Round to 1dp (~11 km) so border points from adjacent polygons match.
+ * Stamps fill_colour onto every GeoJSON feature using the shared COUNTRY_COLOURS
+ * table. Player territory is lightened; controlled territory gets a player-tinted hue.
  */
-function buildAdjacency(geojson: GeoJSON.FeatureCollection): Map<string, Set<string>> {
-  // coord-key → set of ISO codes that have a vertex there
-  const coordToIsos = new Map<string, Set<string>>()
-
-  for (const f of geojson.features) {
-    const p = f.properties as Record<string, unknown>
-    const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
-    if (!iso) continue
-    for (const [lng, lat] of extractCoords(f.geometry as GeoJSON.Geometry)) {
-      const key = `${lng.toFixed(1)},${lat.toFixed(1)}`
-      let s = coordToIsos.get(key)
-      if (!s) { s = new Set(); coordToIsos.set(key, s) }
-      s.add(iso)
-    }
-  }
-
-  // Any coord shared by 2+ countries → those countries are adjacent
-  const adj = new Map<string, Set<string>>()
-  for (const isos of coordToIsos.values()) {
-    if (isos.size < 2) continue
-    const arr = [...isos]
-    for (let i = 0; i < arr.length; i++) {
-      for (let j = i + 1; j < arr.length; j++) {
-        const a = arr[i], b = arr[j]
-        if (!adj.has(a)) adj.set(a, new Set())
-        if (!adj.has(b)) adj.set(b, new Set())
-        adj.get(a)!.add(b)
-        adj.get(b)!.add(a)
-      }
-    }
-  }
-  return adj
-}
-
-function extractCoords(geom: GeoJSON.Geometry): [number, number][] {
-  if (geom.type === 'Polygon') return geom.coordinates.flatMap(ring => ring as [number, number][])
-  if (geom.type === 'MultiPolygon') return geom.coordinates.flatMap(poly => poly.flatMap(ring => ring as [number, number][]))
-  return []
-}
-
-/**
- * Greedy graph colouring — assigns a palette index to each country such that
- * no two adjacent countries share a colour.
- */
-function greedyColour(isoList: string[], adj: Map<string, Set<string>>): Map<string, string> {
-  const result = new Map<string, string>()
-  // Sort by degree descending (most-connected first) for better greedy results
-  const sorted = [...isoList].sort((a, b) => (adj.get(b)?.size ?? 0) - (adj.get(a)?.size ?? 0))
-
-  for (const iso of sorted) {
-    const usedByNeighbours = new Set<string>()
-    for (const nb of adj.get(iso) ?? []) {
-      const c = result.get(nb)
-      if (c) usedByNeighbours.add(c)
-    }
-    const colour = GEO_PALETTE.find(c => !usedByNeighbours.has(c)) ?? GEO_PALETTE[0]
-    result.set(iso, colour)
-  }
-  return result
-}
-
-// Cache graph-coloured palette per GeoJSON reference so we don't recompute
-const colourCache = new WeakMap<GeoJSON.FeatureCollection, Map<string, string>>()
-
-/** Stamp fill_colour using a pre-computed graphColours map (or static fallback). */
-function stampColours(
+function injectColours(
   geojson: GeoJSON.FeatureCollection,
   playerCountryId: string,
-  controlledCountries: string[],
-  graphColours: Map<string, string> | null,
+  controlledCountries: string[]
 ): GeoJSON.FeatureCollection {
   const playerColour = getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
@@ -105,7 +21,7 @@ function stampColours(
     features: geojson.features.map(f => {
       const p = f.properties as Record<string, unknown>
       const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
-      const base = graphColours?.get(iso) ?? getCountryColour(iso)
+      const base = getCountryColour(iso)
       const colour =
         iso === playerCountryId ? lightenColour(base) :
         controlledSet.has(iso) ? tintOccupied(playerColour) :
@@ -113,30 +29,6 @@ function stampColours(
       return { ...f, properties: { ...p, fill_colour: colour } }
     }),
   }
-}
-
-/**
- * Compute graph colours asynchronously (deferred via setTimeout so the
- * browser paints the map first), then push an update to the GeoJSON source.
- */
-function buildGraphColoursAsync(
-  geojson: GeoJSON.FeatureCollection,
-  onDone: (colours: Map<string, string>) => void,
-): void {
-  // Already cached — call back immediately next tick
-  const cached = colourCache.get(geojson)
-  if (cached) { setTimeout(() => onDone(cached), 0); return }
-
-  setTimeout(() => {
-    const adj = buildAdjacency(geojson)
-    const isoList = geojson.features.map(f => {
-      const p = f.properties as Record<string, unknown>
-      return (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
-    }).filter(Boolean)
-    const colours = greedyColour(isoList, adj)
-    colourCache.set(geojson, colours)
-    onDone(colours)
-  }, 0)
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -164,16 +56,9 @@ export default function CountryLayer() {
         if (map.getSource('countries')) return
 
         rawGeojsonRef.current = geojson
-        // Render immediately with static colours so map paints without blocking
-        const coloured = stampColours(geojson, playerCountryId, controlledCountries, null)
-        map.addSource('countries', { type: 'geojson', data: coloured })
+        const coloured = injectColours(geojson, playerCountryId, controlledCountries)
 
-        // Compute adjacency off the critical path, then re-colour
-        buildGraphColoursAsync(geojson, (graphColours) => {
-          const src = map.getSource('countries') as maplibregl.GeoJSONSource | undefined
-          if (!src) return
-          src.setData(stampColours(geojson, playerCountryId, controlledCountries, graphColours))
-        })
+        map.addSource('countries', { type: 'geojson', data: coloured })
 
         map.addLayer({
           id: 'country-fills', type: 'fill', source: 'countries',
@@ -259,9 +144,7 @@ export default function CountryLayer() {
     if (!map || !playerCountryId || !rawGeojsonRef.current) return
     const src = map.getSource('countries') as maplibregl.GeoJSONSource | undefined
     if (!src) return
-    const geojson = rawGeojsonRef.current
-    const graphColours = colourCache.get(geojson) ?? null
-    src.setData(stampColours(geojson, playerCountryId, controlledCountries, graphColours))
+    src.setData(injectColours(rawGeojsonRef.current, playerCountryId, controlledCountries))
     const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
     if (map.getLayer('player-border')) map.setFilter('player-border', empireFilter)
     if (map.getLayer('player-border-glow')) map.setFilter('player-border-glow', empireFilter)
