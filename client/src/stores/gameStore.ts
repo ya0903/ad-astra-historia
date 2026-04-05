@@ -3,13 +3,14 @@ import { persist } from 'zustand/middleware'
 import type {
   GameState, EraStartConditions, Difficulty, GameAction, ActionResult,
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
-  RailLine, RailType, NewsItem,
+  RailLine, RailType, NewsItem, EraPhase, EconomyState, MilitaryState, PoliticsState,
+  SocietyState, DiplomacyState, ColonyBase, PlanetBody,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
-import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
+import { TECH_TREE, ANCIENT_TECH_TREE, INDUSTRIAL_TECH_TREE, ANCIENT_ERAS, checkEraPhaseTransition } from '@ad-astra/shared/techTree'
 import {
   newsFromDisaster, newsFromTechUnlock, newsFromGdpGrowth,
   newsFromStabilityEvent, newsFromActionResult, newsFromWorldEvent, newsFromAnnex,
@@ -195,6 +196,17 @@ interface GameStoreState {
   // Cheat actions
   cheatUnlockTech: (techId: string) => void
   cheatAnnex: (iso: string) => void
+  // Deep system setters
+  setEraPhase: (phase: EraPhase) => void
+  setEconomy: (patch: Partial<EconomyState>) => void
+  setMilitaryState: (patch: Partial<MilitaryState>) => void
+  setPolitics: (patch: Partial<PoliticsState>) => void
+  setSociety: (patch: Partial<SocietyState>) => void
+  setDiplomacyState: (patch: Partial<DiplomacyState>) => void
+  addColony: (colony: Omit<ColonyBase, 'id'>) => void
+  removeColony: (id: string) => void
+  upgradeColony: (id: string) => void
+  setActivePlanet: (planet: PlanetBody) => void
 }
 
 export const useGameStore = create<GameStoreState>()(persist((set) => ({
@@ -206,6 +218,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   _hasHydrated: false,
 
   initGame: (conditions, playerCountryId, difficulty) => {
+    const isAncient = ANCIENT_ERAS.includes(conditions.era)
+    const player = conditions.countries[playerCountryId]
     const newState: GameState = {
       era: conditions.era,
       currentDate: conditions.startDate,
@@ -232,6 +246,53 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       lore: [],
       newsItems: [],
       yesman: false,
+      // ── Deep simulation state ──────────────────────────────────────────────
+      eraPhase: isAncient ? 'ancient' : 'modern',
+      economy: {
+        taxRate: 25,
+        debt: 0,
+        tradeBalance: 0,
+        inflation: 2,
+        industrialisationLevel: isAncient ? 0 : 50,
+        sectorShares: isAncient
+          ? { agriculture: 70, industry: 10, services: 15, military: 5 }
+          : { agriculture: 10, industry: 30, services: 50, military: 10 },
+      },
+      militaryState: {
+        landStrength: player?.stats?.military ?? 50,
+        airStrength: isAncient ? 0 : 30,
+        navalStrength: 20,
+        doctrine: 'defensive',
+        morale: 75,
+        attritionRate: 0,
+        mobilisationLevel: 0,
+      },
+      politics: {
+        governmentType: isAncient ? 'monarchy' : 'republic',
+        unrestLevel: 10,
+        corruption: isAncient ? 40 : 25,
+        censorshipLevel: isAncient ? 50 : 15,
+        policies: [],
+        yearsInPower: 0,
+      },
+      society: {
+        population: isAncient ? 2_000_000 : 50_000_000,
+        populationGrowthRate: isAncient ? 0.5 : 1.2,
+        educationIndex: isAncient ? 10 : 55,
+        happinessIndex: 60,
+        inequalityIndex: isAncient ? 60 : 40,
+        urbanisationRate: isAncient ? 15 : 55,
+      },
+      diplomacyState: {
+        relations: {},
+        alliances: [],
+        tradeAgreements: [],
+        sanctions: [],
+        sphereOfInfluence: [],
+        rivals: [],
+      },
+      colonies: [],
+      activePlanet: 'earth',
     }
     set({ state: newState, error: null })
   },
@@ -247,6 +308,15 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       lore: saved.lore ?? [],
       newsItems: saved.newsItems ?? [],
       yesman: saved.yesman ?? false,
+      // Backward-compat defaults for new fields
+      eraPhase: saved.eraPhase ?? (ANCIENT_ERAS.includes(saved.era) ? 'ancient' : 'modern'),
+      economy: saved.economy ?? undefined,
+      militaryState: saved.militaryState ?? undefined,
+      politics: saved.politics ?? undefined,
+      society: saved.society ?? undefined,
+      diplomacyState: saved.diplomacyState ?? undefined,
+      colonies: saved.colonies ?? [],
+      activePlanet: saved.activePlanet ?? 'earth',
     },
     error: null,
   }),
@@ -445,8 +515,101 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
+    // ── Era phase transition check ────────────────────────────────────────────
+    const allUnlockedAfter = [...(s.unlockedTechs ?? []), ...completedTechs]
+    const newPhase = checkEraPhaseTransition(s.eraPhase ?? 'modern', allUnlockedAfter)
+
+    // ── Deep system ticks (yearly) ────────────────────────────────────────────
+    let newEconomy = s.economy
+    let newMilitaryState = s.militaryState
+    let newPolitics = s.politics
+    let newSociety = s.society
+    let newColonies = s.colonies
+
+    if (period === 'year') {
+      // Economy tick
+      if (newEconomy) {
+        const interestGrowth = newEconomy.debt > 0 ? newEconomy.debt * 0.04 : newEconomy.debt * 0.01
+        const inflationDelta = newEconomy.taxRate > 45 ? 0.5 : newEconomy.taxRate < 15 ? -0.3 : 0
+        const indGain = s.eraPhase === 'industrial' ? 1.5 : s.eraPhase === 'modern' ? 0.5 : 0
+        newEconomy = {
+          ...newEconomy,
+          debt: Math.round(newEconomy.debt + interestGrowth),
+          inflation: Math.max(0, Math.min(25, newEconomy.inflation + inflationDelta)),
+          industrialisationLevel: Math.min(100, newEconomy.industrialisationLevel + indGain),
+        }
+      }
+
+      // Politics tick
+      if (newPolitics) {
+        const playerStats = newCountries[s.playerCountryId]?.stats
+        const unrestDelta = (playerStats?.approval ?? 50) > 65 ? -2 : (playerStats?.approval ?? 50) < 35 ? +3 : 0
+        newPolitics = {
+          ...newPolitics,
+          unrestLevel: Math.max(0, Math.min(100, newPolitics.unrestLevel + unrestDelta)),
+          yearsInPower: newPolitics.yearsInPower + 1,
+        }
+      }
+
+      // Society tick
+      if (newSociety) {
+        const popGrowth = newSociety.populationGrowthRate / 100
+        const eduGain = newEconomy ? Math.min(0.5, newEconomy.industrialisationLevel / 200) : 0
+        newSociety = {
+          ...newSociety,
+          population: Math.round(newSociety.population * (1 + popGrowth)),
+          educationIndex: Math.min(100, newSociety.educationIndex + eduGain),
+          urbanisationRate: Math.min(100, newSociety.urbanisationRate + (s.eraPhase === 'industrial' ? 0.5 : s.eraPhase === 'modern' ? 0.3 : 0.1)),
+        }
+      }
+
+      // Military attrition when at war
+      if (newMilitaryState && (s.atWarWith ?? []).length > 0) {
+        const attrition = newMilitaryState.attritionRate > 0 ? newMilitaryState.attritionRate : 1
+        newMilitaryState = {
+          ...newMilitaryState,
+          landStrength: Math.max(0, newMilitaryState.landStrength - attrition),
+          morale: Math.max(0, newMilitaryState.morale - 1),
+        }
+      }
+
+      // Colony resource output → GDP bonus
+      if ((newColonies ?? []).length > 0) {
+        const colonyGdpBonus = (newColonies ?? []).reduce((sum, c) => sum + c.resourceOutput, 0) * 1e8
+        const pc = newCountries[s.playerCountryId]
+        if (pc) {
+          newCountries[s.playerCountryId] = {
+            ...pc,
+            stats: { ...pc.stats, gdp: pc.stats.gdp + colonyGdpBonus },
+          }
+        }
+      }
+    }
+
+    // Monthly attrition (lighter)
+    if (period === 'month' && newMilitaryState && (s.atWarWith ?? []).length > 0) {
+      newMilitaryState = {
+        ...newMilitaryState,
+        morale: Math.max(0, newMilitaryState.morale - 0.5),
+      }
+    }
+
     // ── Generate news for this tick ───────────────────────────────────────────
     const newNewsItems: NewsItem[] = []
+    // Era phase transition news
+    if (newPhase) {
+      const playerName = newCountries[s.playerCountryId]?.name ?? s.playerCountryId
+      newNewsItems.push({
+        id: `phase-${Date.now()}`,
+        date: newDate,
+        headline: newPhase === 'industrial'
+          ? `${playerName} enters the Industrial Era — steam and steel transform the nation`
+          : `${playerName} enters the Modern Era — electrification heralds a new age`,
+        category: 'science',
+        importance: 'breaking',
+        country: s.playerCountryId,
+      })
+    }
     // News from disasters and political events
     for (const d of disasters) {
       if (d.type === 'rebellion' || d.type === 'unrest') {
@@ -456,7 +619,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       }
     }
     // News from completed research
-    const allTechNodes = [...TECH_TREE, ...ANCIENT_TECH_TREE]
+    const allTechNodes = [...TECH_TREE, ...ANCIENT_TECH_TREE, ...INDUSTRIAL_TECH_TREE]
     for (const techId of completedTechs) {
       const techName = allTechNodes.find(t => t.id === techId)?.name ?? techId
       newNewsItems.push(newsFromTechUnlock(techId as TechId, techName, newDate, s.playerCountryId))
@@ -483,6 +646,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
         newsItems: [...newNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
+        ...(newPhase ? { eraPhase: newPhase } : {}),
+        ...(newEconomy ? { economy: newEconomy } : {}),
+        ...(newMilitaryState ? { militaryState: newMilitaryState } : {}),
+        ...(newPolitics ? { politics: newPolitics } : {}),
+        ...(newSociety ? { society: newSociety } : {}),
+        ...(newColonies ? { colonies: newColonies } : {}),
       },
     }
   }),
@@ -774,6 +943,67 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const controlled = s.state.controlledCountries ?? []
     if (controlled.includes(isoUpper)) return {}
     return { state: { ...s.state, controlledCountries: [...controlled, isoUpper] } }
+  }),
+
+  setEraPhase: (phase) => set(s => {
+    if (!s.state) return {}
+    return { state: { ...s.state, eraPhase: phase } }
+  }),
+
+  setEconomy: (patch) => set(s => {
+    if (!s.state?.economy) return {}
+    return { state: { ...s.state, economy: { ...s.state.economy, ...patch } } }
+  }),
+
+  setMilitaryState: (patch) => set(s => {
+    if (!s.state?.militaryState) return {}
+    return { state: { ...s.state, militaryState: { ...s.state.militaryState, ...patch } } }
+  }),
+
+  setPolitics: (patch) => set(s => {
+    if (!s.state?.politics) return {}
+    return { state: { ...s.state, politics: { ...s.state.politics, ...patch } } }
+  }),
+
+  setSociety: (patch) => set(s => {
+    if (!s.state?.society) return {}
+    return { state: { ...s.state, society: { ...s.state.society, ...patch } } }
+  }),
+
+  setDiplomacyState: (patch) => set(s => {
+    if (!s.state?.diplomacyState) return {}
+    return { state: { ...s.state, diplomacyState: { ...s.state.diplomacyState, ...patch } } }
+  }),
+
+  addColony: (colonyData) => set(s => {
+    if (!s.state) return {}
+    const colony: ColonyBase = {
+      ...colonyData,
+      id: `colony-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    }
+    return { state: { ...s.state, colonies: [...(s.state.colonies ?? []), colony] } }
+  }),
+
+  removeColony: (id) => set(s => {
+    if (!s.state) return {}
+    return { state: { ...s.state, colonies: (s.state.colonies ?? []).filter(c => c.id !== id) } }
+  }),
+
+  upgradeColony: (id) => set(s => {
+    if (!s.state) return {}
+    return {
+      state: {
+        ...s.state,
+        colonies: (s.state.colonies ?? []).map(c =>
+          c.id === id && c.level < 3 ? { ...c, level: (c.level + 1) as 1 | 2 | 3 } : c
+        ),
+      },
+    }
+  }),
+
+  setActivePlanet: (planet) => set(s => {
+    if (!s.state) return {}
+    return { state: { ...s.state, activePlanet: planet } }
   }),
 }), {
   name: 'aah-game',

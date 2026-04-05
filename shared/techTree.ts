@@ -1,13 +1,36 @@
-import type { TechNode, Era, TechId } from './types.js'
+import type { TechNode, Era, TechId, EraPhase } from './types.js'
 
 // ── Era grouping ─────────────────────────────────────────────────────────────
-// Ancient eras use the ANCIENT_TECH_TREE; modern eras use TECH_TREE.
-// The UI uses this to show only the era-appropriate tree.
+// Ancient eras use ANCIENT_TECH_TREE; modern eras use TECH_TREE.
+// Industrial era (via eraPhase) uses INDUSTRIAL_TECH_TREE.
 export const MODERN_ERAS: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern']
 export const ANCIENT_ERAS: Era[] = ['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku']
 
-export function getEraGroup(era: Era): 'ancient' | 'modern' {
-  return ANCIENT_ERAS.includes(era) ? 'ancient' : 'modern'
+export function getEraGroup(era: Era, eraPhase?: EraPhase): 'ancient' | 'industrial' | 'modern' {
+  if (eraPhase === 'industrial') return 'industrial'
+  if (eraPhase === 'ancient' || ANCIENT_ERAS.includes(era)) return 'ancient'
+  return 'modern'
+}
+
+/**
+ * Check whether the player's tech unlocks should trigger an era phase transition.
+ * Returns the new phase if a transition is warranted, null otherwise.
+ */
+export function checkEraPhaseTransition(
+  currentPhase: EraPhase,
+  unlockedTechs: string[],
+): EraPhase | null {
+  if (currentPhase === 'ancient') {
+    // Entering Industrial Era requires mastery of firearms + early machinery
+    const triggers: TechId[] = ['gunpowder', 'cannon', 'printing_press']
+    if (triggers.every(t => unlockedTechs.includes(t))) return 'industrial'
+  }
+  if (currentPhase === 'industrial') {
+    // Entering Modern Era requires electrification + oil + railroads
+    const triggers: TechId[] = ['electricity', 'oil_drilling', 'railroad_network']
+    if (triggers.every(t => unlockedTechs.includes(t))) return 'modern'
+  }
+  return null
 }
 
 // ── Modern / Post-1900s Tech Tree ────────────────────────────────────────────
@@ -595,19 +618,279 @@ export const ANCIENT_TECH_TREE: TechNode[] = [
   { id: 'public_granaries', name: 'Public Granaries', category: 'society', description: 'State grain storage to buffer famines, feed armies, and stabilise food prices.', researchWeeks: 26, cost: 40, prerequisites: ['irrigation'], unlocksEra: ['greek', 'roman', 'ottoman'] },
 ]
 
+// ── Industrial Era Tech Tree (1760–1914) ─────────────────────────────────────
+// Unlocked when eraPhase === 'industrial'. TechNode.unlocksEra uses '1945' as
+// a sentinel value — actual availability is gated by eraPhase in the UI.
+
+export const INDUSTRIAL_TECH_TREE: TechNode[] = [
+
+  // ── INFRASTRUCTURE ──────────────────────────────────────────────────────────
+  {
+    id: 'steam_engine',
+    name: 'Steam Engine',
+    category: 'infrastructure',
+    description: 'High-pressure steam power for factories, mines, and early transport.',
+    researchWeeks: 52, cost: 80, prerequisites: [],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'coal_mining',
+    name: 'Coal Mining',
+    category: 'infrastructure',
+    description: 'Deep shaft coal extraction — the fuel that powers the industrial age.',
+    researchWeeks: 26, cost: 40, prerequisites: ['steam_engine'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'steel_production',
+    name: 'Steel Production',
+    category: 'infrastructure',
+    description: 'Bessemer converter and open-hearth furnace for mass-scale steel output.',
+    researchWeeks: 78, cost: 120, prerequisites: ['coal_mining'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'factory_system',
+    name: 'Factory System',
+    category: 'infrastructure',
+    description: 'Division of labour and mechanised production — cottage industry replaced.',
+    researchWeeks: 52, cost: 100, prerequisites: ['steam_engine'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'locomotive',
+    name: 'Locomotive',
+    category: 'infrastructure',
+    description: 'Steam locomotive enabling rapid overland goods and troop movement.',
+    researchWeeks: 78, cost: 150, prerequisites: ['steam_engine', 'steel_production'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'railroad_network',
+    name: 'Railroad Network',
+    category: 'infrastructure',
+    description: 'National rail grid integrating markets and enabling mass mobilisation.',
+    researchWeeks: 156, cost: 300, prerequisites: ['locomotive'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'oil_drilling',
+    name: 'Oil Drilling',
+    category: 'infrastructure',
+    description: 'Rotary drilling and refining of petroleum for kerosene, fuel, and lubricants.',
+    researchWeeks: 78, cost: 160, prerequisites: ['steel_production'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'electricity',
+    name: 'Electrical Grid',
+    category: 'infrastructure',
+    description: 'AC power generation and distribution — Tesla turbines, urban lighting.',
+    researchWeeks: 104, cost: 200, prerequisites: ['steam_engine', 'telegraph'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'urban_planning',
+    name: 'Urban Planning',
+    category: 'infrastructure',
+    description: 'Sewerage, boulevard design, and municipal water supply for booming cities.',
+    researchWeeks: 52, cost: 80, prerequisites: ['factory_system'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'mechanised_agriculture',
+    name: 'Mechanised Agriculture',
+    category: 'infrastructure',
+    description: 'Steam ploughs, reapers, and chemical fertilisers — food per acre doubled.',
+    researchWeeks: 78, cost: 120, prerequisites: ['steam_engine', 'industrial_chemistry'],
+    unlocksEra: ['1945'],
+  },
+
+  // ── MILITARY ────────────────────────────────────────────────────────────────
+  {
+    id: 'rifle_infantry',
+    name: 'Rifle Infantry',
+    category: 'military',
+    description: 'Minié-ball and breech-loading rifles replace muskets — range and rate of fire doubled.',
+    researchWeeks: 52, cost: 80, prerequisites: [],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'bolt_action_rifle',
+    name: 'Bolt-Action Rifle',
+    category: 'military',
+    description: 'Smokeless powder and magazine-fed infantry rifles — standard issue by 1890s.',
+    researchWeeks: 52, cost: 100, prerequisites: ['rifle_infantry'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'field_artillery',
+    name: 'Field Artillery',
+    category: 'military',
+    description: 'Rifled steel cannon and horse-drawn batteries for mobile firepower.',
+    researchWeeks: 78, cost: 140, prerequisites: ['steel_production'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'machine_gun',
+    name: 'Machine Gun',
+    category: 'military',
+    description: 'Maxim and Gatling guns providing suppressive fire at industrial rates.',
+    researchWeeks: 78, cost: 160, prerequisites: ['rifle_infantry', 'steel_production'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'ironclad_warship',
+    name: 'Ironclad Warship',
+    category: 'military',
+    description: 'Steam-powered iron-hulled warships making wooden fleets obsolete.',
+    researchWeeks: 104, cost: 200, prerequisites: ['steel_production', 'steam_engine'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'early_tank',
+    name: 'Armoured Fighting Vehicle',
+    category: 'military',
+    description: 'Steel-plated caterpillar vehicles combining firepower with cross-terrain mobility.',
+    researchWeeks: 104, cost: 220, prerequisites: ['machine_gun', 'oil_drilling'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'mass_conscription',
+    name: 'Mass Conscription',
+    category: 'military',
+    description: 'Universal military service creating million-man reserve armies.',
+    researchWeeks: 52, cost: 100, prerequisites: ['nationalism', 'railroad_network'],
+    unlocksEra: ['1945'],
+  },
+
+  // ── SCIENCE ─────────────────────────────────────────────────────────────────
+  {
+    id: 'telegraph',
+    name: 'Telegraph',
+    category: 'science',
+    description: 'Electrical long-distance communication — real-time command and commercial data.',
+    researchWeeks: 52, cost: 90, prerequisites: [],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'industrial_chemistry',
+    name: 'Industrial Chemistry',
+    category: 'science',
+    description: 'Synthetic dyes, explosives, fertilisers — chemistry applied at scale.',
+    researchWeeks: 78, cost: 130, prerequisites: ['steam_engine'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'newspaper_press',
+    name: 'Mass Press',
+    category: 'science',
+    description: 'Steam-powered rotary presses — mass circulation newspapers shape opinion.',
+    researchWeeks: 26, cost: 50, prerequisites: ['telegraph'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'photography',
+    name: 'Photography',
+    category: 'science',
+    description: 'Daguerreotype and wet-plate photography — documentation and propaganda.',
+    researchWeeks: 26, cost: 40, prerequisites: [],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'public_health',
+    name: 'Public Health',
+    category: 'science',
+    description: 'Germ theory, vaccination campaigns, and quarantine laws — pandemics decline.',
+    researchWeeks: 78, cost: 120, prerequisites: ['urban_planning'],
+    unlocksEra: ['1945'],
+  },
+
+  // ── ECONOMY ─────────────────────────────────────────────────────────────────
+  {
+    id: 'banking_system',
+    name: 'Banking System',
+    category: 'economy',
+    description: 'Commercial banks, letters of credit, and fractional-reserve lending.',
+    researchWeeks: 52, cost: 100, prerequisites: [],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'joint_stock_company',
+    name: 'Joint Stock Company',
+    category: 'economy',
+    description: 'Limited liability corporations enabling massive capital pooling for railways.',
+    researchWeeks: 52, cost: 100, prerequisites: ['banking_system'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'central_bank',
+    name: 'Central Bank',
+    category: 'economy',
+    description: 'Lender of last resort with monopoly on note issue — stabilises finance.',
+    researchWeeks: 78, cost: 140, prerequisites: ['banking_system', 'constitution'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'free_market',
+    name: 'Free Market Reforms',
+    category: 'economy',
+    description: 'Tariff reduction and free trade doctrine — commerce accelerates.',
+    researchWeeks: 52, cost: 90, prerequisites: ['banking_system'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'trade_unions',
+    name: 'Trade Unions',
+    category: 'economy',
+    description: 'Legalised labour organisations negotiating wages, hours, and safety conditions.',
+    researchWeeks: 52, cost: 80, prerequisites: ['factory_system', 'newspaper_press'],
+    unlocksEra: ['1945'],
+  },
+
+  // ── GOVERNMENT / SOCIETY ────────────────────────────────────────────────────
+  {
+    id: 'nationalism',
+    name: 'Nationalism',
+    category: 'government',
+    description: 'Popular national identity as basis for state legitimacy and mass mobilisation.',
+    researchWeeks: 52, cost: 70, prerequisites: ['newspaper_press'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'constitution',
+    name: 'Constitutional Government',
+    category: 'government',
+    description: 'Written constitution, parliament, and rule of law limiting executive power.',
+    researchWeeks: 78, cost: 120, prerequisites: ['nationalism'],
+    unlocksEra: ['1945'],
+  },
+  {
+    id: 'colonial_administration',
+    name: 'Colonial Administration',
+    category: 'government',
+    description: 'Bureaucratic systems for governing overseas territories and extracting resources.',
+    researchWeeks: 78, cost: 140, prerequisites: ['railroad_network', 'mass_conscription'],
+    unlocksEra: ['1945'],
+  },
+]
+
 // ── Combined tree ─────────────────────────────────────────────────────────────
 
-const ALL_TECHS_INTERNAL: TechNode[] = [...TECH_TREE, ...ANCIENT_TECH_TREE]
+const ALL_TECHS_INTERNAL: TechNode[] = [...TECH_TREE, ...ANCIENT_TECH_TREE, ...INDUSTRIAL_TECH_TREE]
 
-export function getAvailableTechs(era: Era, unlockedTechs: string[]): TechNode[] {
-  return ALL_TECHS_INTERNAL.filter(t =>
-    t.unlocksEra.includes(era) &&
+export function getAvailableTechs(era: Era, unlockedTechs: string[], eraPhase?: EraPhase): TechNode[] {
+  const tree = getEraGroupTechs(era, eraPhase)
+  return tree.filter(t =>
     !unlockedTechs.includes(t.id) &&
     t.prerequisites.every(p => unlockedTechs.includes(p))
   )
 }
 
-/** Returns only the techs for the era's group (ancient or modern). */
-export function getEraGroupTechs(era: Era): TechNode[] {
-  return getEraGroup(era) === 'ancient' ? ANCIENT_TECH_TREE : TECH_TREE
+/** Returns only the techs for the era's current phase (ancient, industrial, or modern). */
+export function getEraGroupTechs(era: Era, eraPhase?: EraPhase): TechNode[] {
+  const group = getEraGroup(era, eraPhase)
+  if (group === 'industrial') return INDUSTRIAL_TECH_TREE
+  if (group === 'ancient') return ANCIENT_TECH_TREE
+  return TECH_TREE
 }

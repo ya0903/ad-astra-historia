@@ -352,8 +352,9 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
   if (!gameState) return null
 
   const currentEra      = gameState.era
-  const eraGroup        = getEraGroup(currentEra)
-  const eraGroupTechs   = getEraGroupTechs(currentEra)
+  const eraPhase        = gameState.eraPhase
+  const eraGroup        = getEraGroup(currentEra, eraPhase)
+  const eraGroupTechs   = getEraGroupTechs(currentEra, eraPhase)
 
   const unlockedTechs   = gameState.unlockedTechs ?? []
   const researchQueue   = gameState.researchQueue ?? []
@@ -390,10 +391,13 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
     startResearch(techId as TechId, weeks)
   }, [startResearch])
 
-  const eraGroupLabel = eraGroup === 'ancient' ? 'Ancient' : 'Modern'
-  const eraGroupColour = eraGroup === 'ancient'
-    ? 'bg-amber-600/30 text-amber-300 border-amber-500/30'
-    : 'bg-blue-600/30 text-blue-300 border-blue-500/30'
+  const eraGroupLabel =
+    eraGroup === 'ancient'    ? 'Ancient' :
+    eraGroup === 'industrial' ? 'Industrial' : 'Modern'
+  const eraGroupColour =
+    eraGroup === 'ancient'    ? 'bg-amber-600/30 text-amber-300 border-amber-500/30' :
+    eraGroup === 'industrial' ? 'bg-orange-600/30 text-orange-300 border-orange-500/30' :
+                                 'bg-blue-600/30 text-blue-300 border-blue-500/30'
 
   return (
     <div className="fixed inset-0 z-50 bg-[#060d1a]/95 backdrop-blur-sm flex flex-col" style={{ fontFamily: 'inherit' }}>

@@ -3,7 +3,7 @@ import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stor
 import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer, PlanetMap } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -13,6 +13,11 @@ import TechTreeFullscreen from '../components/TechTreeFullscreen'
 import LorePanel from '../components/LorePanel'
 import PauseMenu from '../components/PauseMenu'
 import NewsPanel from '../components/NewsPanel'
+import EconomyPanel from '../components/EconomyPanel'
+import MilitaryPanel from '../components/MilitaryPanel'
+import PoliticsPanel from '../components/PoliticsPanel'
+import SocietyPanel from '../components/SocietyPanel'
+import PlanetSwitcher from '../components/PlanetSwitcher'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 
@@ -41,6 +46,16 @@ const CATEGORIES_ANCIENT: Category[] = [
   { id: 'administration', label: 'Governance & Law', icon: '📜', actions: ['Codify laws', 'Appoint provincial governor', 'Grant citizenship to allies', 'Establish colony', 'Issue land reforms', 'Impose direct taxation', 'Grant amnesty to rebels', 'Purge corrupt officials'] },
   { id: 'knowledge', label: 'Knowledge & Scholarship', icon: '📚', actions: ['Patronise philosophers', 'Fund astronomical observatory', 'Establish medical school', 'Commission maps of the known world', 'Recruit foreign scholars', 'Translate foreign texts'] },
   { id: 'naval', label: 'Naval & Exploration', icon: '⚓', actions: ['Build war galley fleet', 'Train naval archers', 'Establish coastal trading post', 'Send exploratory fleet westward', 'Chart unknown ocean waters', 'Establish colony across the sea', 'Commission ocean-going caravel', 'Recruit experienced navigators', 'Establish naval supply depot', 'Launch transatlantic expedition', 'Claim new territory in the Americas', 'Establish Pacific spice route'] },
+]
+
+const CATEGORIES_INDUSTRIAL: Category[] = [
+  { id: 'economy', label: 'Industry & Finance', icon: '🏭', actions: ['Build factory', 'Issue railway bonds', 'Nationalise coal mines', 'Attract foreign capital', 'Charter joint-stock company', 'Abolish corn laws', 'Establish stock exchange'] },
+  { id: 'military', label: 'Military & Expansion', icon: '⚔️', actions: ['Raise conscript army', 'Modernise artillery', 'Build ironclad warship', 'Fund rifle infantry', 'Deploy colonial garrison', 'Commission armoured train', 'Purchase field guns'] },
+  { id: 'diplomacy', label: 'Diplomacy', icon: '🤝', actions: ['Sign trade treaty', 'Form entente', 'Negotiate colonial boundary', 'Open embassy in major power', 'Attend international congress', 'Invoke Monroe Doctrine'] },
+  { id: 'infrastructure', label: 'Infrastructure', icon: '🏗️', actions: ['Build railway line', 'Construct coal mine', 'Build steel foundry', 'Lay telegraph line', 'Construct deepwater port', 'Build industrial zone'] },
+  { id: 'technology', label: 'Technology', icon: '🔬', actions: ['Fund steam engine research', 'Patent new invention', 'Recruit industrial chemist', 'Build mechanical workshop', 'Establish technical school', 'Invest in electrical research'] },
+  { id: 'society', label: 'Society & Reform', icon: '👥', actions: ['Introduce factory acts', 'Expand public schools', 'Issue reform bill', 'Fund public health measures', 'Legalise trade unions', 'Enact poor law reform', 'Abolish child labour'] },
+  { id: 'culture', label: 'Culture & Colonies', icon: '🌍', actions: ['Establish overseas colony', 'Send surveying expedition', 'Grant company charter', 'Build colonial railway', 'Open mission schools', 'Host world exhibition'] },
 ]
 
 const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
@@ -212,6 +227,11 @@ export default function GamePage() {
   const config = useConfigStore(s => s.config)
   const mapInstance = useMapStore(s => s.map)
   const breakingNewsCount = useGameStore(s => (s.state?.newsItems ?? []).filter(n => n.importance === 'breaking').length)
+  const activePlanet = useGameStore(s => s.state?.activePlanet ?? 'earth')
+  const setActivePlanet = useGameStore(s => s.setActivePlanet)
+  const unlockedTechs = useGameStore(s => s.state?.unlockedTechs ?? [])
+  const colonies = useGameStore(s => s.state?.colonies ?? [])
+  const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
 
   const toggleLayerGroup = (key: string) => {
     const group = LAYER_GROUPS.find(g => g.key === key)
@@ -598,7 +618,12 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
                 </div>
                 <div className="px-3 py-2 space-y-0.5">
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Quick Actions</p>
-                  {(ANCIENT_ERAS_SET.has(gameState.era) ? CATEGORIES_ANCIENT : CATEGORIES_MODERN).map(cat => (
+                  {(ANCIENT_ERAS_SET.has(gameState.era) && gameState.eraPhase === 'ancient'
+                    ? CATEGORIES_ANCIENT
+                    : gameState.eraPhase === 'industrial'
+                      ? CATEGORIES_INDUSTRIAL
+                      : CATEGORIES_MODERN
+                  ).map(cat => (
                     <div key={cat.id}>
                       <button onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
                         className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.06] transition-colors text-left">
@@ -788,22 +813,29 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
       {/* ── Map area ── */}
       <div className="flex-1 relative overflow-hidden">
-        <WorldMap era={gameState.era}>
-          <CountryLayer />
-          {['greek', 'roman', 'ottoman'].includes(gameState.era)
-            ? <AncientProvincesLayer />
-            : <ProvincesLayer />
-          }
-          <BiomesLayer />
-          <RiversLayer />
-          <CountryLabelOverlay />
-          <DamageLayer />
-          <CitiesLayer />
-          <InfraLayer />
-          <RailLayer />
-          <LandUseLayer />
-          <LandmarksLayer />
-        </WorldMap>
+        {activePlanet !== 'earth' ? (
+          <PlanetMap
+            planet={activePlanet as 'moon' | 'mars'}
+            colonies={colonies.filter(c => c.planet === activePlanet)}
+          />
+        ) : (
+          <WorldMap era={gameState.era}>
+            <CountryLayer />
+            {ANCIENT_ERAS_SET.has(gameState.era)
+              ? <AncientProvincesLayer />
+              : <ProvincesLayer />
+            }
+            <BiomesLayer />
+            <RiversLayer />
+            <CountryLabelOverlay />
+            <DamageLayer />
+            <CitiesLayer />
+            <InfraLayer />
+            <RailLayer />
+            <LandUseLayer />
+            <LandmarksLayer />
+          </WorldMap>
+        )}
 
         {/* ── Legend toggle button (bottom-left) ── */}
         <button
@@ -920,13 +952,27 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── Top HUD ── */}
         <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pt-3 pointer-events-none z-10">
-          {/* Date + era pill + paused indicator */}
+          {/* Date + era pill + paused indicator + planet switcher */}
           <div className="flex items-center gap-2">
             <div className="pointer-events-auto flex items-center gap-2 bg-[#080f1e]/80 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 shadow-xl">
               <span className="text-sm font-mono text-white font-semibold">{formatGameDate(gameState.currentDate)}</span>
               <span className="h-3 w-px bg-white/20" />
-              <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
+              <span className="text-[10px] text-blue-300 uppercase tracking-wider">
+                {gameState.era}
+                {eraPhase === 'industrial' && <span className="text-orange-300"> · Industrial</span>}
+              </span>
             </div>
+            {/* Planet switcher — visible once Moon or Mars is unlocked */}
+            {(unlockedTechs.includes('moon_landing') || unlockedTechs.includes('mars_mission')) && (
+              <div className="pointer-events-auto">
+                <PlanetSwitcher
+                  active={activePlanet}
+                  onSelect={setActivePlanet}
+                  moonUnlocked={unlockedTechs.includes('moon_landing')}
+                  marsUnlocked={unlockedTechs.includes('mars_mission')}
+                />
+              </div>
+            )}
           </div>
 
           {/* Right HUD: Pause + Lore + Save + New Game */}
@@ -1091,6 +1137,16 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <h3 className="text-sm font-bold text-amber-200 leading-snug">{latestWorldEvent.headline}</h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1.5">{latestWorldEvent.narrative}</p>
             </div>
+          </div>
+        )}
+
+        {/* ── Deep system panels (second column, only on Earth view) ── */}
+        {activePlanet === 'earth' && (
+          <div className="absolute bottom-20 right-16 z-10 flex flex-col items-end gap-2">
+            <EconomyPanel />
+            <MilitaryPanel />
+            <PoliticsPanel />
+            <SocietyPanel />
           </div>
         )}
 

@@ -1,4 +1,8 @@
 export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern' | 'greek' | 'roman' | 'ottoman' | 'abbasid' | 'tang' | 'aztec' | 'songhai' | 'sengoku'
+export type EraPhase = 'ancient' | 'industrial' | 'modern'
+export type PlanetBody = 'earth' | 'moon' | 'mars'
+export type GovernmentType = 'tribal' | 'monarchy' | 'republic' | 'democracy' | 'autocracy' | 'theocracy' | 'military_junta' | 'federal_republic' | 'communist' | 'shogunate'
+export type MilitaryDoctrine = 'offensive' | 'defensive' | 'expeditionary' | 'guerrilla' | 'nuclear_deterrence' | 'blitzkrieg'
 export type Difficulty = 'passive' | 'realistic' | 'aggressive'
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'custom'
 export type RelationType = 'allied' | 'friendly' | 'neutral' | 'tense' | 'hostile' | 'at_war'
@@ -239,6 +243,22 @@ export type TechId =
   // Government / Society
   | 'law_codification' | 'census_taxation' | 'diplomatic_corps'
   | 'state_religion' | 'public_granaries' | 'civic_administration'
+  // ── Industrial / 19th Century ─────────────────────────────────────────────
+  // Infrastructure
+  | 'steam_engine' | 'coal_mining' | 'steel_production' | 'factory_system'
+  | 'locomotive' | 'railroad_network' | 'oil_drilling' | 'electricity'
+  | 'urban_planning' | 'mechanised_agriculture'
+  // Military
+  | 'rifle_infantry' | 'field_artillery' | 'machine_gun' | 'early_tank'
+  | 'ironclad_warship' | 'bolt_action_rifle' | 'mass_conscription'
+  // Science
+  | 'telegraph' | 'industrial_chemistry' | 'newspaper_press'
+  | 'photography' | 'public_health'
+  // Economy
+  | 'banking_system' | 'joint_stock_company' | 'central_bank'
+  | 'free_market' | 'trade_unions'
+  // Government / Society
+  | 'nationalism' | 'constitution' | 'colonial_administration'
 
 export interface TechNode {
   id: TechId
@@ -385,6 +405,87 @@ export interface GameState {
   yesman: boolean              // countries auto-accept proposals
   isPaused?: boolean
   revealMap?: boolean          // cheat: full map visibility
+  // ── Era phase (ancient → industrial → modern) ─────────────────────────────
+  eraPhase?: EraPhase
+  // ── Deep simulation sub-states ────────────────────────────────────────────
+  economy?: EconomyState
+  militaryState?: MilitaryState
+  politics?: PoliticsState
+  society?: SocietyState
+  diplomacyState?: DiplomacyState
+  // ── Off-world colonies ────────────────────────────────────────────────────
+  colonies?: ColonyBase[]
+  // ── Active planet view (UI only) ─────────────────────────────────────────
+  activePlanet?: PlanetBody
+}
+
+// ── Deep simulation state interfaces ─────────────────────────────────────────
+
+export interface EconomyState {
+  taxRate: number                    // 0–100 percent
+  debt: number                       // USD, negative = surplus
+  tradeBalance: number               // USD per year (positive = surplus)
+  inflation: number                  // annual %
+  industrialisationLevel: number     // 0–100
+  sectorShares: {
+    agriculture: number              // % of GDP (all four must sum ~100)
+    industry: number
+    services: number
+    military: number
+  }
+}
+
+export interface MilitaryState {
+  landStrength: number               // 0–100
+  airStrength: number                // 0–100
+  navalStrength: number              // 0–100
+  doctrine: MilitaryDoctrine
+  morale: number                     // 0–100
+  attritionRate: number              // % strength lost per month at war
+  mobilisationLevel: number          // 0–100 (how much economy is on war footing)
+}
+
+export interface PoliticsState {
+  governmentType: GovernmentType
+  unrestLevel: number                // 0–100
+  corruption: number                 // 0–100
+  censorshipLevel: number            // 0–100
+  policies: string[]                 // active policy ids
+  yearsInPower: number
+}
+
+export interface SocietyState {
+  population: number                 // total population
+  populationGrowthRate: number       // annual %
+  educationIndex: number             // 0–100
+  happinessIndex: number             // 0–100
+  inequalityIndex: number            // 0–100 (Gini-like)
+  urbanisationRate: number           // 0–100%
+}
+
+export interface DiplomacyState {
+  relations: Record<string, {
+    opinion: number                  // -100 to +100
+    type: RelationType
+  }>
+  alliances: string[]                // ISO_A3 military partners
+  tradeAgreements: string[]          // ISO_A3 trade partners
+  sanctions: string[]                // ISO_A3 countries under player's sanctions
+  sphereOfInfluence: string[]        // ISO_A3 of subordinate states
+  rivals: string[]                   // declared rivals
+}
+
+export interface ColonyBase {
+  id: string
+  planet: 'moon' | 'mars'
+  name: string
+  lat: number                        // equirectangular degrees
+  lng: number
+  population: number
+  resourceOutput: number             // score per yearly tick
+  established: string               // ISO date
+  level: 1 | 2 | 3
+  terraformProgress?: number         // 0–100, Mars only
 }
 
 export interface AIConfig {
