@@ -21,10 +21,16 @@ interface Message {
 
 interface Props {
   gameContext: GameContext
+  isOpen?: boolean
+  onOpen?: () => void
+  onClose?: () => void
 }
 
-export default function DiplomacyPanel({ gameContext }: Props) {
-  const [open, setOpen] = useState(false)
+export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }: Props) {
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = isOpen !== undefined ? isOpen : localOpen
+  const handleOpen = () => { if (onOpen) onOpen(); else setLocalOpen(true) }
+  const handleClose = () => { if (onClose) onClose(); else setLocalOpen(false) }
   const [targetCountry, setTargetCountry] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -112,7 +118,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         className="w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
         title="Diplomatic Chats"
       >
@@ -146,7 +152,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           {targetCountry && (
             <button onClick={reset} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-[10px] font-bold">←</button>
           )}
-          <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">✕</button>
+          <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">✕</button>
         </div>
       </div>
 

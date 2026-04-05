@@ -222,6 +222,26 @@ export type TechId =
   // Society
   | 'universal_healthcare' | 'public_education' | 'social_security'
   | 'mass_media' | 'space_programme_culture'
+  // Military advanced
+  | 'nuclear_weapons' | 'icbm' | 'nuclear_submarine' | 'electronic_warfare'
+  | 'cluster_munitions' | 'precision_guided_munitions' | 'drone_swarms'
+  | 'space_weapons' | 'bio_weapons' | 'active_protection_systems'
+  | 'exoskeleton_infantry'
+  // Economy advanced
+  | 'derivatives_markets' | 'digital_banking' | 'cryptocurrency'
+  | 'trade_bloc' | 'resource_extraction' | 'offshore_finance'
+  | 'smart_manufacturing' | 'space_economy'
+  // Government advanced
+  | 'mass_surveillance' | 'propaganda_apparatus' | 'federalisation'
+  | 'electoral_system' | 'judicial_independence' | 'cybersecurity_agency'
+  // Society advanced
+  | 'social_media_ecosystem' | 'higher_education' | 'cultural_diplomacy'
+  | 'universal_broadband' | 'mental_health_system' | 'smart_cities'
+  // Science advanced
+  | 'advanced_robotics' | 'materials_science' | 'climate_engineering'
+  | 'autonomous_vehicles'
+  // Infrastructure advanced
+  | 'smart_grid' | 'hydrogen_economy' | 'battery_storage'
   // ── Ancient / Medieval ────────────────────────────────────────────────────
   // Metallurgy / Infrastructure
   | 'bronze_working' | 'iron_working' | 'steel_forging'

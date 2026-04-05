@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
 
-const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
+const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
 
 type Ring = [number, number][]
 
@@ -113,6 +113,11 @@ const ABBR: Record<string, string> = {
   'South Georgia and the South Sandwich Islands': 'S. Georgia',
   'French Southern and Antarctic Lands': 'Fr. S. Lands',
   'Heard Island and McDonald Islands': 'Heard Is.',
+  'Republic of Kosovo': 'Kosovo',
+  'Somaliland': 'Somaliland',
+  'Western Sahara': 'W. Sahara',
+  'Ivory Coast': "Côte d'Ivoire",
+  "Côte d'Ivoire": "Côte d'Ivoire",
 }
 
 function abbreviate(name: string): string {
@@ -130,8 +135,9 @@ function abbreviate(name: string): string {
   return name
 }
 
-const SKIP_NAMES = new Set(['Somaliland', 'Kosovo', 'Northern Cyprus', 'Abkhazia', 'South Ossetia',
-  'Transnistria', 'Nagorno-Karabakh', 'Western Sahara'])
+// Skip only truly tiny/disputed territories with no meaningful area to render into
+const SKIP_NAMES = new Set(['Northern Cyprus', 'Abkhazia', 'South Ossetia',
+  'Transnistria', 'Nagorno-Karabakh'])
 
 interface LabelDatum {
   iso: string
@@ -239,8 +245,8 @@ export default function CountryLabelOverlay() {
 
         const { x, y } = map.project([d.lng, d.lat])
 
-        // Off-screen cull (generous margin for rotated labels)
-        if (x < -400 || x > canvas.width + 400 || y < -300 || y > canvas.height + 300) {
+        // Off-screen cull (generous margin for rotated labels near edges)
+        if (x < -600 || x > canvas.width + 600 || y < -400 || y > canvas.height + 400) {
           el.style.display = 'none'; continue
         }
 
@@ -285,7 +291,7 @@ export default function CountryLabelOverlay() {
   if (!map) return null
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 5 }}>
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5, overflow: 'visible' }}>
       {labelsData.map(l => (
         <div
           key={l.iso}

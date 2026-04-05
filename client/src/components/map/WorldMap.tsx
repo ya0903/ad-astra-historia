@@ -203,6 +203,53 @@ export default function WorldMap({ children, era }: Props) {
     }
   }, [setMapStore])
 
+  // ── WASD / Arrow key smooth map panning ──────────────────────────────────
+  useEffect(() => {
+    if (!mapInstance) return
+    const keys = new Set<string>()
+    let raf = 0
+
+    const PAN_SPEED = 8 // pixels per frame at zoom 2; scales with zoom
+
+    const tick = () => {
+      if (keys.size === 0) { raf = 0; return }
+      const zoom = mapInstance.getZoom()
+      // Pan speed inversely scales with zoom so movement feels consistent
+      const speed = PAN_SPEED / Math.pow(1.5, Math.max(0, zoom - 2))
+      let dx = 0, dy = 0
+      if (keys.has('ArrowLeft')  || keys.has('a') || keys.has('A')) dx -= speed
+      if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) dx += speed
+      if (keys.has('ArrowUp')    || keys.has('w') || keys.has('W')) dy -= speed
+      if (keys.has('ArrowDown')  || keys.has('s') || keys.has('S')) dy += speed
+      if (dx !== 0 || dy !== 0) mapInstance.panBy([dx, dy], { animate: false })
+      raf = requestAnimationFrame(tick)
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const dirs = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'A', 'd', 'D', 'w', 'W', 's', 'S'])
+      if (!dirs.has(e.key)) return
+      // Only prevent default for arrow keys to avoid page scroll; let WASD pass through
+      if (e.key.startsWith('Arrow')) e.preventDefault()
+      keys.add(e.key)
+      if (!raf) raf = requestAnimationFrame(tick)
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      keys.delete(e.key)
+      if (keys.size === 0) { cancelAnimationFrame(raf); raf = 0 }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      cancelAnimationFrame(raf)
+    }
+  }, [mapInstance])
+
   // ── Apply era-specific camera when era or map instance changes ────────────
   useEffect(() => {
     if (!mapInstance) return

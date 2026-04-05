@@ -17,8 +17,17 @@ const DISPUTE_STATUS_COLOURS: Record<string, string> = {
   resolved: 'bg-green-900/50 text-green-300',
 }
 
-export default function OrgPanel() {
-  const [open, setOpen] = useState(false)
+interface OrgPanelProps {
+  isOpen?: boolean
+  onOpen?: () => void
+  onClose?: () => void
+}
+
+export default function OrgPanel({ isOpen, onOpen, onClose }: OrgPanelProps = {}) {
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = isOpen !== undefined ? isOpen : localOpen
+  const handleOpen = () => { if (onOpen) onOpen(); else setLocalOpen(true) }
+  const handleClose = () => { if (onClose) onClose(); else setLocalOpen(false) }
   const [panelW, setPanelW] = useState(288)
   const [panelH, setPanelH] = useState(420)
   const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
@@ -51,7 +60,7 @@ export default function OrgPanel() {
     <div>
       {!open ? (
         <button
-          onClick={() => setOpen(true)}
+          onClick={handleOpen}
           className="w-10 h-10 rounded-full bg-[#0d1f3c]/90 border border-white/20 flex items-center justify-center hover:bg-blue-900/80 transition-colors"
           title="Organisations & Conflicts"
         >
@@ -72,7 +81,7 @@ export default function OrgPanel() {
                 <p className="text-xs font-bold text-white">Organisations & Conflicts</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
+            <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-4">

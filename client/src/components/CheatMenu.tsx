@@ -91,6 +91,8 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
   const [lines, setLines] = useState<{ text: string; type: 'cmd' | 'ok' | 'err' | 'info' }[]>([
     { text: 'Cheat Console — type "help" for commands', type: 'info' },
   ])
+  const [history, setHistory] = useState<string[]>([])
+  const [histIdx, setHistIdx] = useState(-1)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -103,6 +105,8 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
   const run = (raw: string) => {
     const cmd = raw.trim()
     if (!cmd) return
+    setHistory(h => [cmd, ...h].slice(0, 50))
+    setHistIdx(-1)
     setLines(l => [...l, { text: `> ${cmd}`, type: 'cmd' }])
 
     if (!gameState) { push('No game loaded.', 'err'); return }
@@ -324,8 +328,9 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed bottom-12 left-80 z-50 w-[480px] bg-[#050d1a]/95 border border-green-800/60 rounded-lg shadow-2xl backdrop-blur-sm flex flex-col"
-      style={{ maxHeight: '320px' }}
+    <div
+      className="fixed z-50 w-[480px] bg-[#050d1a]/95 border border-green-800/60 rounded-lg shadow-2xl backdrop-blur-sm flex flex-col"
+      style={{ bottom: '56px', left: '16px', maxHeight: 'min(320px, calc(100vh - 80px))' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-green-900/40 shrink-0">
@@ -356,6 +361,18 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
           onKeyDown={e => {
             if (e.key === 'Enter') { run(input); setInput('') }
             if (e.key === 'Escape') onClose()
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              const next = Math.min(histIdx + 1, history.length - 1)
+              setHistIdx(next)
+              if (history[next] !== undefined) setInput(history[next])
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              const next = histIdx - 1
+              if (next < 0) { setHistIdx(-1); setInput('') }
+              else { setHistIdx(next); if (history[next] !== undefined) setInput(history[next]) }
+            }
           }}
           className="flex-1 bg-transparent text-green-300 font-mono text-xs outline-none placeholder-green-900"
           placeholder="type a command…"

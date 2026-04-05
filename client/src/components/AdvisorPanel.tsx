@@ -28,10 +28,16 @@ const QUICK_PROMPTS = [
 
 interface Props {
   gameContext: GameContext
+  isOpen?: boolean
+  onOpen?: () => void
+  onClose?: () => void
 }
 
-export default function AdvisorPanel({ gameContext }: Props) {
-  const [open, setOpen] = useState(false)
+export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: Props) {
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = isOpen !== undefined ? isOpen : localOpen
+  const handleOpen = () => { if (onOpen) onOpen(); else setLocalOpen(true) }
+  const handleClose = () => { if (onClose) onClose(); else setLocalOpen(false) }
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -98,7 +104,7 @@ export default function AdvisorPanel({ gameContext }: Props) {
     <div>
       {!open ? (
         <button
-          onClick={() => setOpen(true)}
+          onClick={handleOpen}
           className="w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center hover:bg-purple-900 hover:border-purple-600 transition-all"
           title="Intelligence Advisor"
         >
@@ -127,7 +133,7 @@ export default function AdvisorPanel({ gameContext }: Props) {
               {messages.length > 0 && (
                 <button onClick={() => setMessages([])} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-xs" title="Clear chat">↺</button>
               )}
-              <button onClick={() => setOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
+              <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">×</button>
             </div>
           </div>
 

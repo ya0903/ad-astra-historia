@@ -209,6 +209,41 @@ interface GameStoreState {
   setActivePlanet: (planet: PlanetBody) => void
 }
 
+// ── Base country populations (modern era, millions) ─────────────────────────
+// Used to initialise SocietyState with realistic starting populations.
+const COUNTRY_POPULATION_M: Record<string, number> = {
+  // Major powers
+  CHN: 1410, IND: 1380, USA: 331, IDN: 274, PAK: 220, BRA: 213, NGA: 211, BGD: 165,
+  RUS: 145, ETH: 118, MEX: 130, JPN: 126, PHL: 113, EGY: 104, COD: 100, VNM: 97,
+  IRN: 84, TUR: 84, DEU: 83, THA: 70, GBR: 67, FRA: 67, TZA: 60, ZAF: 60,
+  MMR: 54, KEN: 54, KOR: 52, COL: 51, ESP: 47, UGA: 46, ARG: 46, DZA: 45,
+  IRQ: 41, UKR: 44, SDN: 44, POL: 38, CAN: 38, MAR: 37, MOZ: 32, PER: 33,
+  AGO: 33, VEN: 28, GHA: 32, UZB: 35, NER: 25, YEM: 30, MLI: 22, SAU: 35,
+  PRK: 26, MYS: 33, MWI: 19, AUS: 26, KAZ: 19, CMR: 27, CIV: 27,
+  ROU: 19, ECU: 18, GTM: 18, SYR: 21, NLD: 17, CHL: 19, ZMB: 18, ZWE: 15,
+  SWE: 10, BLR: 9, PRT: 10, HUN: 10, TJK: 10, AZE: 10, HND: 10, TCD: 17,
+  GRC: 10, BLZ: 1, CZE: 11, DNK: 6, FIN: 6, NOR: 5, SVK: 5, IRL: 5,
+  // Small states
+  SGP: 6, ISL: 0.3, LUX: 1, MLT: 0.5, CYP: 1,
+  // Africa
+  SOM: 16, GIN: 13, BEN: 12, SEN: 17, TGO: 8, SLE: 8, LBR: 5, CAF: 5,
+  BFA: 22, BWA: 3, NAM: 3, LSO: 2, SWZ: 1,
+  // Middle East
+  ISR: 9, JOR: 10, LBN: 7, KWT: 4, QAT: 3, OMN: 5, ARE: 10, BHR: 2,
+  // Others
+  CUB: 11, DOM: 11, HKG: 7, HTI: 11, PRI: 3, JAM: 3,
+}
+
+function getBasePopulation(countryId: string, isAncient: boolean): number {
+  if (isAncient) {
+    // Ancient eras: rough fractions of modern populations, in millions
+    const modern = COUNTRY_POPULATION_M[countryId.toUpperCase()] ?? 5
+    return Math.round(modern * 0.04 * 1_000_000) // ~4% of modern pop for ancient era
+  }
+  const millions = COUNTRY_POPULATION_M[countryId.toUpperCase()] ?? 20
+  return millions * 1_000_000
+}
+
 export const useGameStore = create<GameStoreState>()(persist((set) => ({
   state: null,
   isLoading: false,
@@ -276,7 +311,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         yearsInPower: 0,
       },
       society: {
-        population: isAncient ? 2_000_000 : 50_000_000,
+        population: getBasePopulation(playerCountryId, isAncient),
         populationGrowthRate: isAncient ? 0.5 : 1.2,
         educationIndex: isAncient ? 10 : 55,
         happinessIndex: 60,
@@ -320,7 +355,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     },
     error: null,
   }),
-  clearGame: () => set({ state: null, error: null }),
+  clearGame: () => set({ state: null, error: null, isPaused: false, isJumping: false }),
   setLoading: (v) => set({ isLoading: v }),
   setJumping: (v) => set({ isJumping: v }),
   setError: (msg) => set({ error: msg }),

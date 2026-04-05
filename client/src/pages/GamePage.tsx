@@ -263,6 +263,9 @@ export default function GamePage() {
   const [newsOpen, setNewsOpen] = useState(false)
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set())
   const [techTreeOpen, setTechTreeOpen] = useState(false)
+  const [activeRightPanel, setActiveRightPanel] = useState<'org' | 'advisor' | 'diplomacy' | 'news' | 'tech' | null>(null)
+  const openRightPanel = (p: 'org' | 'advisor' | 'diplomacy' | 'news' | 'tech') =>
+    setActiveRightPanel(prev => prev === p ? null : p)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -290,6 +293,7 @@ export default function GamePage() {
       if (e.key === 'r' || e.key === 'R') {
         if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
           setTechTreeOpen(o => !o)
+          setActiveRightPanel(p => p === 'tech' ? null : 'tech')
         }
       }
     }
@@ -970,10 +974,10 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
         )}
 
         {/* ── News panel ── */}
-        {newsOpen && <NewsPanel onClose={() => setNewsOpen(false)} />}
+        {activeRightPanel === 'news' && newsOpen && <NewsPanel onClose={() => { setNewsOpen(false); setActiveRightPanel(null) }} />}
 
         {/* ── Full-screen Tech Tree overlay ── */}
-        {techTreeOpen && <TechTreeFullscreen onClose={() => setTechTreeOpen(false)} />}
+        {techTreeOpen && <TechTreeFullscreen onClose={() => { setTechTreeOpen(false); setActiveRightPanel(null) }} />}
 
         {/* ── Top HUD ── */}
         <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pt-3 pointer-events-none z-10">
@@ -1039,7 +1043,8 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                 </div>
               )}
             </div>
-            <button onClick={clearGame}
+            <button
+              onClick={() => { if (window.confirm('Start a new game? Unsaved progress will be lost.')) clearGame() }}
               className="px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
               New Game
             </button>
@@ -1177,40 +1182,54 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
 
         {/* ── Bottom-right floating buttons (Tech Tree · Orgs · Advisor · Diplomacy · News · Cheat) ── */}
         <div className="absolute bottom-20 right-4 z-10 flex flex-col items-end gap-2">
-          {/* Tech Tree — sits above Organisations */}
+          {/* Tech Tree */}
           <button
-            onClick={() => setTechTreeOpen(o => !o)}
+            onClick={() => { openRightPanel('tech'); setTechTreeOpen(o => !o) }}
             title="Technology Tree (R)"
             className={`w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-base transition-all ${
-              techTreeOpen
+              activeRightPanel === 'tech'
                 ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
                 : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-blue-300 hover:border-blue-500/40'
             }`}>
             🔬
           </button>
-          <OrgPanel />
-          <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
-          <DiplomacyPanel gameContext={{
-            playerCountry: player?.name ?? gameState.playerCountryId,
-            currentDate: gameState.currentDate,
-            era: gameState.era,
-            yesman: gameState.yesman ?? false,
-            countryNames: Object.values(gameState.countries).map(c => c.name).filter(n => n !== (player?.name ?? '')),
-            stats: stats as unknown as Record<string, number> ?? {},
-            recentHistory,
-            warDamageSummary,
-          }} />
-          {/* News button — right-side panel consistent with Orgs/Advisor */}
+          <OrgPanel
+            isOpen={activeRightPanel === 'org'}
+            onOpen={() => openRightPanel('org')}
+            onClose={() => setActiveRightPanel(null)}
+          />
+          <AdvisorPanel
+            gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }}
+            isOpen={activeRightPanel === 'advisor'}
+            onOpen={() => openRightPanel('advisor')}
+            onClose={() => setActiveRightPanel(null)}
+          />
+          <DiplomacyPanel
+            gameContext={{
+              playerCountry: player?.name ?? gameState.playerCountryId,
+              currentDate: gameState.currentDate,
+              era: gameState.era,
+              yesman: gameState.yesman ?? false,
+              countryNames: Object.values(gameState.countries).map(c => c.name).filter(n => n !== (player?.name ?? '')),
+              stats: stats as unknown as Record<string, number> ?? {},
+              recentHistory,
+              warDamageSummary,
+            }}
+            isOpen={activeRightPanel === 'diplomacy'}
+            onOpen={() => openRightPanel('diplomacy')}
+            onClose={() => setActiveRightPanel(null)}
+          />
+          {/* News button */}
           <button
-            onClick={() => setNewsOpen(o => !o)}
+            onClick={() => { openRightPanel('news'); setNewsOpen(o => !o) }}
             title="World News"
             className={`relative w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-base transition-all ${
-              newsOpen
+              activeRightPanel === 'news'
                 ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
                 : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-white hover:border-white/30'
             }`}>
             📰
-            {breakingNewsCount > 0 && !newsOpen && (
+            {breakingNewsCount > 0 && activeRightPanel !== 'news' && (
               <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
                 {breakingNewsCount > 9 ? '9+' : breakingNewsCount}
               </span>
