@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useGameStore } from '../stores'
+
 import type { GovernmentType } from '@ad-astra/shared/types'
 
 function Meter({ label, value, colour }: { label: string; value: number; colour: string }) {
@@ -38,8 +39,9 @@ const POLICY_OPTIONS = [
   { id: 'austerity',            label: 'Austerity',            effect: '−Debt, −Happiness' },
 ]
 
-export default function PoliticsPanel() {
-  const [open, setOpen] = useState(false)
+interface PoliticsPanelProps { isOpen: boolean; onOpen: () => void; onClose: () => void }
+
+export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanelProps) {
   const [showGovPicker, setShowGovPicker] = useState(false)
   const politics = useGameStore(s => s.state?.politics)
   const setPolitics = useGameStore(s => s.setPolitics)
@@ -67,23 +69,25 @@ export default function PoliticsPanel() {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className="w-9 h-9 rounded-full bg-[#0d1829]/90 border border-white/10 flex items-center justify-center text-base hover:bg-white/[0.08] transition-colors shadow-lg"
+        onClick={() => { if (isOpen) { onClose(); setShowGovPicker(false) } else onOpen() }}
+        className={`w-9 h-9 rounded-full border flex items-center justify-center text-base transition-colors shadow-lg ${
+          isOpen ? 'bg-purple-700/60 border-purple-500/50' : 'bg-[#0d1829]/90 border-white/10 hover:bg-white/[0.08]'
+        }`}
         title="Internal Politics"
       >
         🏛️
       </button>
 
-      {open && (
-        <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      {isOpen && (
+        <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Internal Politics</span>
-            <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white text-xs">✕</button>
+            <button onClick={() => { onClose(); setShowGovPicker(false) }} className="text-gray-500 hover:text-white text-xs">✕</button>
           </div>
 
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
             {/* Government type */}
-            <div>
+            <div className="relative">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Government</p>
               <button
                 onClick={() => setShowGovPicker(p => !p)}
@@ -94,7 +98,7 @@ export default function PoliticsPanel() {
                 <span className="ml-auto text-[10px] text-gray-500">▾</span>
               </button>
               {showGovPicker && (
-                <div className="mt-1 border border-white/10 rounded-lg overflow-hidden">
+                <div className="absolute bottom-full left-0 right-0 mb-1 z-20 bg-[#080f1e]/98 border border-white/10 rounded-lg overflow-hidden shadow-2xl">
                   {GOV_TYPES.map(g => (
                     <button
                       key={g.id}

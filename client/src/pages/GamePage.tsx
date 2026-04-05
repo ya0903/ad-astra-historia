@@ -17,6 +17,7 @@ import EconomyPanel from '../components/EconomyPanel'
 import MilitaryPanel from '../components/MilitaryPanel'
 import PoliticsPanel from '../components/PoliticsPanel'
 import SocietyPanel from '../components/SocietyPanel'
+import EspionagePanel from '../components/EspionagePanel'
 import PlanetSwitcher from '../components/PlanetSwitcher'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
@@ -34,6 +35,7 @@ const CATEGORIES_MODERN: Category[] = [
   { id: 'environment', label: 'Environment', icon: '🌿', actions: ['Plant national forest', 'Create national park', 'Build desalination plant', 'Launch carbon tax', 'Desert reforestation project', 'Invest in renewables'] },
   { id: 'culture', label: 'Culture & Soft Power', icon: '🎭', actions: ['Bid for Olympics', 'Build national stadium', 'Fund film industry', 'Host world summit', 'Launch tourism campaign', 'Promote education abroad'] },
   { id: 'space', label: 'Space Programme', icon: '🚀', actions: ['Launch satellite programme', 'Build launch facility', 'Moon mission proposal', 'Mars colonisation plan', 'Asteroid mining initiative', 'International space partnership'] },
+  { id: 'espionage', label: 'Intelligence & Espionage', icon: '🕵️', actions: ['Establish intelligence agency', 'Increase espionage budget', 'Stage coup in target country', 'Steal advanced technology', 'Fund rebel groups abroad', 'Recruit double agent in rival government', 'Launch disinformation campaign', 'Sabotage enemy nuclear programme', 'Infiltrate terrorist network', 'Covert arms supply to proxy'] },
 ]
 
 const CATEGORIES_ANCIENT: Category[] = [
@@ -256,8 +258,6 @@ export default function GamePage() {
   }
 
   const [actionText, setActionText] = useState('')
-  const [suggestText, setSuggestText] = useState('')
-  const [showAiRefine, setShowAiRefine] = useState(false)
   const [activeTab, setActiveTab] = useState<'categories' | 'free'>('free')
   const [legendOpen, setLegendOpen] = useState(false)
   const [newsOpen, setNewsOpen] = useState(false)
@@ -266,6 +266,9 @@ export default function GamePage() {
   const [activeRightPanel, setActiveRightPanel] = useState<'org' | 'advisor' | 'diplomacy' | 'news' | 'tech' | null>(null)
   const openRightPanel = (p: 'org' | 'advisor' | 'diplomacy' | 'news' | 'tech') =>
     setActiveRightPanel(prev => prev === p ? null : p)
+  const [activeDeepPanel, setActiveDeepPanel] = useState<'economy' | 'military' | 'politics' | 'society' | 'espionage' | null>(null)
+  const openDeepPanel = (p: 'economy' | 'military' | 'politics' | 'society' | 'espionage') =>
+    setActiveDeepPanel(prev => prev === p ? null : p)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -536,15 +539,14 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
     setEditingId(null); setEditText('')
   }
 
-  const handleAiSuggest = async () => {
-    const text = suggestText.trim()
+  const handleAiSuggest = async (inputText?: string) => {
+    const text = (inputText ?? actionText).trim()
     if (!text || !config) return
     setSuggestLoading(true); setSuggestError('')
     try {
       const system = `You are a geopolitical strategy advisor for ${player?.name ?? gameState.playerCountryId} on ${gameState.currentDate}. Refine the idea into one specific actionable policy decision using real place names, resource names, and institutions from ${player?.name ?? gameState.playerCountryId} (e.g. "Nationalise the Thar Coal fields" not "nationalise key industry", "Construct Gwadar free-trade zone" not "build port"). Under 20 words. RESPOND IN ENGLISH ONLY. Output only the refined action text, nothing else.`
       const suggestion = await callAI(config, system, [{ role: 'user', content: text }])
       setActionText(suggestion.trim())
-      setSuggestText(''); setShowAiRefine(false)
     } catch (e) { setSuggestError(e instanceof Error ? e.message : 'AI error') }
     finally { setSuggestLoading(false) }
   }
@@ -637,12 +639,27 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                 <div className="px-3 pt-3 pb-2 border-b border-white/5">
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Sector Levels</p>
                   <div className="grid grid-cols-2 gap-1">
-                    {sectors && Object.entries(sectors).map(([key, val]) => (
-                      <div key={key} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2 py-1">
-                        <span className="text-[10px] text-gray-500 capitalize">{key}</span>
-                        <span className="text-xs text-white font-mono">{val}</span>
-                      </div>
-                    ))}
+                    {sectors && (() => {
+                      const SECTOR_ICONS: Record<string, string> = {
+                        defence: '⚔️', technology: '🔬', manufacturing: '🏭',
+                        space: '🚀', pharmaceuticals: '💊', agriculture: '🌾',
+                        finance: '💹', infrastructure: '🏗️',
+                      }
+                      const SECTOR_LABELS: Record<string, string> = {
+                        defence: 'Defence', technology: 'Tech', manufacturing: 'Mfg',
+                        space: 'Space', pharmaceuticals: 'Pharma', agriculture: 'Agri',
+                        finance: 'Finance', infrastructure: 'Infra',
+                      }
+                      return Object.entries(sectors).map(([key, val]) => (
+                        <div key={key} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2 py-1">
+                          <span className="text-[10px] text-gray-500">
+                            <span className="mr-1">{SECTOR_ICONS[key] ?? '📦'}</span>
+                            {SECTOR_LABELS[key] ?? key}
+                          </span>
+                          <span className="text-xs text-white font-mono">{val}</span>
+                        </div>
+                      ))
+                    })()}
                   </div>
                 </div>
                 <div className="px-3 py-2 space-y-0.5">
@@ -686,34 +703,19 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                     onChange={e => setActionText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleExecute() } }}
                     placeholder="Describe your action… (Enter to queue)"
-                    className="w-full h-20 bg-white/[0.04] border border-white/10 rounded-xl p-3 pr-9 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
+                    className="w-full h-24 bg-white/[0.04] border border-white/10 rounded-xl p-3 pr-9 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
                   />
                   <button
-                    onClick={() => { setShowAiRefine(v => !v); setSuggestError('') }}
-                    title="AI Refine"
+                    onClick={() => { setSuggestError(''); handleAiSuggest(actionText) }}
+                    disabled={!actionText.trim() || suggestLoading || !config}
+                    title="AI Refine — rewrites your text into a specific action"
                     className={`absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-sm ${
-                      showAiRefine ? 'bg-purple-600/60 text-purple-200' : 'bg-white/[0.06] text-gray-500 hover:text-purple-300 hover:bg-purple-900/30'
+                      suggestLoading ? 'bg-purple-600/60 text-purple-200 animate-pulse' : 'bg-white/[0.06] text-gray-500 hover:text-purple-300 hover:bg-purple-900/30 disabled:opacity-30'
                     }`}>
                     ✦
                   </button>
                 </div>
-                {showAiRefine && (
-                  <div className="mt-2 space-y-2">
-                    <textarea
-                      value={suggestText}
-                      onChange={e => setSuggestText(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiSuggest() } }}
-                      placeholder="Describe a goal — AI will refine it into an action…"
-                      className="w-full h-16 bg-purple-950/30 border border-purple-500/20 rounded-xl p-3 text-xs resize-none focus:outline-none focus:border-purple-500/50 text-white placeholder-gray-600"
-                    />
-                    {suggestError && <p className="text-xs text-red-400">{suggestError}</p>}
-                    <button onClick={handleAiSuggest} disabled={!suggestText.trim() || suggestLoading || !config}
-                      className="w-full py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold transition-colors">
-                      {suggestLoading ? 'Thinking…' : '✦ Refine with AI'}
-                    </button>
-                    {!config && <p className="text-[10px] text-amber-400/70 text-center">No AI configured.</p>}
-                  </div>
-                )}
+                {suggestError && <p className="text-xs text-red-400 mt-1">{suggestError}</p>}
                 <button onClick={handleExecute} disabled={!actionText.trim()}
                   className="mt-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
                   Queue Action
@@ -880,7 +882,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
 
         {/* ── Floating Legend panel ── */}
         {legendOpen && (
-          <div className="absolute bottom-16 left-4 z-20 w-64 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+          <div className="absolute bottom-16 left-4 z-20 w-64 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 80px)' }}>
             <div className="sticky top-0 flex items-center justify-between px-3 py-2 border-b border-white/8 bg-[#080f1e]/95">
               <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Map Legend</span>
               <button onClick={() => setLegendOpen(false)} className="text-gray-500 hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 transition-colors">✕</button>
@@ -907,7 +909,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                 })}
               </div>
             </div>
-            <div className="px-3 py-2 space-y-4 text-xs overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+            <div className="px-3 py-2 space-y-4 text-xs overflow-y-auto" style={{ maxHeight: 'calc(100vh - 170px)' }}>
               {/* Cities */}
               <div className={hiddenGroups.has('cities') ? 'opacity-40' : ''}>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Cities</p>
@@ -1173,10 +1175,31 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
         {/* ── Deep system panels (second column, only on Earth view) ── */}
         {activePlanet === 'earth' && (
           <div className="absolute bottom-20 right-16 z-10 flex flex-col items-end gap-2">
-            <EconomyPanel />
-            <MilitaryPanel />
-            <PoliticsPanel />
-            <SocietyPanel />
+            <EconomyPanel
+              isOpen={activeDeepPanel === 'economy'}
+              onOpen={() => openDeepPanel('economy')}
+              onClose={() => setActiveDeepPanel(null)}
+            />
+            <MilitaryPanel
+              isOpen={activeDeepPanel === 'military'}
+              onOpen={() => openDeepPanel('military')}
+              onClose={() => setActiveDeepPanel(null)}
+            />
+            <PoliticsPanel
+              isOpen={activeDeepPanel === 'politics'}
+              onOpen={() => openDeepPanel('politics')}
+              onClose={() => setActiveDeepPanel(null)}
+            />
+            <SocietyPanel
+              isOpen={activeDeepPanel === 'society'}
+              onOpen={() => openDeepPanel('society')}
+              onClose={() => setActiveDeepPanel(null)}
+            />
+            <EspionagePanel
+              isOpen={activeDeepPanel === 'espionage'}
+              onOpen={() => openDeepPanel('espionage')}
+              onClose={() => setActiveDeepPanel(null)}
+            />
           </div>
         )}
 

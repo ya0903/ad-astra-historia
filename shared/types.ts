@@ -66,12 +66,12 @@ export interface CountryStats {
 export interface CountrySectors {
   defence: number
   technology: number
-  batteries: number
-  microchips: number
+  manufacturing: number  // general manufacturing incl. batteries, microchips, heavy industry
   space: number
   pharmaceuticals: number
   agriculture: number
   finance: number
+  infrastructure: number // transport, energy grid, telecoms, public works
 }
 
 export interface Country {
@@ -443,6 +443,8 @@ export interface GameState {
   colonies?: ColonyBase[]
   // ── Active planet view (UI only) ─────────────────────────────────────────
   activePlanet?: PlanetBody
+  // ── Espionage / intelligence ──────────────────────────────────────────────
+  espionage?: EspionageState
 }
 
 // ── Deep simulation state interfaces ─────────────────────────────────────────
@@ -530,4 +532,40 @@ export interface EraStartConditions {
   disputes: Dispute[]
   nonStateActors: NonStateActor[]
   strategicPassages: Record<string, PassageStatus>
+}
+
+// ── Espionage / Intelligence ──────────────────────────────────────────────────
+
+export type EspionageMissionType =
+  | 'coup'            // destabilise foreign government
+  | 'tech_theft'      // steal research/technology
+  | 'fund_rebellion'  // finance separatist/rebel groups
+  | 'assassination'   // remove foreign leader
+  | 'sabotage'        // destroy infrastructure/military
+  | 'disinformation'  // spread propaganda in target country
+  | 'recruit_agent'   // build spy network in target
+
+export type EspionageMissionStatus = 'planning' | 'active' | 'success' | 'failed' | 'blown'
+
+export interface EspionageMission {
+  id: string
+  type: EspionageMissionType
+  targetIso: string          // ISO A3 of target country
+  status: EspionageMissionStatus
+  startDate: string
+  endDate?: string
+  successChance: number      // 0–100
+  description: string
+  outcome?: string
+}
+
+export interface EspionageState {
+  agencyBudget: number       // annual budget in USD
+  agencyTier: number         // 1–5 (tier 1 = global reach like CIA/Mossad)
+  operativeCount: number     // number of trained operatives
+  networkStrength: Record<string, number>  // ISO A3 → 0-100 spy network penetration
+  activeMissions: EspionageMission[]
+  completedMissions: EspionageMission[]
+  detectedBy: string[]       // ISO A3 of countries that have identified you as a threat
+  counterIntelLevel: number  // 0–100 domestic counter-intelligence
 }

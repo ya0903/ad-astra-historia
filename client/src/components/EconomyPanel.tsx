@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useGameStore } from '../stores'
 
 function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; max?: number; colour?: string; label?: string }) {
@@ -23,8 +22,9 @@ function formatMoney(v: number): string {
   return `${sign}$${Math.round(abs)}`
 }
 
-export default function EconomyPanel() {
-  const [open, setOpen] = useState(false)
+interface EconomyPanelProps { isOpen: boolean; onOpen: () => void; onClose: () => void }
+
+export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelProps) {
   const economy = useGameStore(s => s.state?.economy)
   const setEconomy = useGameStore(s => s.setEconomy)
   const gdp = useGameStore(s => s.state?.countries[s.state?.playerCountryId ?? '']?.stats.gdp ?? 0)
@@ -47,18 +47,20 @@ export default function EconomyPanel() {
     <div className="relative">
       {/* Toggle button */}
       <button
-        onClick={() => setOpen(o => !o)}
-        className="w-9 h-9 rounded-full bg-[#0d1829]/90 border border-white/10 flex items-center justify-center text-base hover:bg-white/[0.08] transition-colors shadow-lg"
+        onClick={() => isOpen ? onClose() : onOpen()}
+        className={`w-9 h-9 rounded-full border flex items-center justify-center text-base transition-colors shadow-lg ${
+          isOpen ? 'bg-blue-700/60 border-blue-500/50' : 'bg-[#0d1829]/90 border-white/10 hover:bg-white/[0.08]'
+        }`}
         title="Economy"
       >
         💹
       </button>
 
-      {open && (
+      {isOpen && (
         <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Economy</span>
-            <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white text-xs">✕</button>
+            <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>
           </div>
 
           <div className="p-4 space-y-4">

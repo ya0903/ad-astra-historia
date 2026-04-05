@@ -189,12 +189,12 @@ function defaultSectors(): CountrySectors {
   return {
     defence: 0,
     technology: 0,
-    batteries: 0,
-    microchips: 0,
+    manufacturing: 0,
     space: 0,
     pharmaceuticals: 0,
     agriculture: 0,
     finance: 0,
+    infrastructure: 0,
   }
 }
 

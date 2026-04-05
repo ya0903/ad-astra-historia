@@ -4,7 +4,7 @@ import type {
   GameState, EraStartConditions, Difficulty, GameAction, ActionResult,
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
   RailLine, RailType, NewsItem, EraPhase, EconomyState, MilitaryState, PoliticsState,
-  SocietyState, DiplomacyState, ColonyBase, PlanetBody,
+  SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
@@ -38,7 +38,8 @@ function countryGrowthRate(
   // Sector contributions
   const financeBonus = ((sectors.finance ?? 0) / 100) * 0.012
   const techSectorBonus = ((sectors.technology ?? 0) / 100) * 0.012
-  const industryBonus = ((sectors.industry ?? 0) / 100) * 0.008
+  const industryBonus = ((sectors.manufacturing ?? sectors.industry ?? 0) / 100) * 0.008
+  const infraSectorBonus = ((sectors.infrastructure ?? 0) / 100) * 0.006
 
   // Infrastructure effects — each category capped to avoid runaway stacking
   const ownInfra = infraMap.filter(i => i.countryId === countryId)
@@ -65,7 +66,7 @@ function countryGrowthRate(
 
   const infraTotal = portBonus + airportBonus + railBonus + finInstBonus + indZoneBonus + dataCentre + energyBonus + researchBonus
 
-  const base = 0.022 + convergenceBonus + techBonus + stabilityBonus + approvalBonus + financeBonus + techSectorBonus + industryBonus + infraTotal
+  const base = 0.022 + convergenceBonus + techBonus + stabilityBonus + approvalBonus + financeBonus + techSectorBonus + industryBonus + infraSectorBonus + infraTotal
   return Math.max(-0.05, Math.min(0.15, base))  // cap at -5% to +15%
 }
 
@@ -203,6 +204,7 @@ interface GameStoreState {
   setPolitics: (patch: Partial<PoliticsState>) => void
   setSociety: (patch: Partial<SocietyState>) => void
   setDiplomacyState: (patch: Partial<DiplomacyState>) => void
+  setEspionage: (patch: Partial<EspionageState>) => void
   addColony: (colony: Omit<ColonyBase, 'id'>) => void
   removeColony: (id: string) => void
   upgradeColony: (id: string) => void
@@ -1026,6 +1028,16 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   setDiplomacyState: (patch) => set(s => {
     if (!s.state?.diplomacyState) return {}
     return { state: { ...s.state, diplomacyState: { ...s.state.diplomacyState, ...patch } } }
+  }),
+
+  setEspionage: (patch) => set(s => {
+    if (!s.state) return {}
+    const current = s.state.espionage ?? {
+      agencyBudget: 0, agencyTier: 1, operativeCount: 0,
+      networkStrength: {}, activeMissions: [], completedMissions: [],
+      detectedBy: [], counterIntelLevel: 20,
+    }
+    return { state: { ...s.state, espionage: { ...current, ...patch } } }
   }),
 
   addColony: (colonyData) => set(s => {

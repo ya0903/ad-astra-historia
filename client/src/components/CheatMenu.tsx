@@ -41,8 +41,8 @@ const HELP = `Available commands:
   set cultural <0-100>
   set date <YYYY-MM-DD>
   set sector <name> <0-100>
-    sectors: defence technology batteries microchips
-             space pharmaceuticals agriculture finance
+    sectors: defence technology manufacturing
+             space pharmaceuticals agriculture finance infrastructure
   stability <0-100>               set stability directly
   empire <name>                   rename your empire
   god                             max out everything
@@ -72,7 +72,7 @@ function parseValue(raw: string): number | null {
 }
 
 const STAT_KEYS = ['gdp', 'military', 'approval', 'softpower', 'tech', 'research', 'cultural'] as const
-const SECTOR_KEYS = ['defence', 'technology', 'batteries', 'microchips', 'space', 'pharmaceuticals', 'agriculture', 'finance'] as const
+const SECTOR_KEYS = ['defence', 'technology', 'manufacturing', 'space', 'pharmaceuticals', 'agriculture', 'finance', 'infrastructure'] as const
 
 // ── All tech IDs for quick lookup ─────────────────────────────────────────────
 const ALL_TECH_NODES = [...TECH_TREE, ...ANCIENT_TECH_TREE]
@@ -147,7 +147,7 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
     if (parts[0] === 'god') {
       cheatPatch({
         stats: { gdp: 50e12, military: 100, approval: 100, softPower: 100, techLevel: 100, researchPoints: 9999, culturalReach: 100 },
-        sectors: { defence: 100, technology: 100, batteries: 100, microchips: 100, space: 100, pharmaceuticals: 100, agriculture: 100, finance: 100 },
+        sectors: { defence: 100, technology: 100, manufacturing: 100, space: 100, pharmaceuticals: 100, agriculture: 100, finance: 100, infrastructure: 100 },
       })
       instaBuild()
       instaResearch()

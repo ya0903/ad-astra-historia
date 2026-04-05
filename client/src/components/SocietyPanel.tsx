@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useGameStore } from '../stores'
 
 function StatRow({ label, value, format = 'number', colour }: {
@@ -40,8 +39,9 @@ function IndexBar({ label, value, icon }: { label: string; value: number; icon: 
   )
 }
 
-export default function SocietyPanel() {
-  const [open, setOpen] = useState(false)
+interface SocietyPanelProps { isOpen: boolean; onOpen: () => void; onClose: () => void }
+
+export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelProps) {
   const society = useGameStore(s => s.state?.society)
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
 
@@ -52,18 +52,20 @@ export default function SocietyPanel() {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className="w-9 h-9 rounded-full bg-[#0d1829]/90 border border-white/10 flex items-center justify-center text-base hover:bg-white/[0.08] transition-colors shadow-lg"
+        onClick={() => isOpen ? onClose() : onOpen()}
+        className={`w-9 h-9 rounded-full border flex items-center justify-center text-base transition-colors shadow-lg ${
+          isOpen ? 'bg-emerald-700/60 border-emerald-500/50' : 'bg-[#0d1829]/90 border-white/10 hover:bg-white/[0.08]'
+        }`}
         title="Society"
       >
         👥
       </button>
 
-      {open && (
+      {isOpen && (
         <div className="absolute bottom-11 right-0 w-64 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Society</span>
-            <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white text-xs">✕</button>
+            <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>
           </div>
 
           <div className="p-4 space-y-3">
