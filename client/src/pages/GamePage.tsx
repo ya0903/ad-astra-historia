@@ -3,7 +3,7 @@ import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stor
 import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, LandmarksLayer } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -750,7 +750,10 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
       <div className="flex-1 relative overflow-hidden">
         <WorldMap era={gameState.era}>
           <CountryLayer />
-          {!['greek', 'roman', 'ottoman'].includes(gameState.era) && <ProvincesLayer />}
+          {['greek', 'roman', 'ottoman'].includes(gameState.era)
+            ? <AncientProvincesLayer />
+            : <ProvincesLayer />
+          }
           <BiomesLayer />
           <RiversLayer />
           <CountryLabelOverlay />

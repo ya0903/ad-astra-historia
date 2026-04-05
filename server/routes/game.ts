@@ -153,6 +153,15 @@ interface GeoJSONProperties {
   NAME?: string
   POP_EST?: number
   GDP_MD?: number
+  // Natural Earth admin-1 lowercase fields
+  name?: string
+  adm0_a3?: string
+  // Ancient province annotation fields
+  modernName?: string
+  ancientName?: string
+  polityId?: string
+  adminType?: string
+  [key: string]: unknown  // allow arbitrary extra properties
 }
 
 interface GeoJSONFeatureCollection {
@@ -515,6 +524,288 @@ gameRouter.get('/rivers', (_req, res) => {
     return
   }
   res.json(result.data)
+})
+
+// ── Ancient province lookup tables ───────────────────────────────────────────
+// Each entry: adm0_a3 → { name, polity, adminType }
+// For countries spanning multiple provinces, nameKeywords lets us sub-divide
+// by matching against the admin-1 region name (partial, case-insensitive).
+
+interface AncientProvinceInfo { name: string; polity: string; adminType: string }
+
+// Priority list: first matching keywords entry wins; fall-through to default.
+type ProvinceRule =
+  | { adm0: string; keywords: string[]; name: string; polity: string; adminType: string }
+  | { adm0: string; keywords?: never;   name: string; polity: string; adminType: string }
+
+const ROMAN_PROVINCE_RULES: ProvinceRule[] = [
+  // ── Iberian Peninsula ─────────────────────────────────────────────────────
+  { adm0:'ESP', keywords:['Andaluc','Murcia','Extremadura','Ceuta'],      name:'Hispania Baetica',       polity:'ROM', adminType:'province' },
+  { adm0:'ESP',                                                            name:'Hispania Tarraconensis', polity:'ROM', adminType:'province' },
+  { adm0:'PRT',                                                            name:'Lusitania',              polity:'ROM', adminType:'province' },
+  // ── Gallia (France + surrounds) ───────────────────────────────────────────
+  { adm0:'FRA', keywords:['Provence','Occitanie','Auvergne','Corse'],      name:'Gallia Narbonensis',    polity:'ROM', adminType:'province' },
+  { adm0:'FRA', keywords:['Hauts-de-France','Grand Est','Alsace'],         name:'Gallia Belgica',        polity:'ROM', adminType:'province' },
+  { adm0:'FRA', keywords:['Nouvelle-Aquitaine'],                            name:'Gallia Aquitania',     polity:'ROM', adminType:'province' },
+  { adm0:'FRA',                                                             name:'Gallia Lugdunensis',   polity:'ROM', adminType:'province' },
+  { adm0:'BEL',                                                             name:'Gallia Belgica',       polity:'ROM', adminType:'province' },
+  { adm0:'NLD',                                                             name:'Germania Inferior',    polity:'ROM', adminType:'province' },
+  { adm0:'LUX',                                                             name:'Gallia Belgica',       polity:'ROM', adminType:'province' },
+  // ── Britannia ─────────────────────────────────────────────────────────────
+  { adm0:'GBR', keywords:['Scotland','Highland','Grampian','Lothian'],     name:'Caledonia (uncontrolled)', polity:'GER', adminType:'tribal' },
+  { adm0:'GBR',                                                            name:'Britannia',              polity:'ROM', adminType:'province' },
+  // ── Rhine / Alps ──────────────────────────────────────────────────────────
+  { adm0:'DEU', keywords:['Bayern','Baden','Württemberg','Freiburg'],      name:'Raetia',                polity:'ROM', adminType:'province' },
+  { adm0:'DEU', keywords:['Nordrhein','Rheinland','Saarland','Pfalz'],     name:'Germania Inferior',     polity:'ROM', adminType:'province' },
+  { adm0:'DEU',                                                             name:'Germania Libera',       polity:'GER', adminType:'tribal' },
+  { adm0:'CHE',                                                             name:'Raetia',                polity:'ROM', adminType:'province' },
+  { adm0:'AUT',                                                             name:'Noricum',               polity:'ROM', adminType:'province' },
+  // ── Danube provinces ──────────────────────────────────────────────────────
+  { adm0:'HUN',                                                             name:'Pannonia',              polity:'ROM', adminType:'province' },
+  { adm0:'HRV',                                                             name:'Dalmatia',              polity:'ROM', adminType:'province' },
+  { adm0:'SVN',                                                             name:'Pannonia Superior',     polity:'ROM', adminType:'province' },
+  { adm0:'BIH',                                                             name:'Dalmatia',              polity:'ROM', adminType:'province' },
+  { adm0:'SRB', keywords:['Kosovo'],                                        name:'Moesia Superior',       polity:'ROM', adminType:'province' },
+  { adm0:'SRB',                                                             name:'Moesia Superior',       polity:'ROM', adminType:'province' },
+  { adm0:'ROU', keywords:['Cluj','Sibiu','Hunedoara','Braşov','Alba'],      name:'Dacia',                 polity:'ROM', adminType:'province' },
+  { adm0:'ROU',                                                             name:'Moesia Inferior',       polity:'ROM', adminType:'province' },
+  { adm0:'BGR',                                                             name:'Thracia / Moesia',      polity:'ROM', adminType:'province' },
+  { adm0:'MKD',                                                             name:'Macedonia',             polity:'ROM', adminType:'province' },
+  { adm0:'ALB',                                                             name:'Epirus Nova',           polity:'ROM', adminType:'province' },
+  { adm0:'MNE',                                                             name:'Dalmatia',              polity:'ROM', adminType:'province' },
+  // ── Greece ────────────────────────────────────────────────────────────────
+  { adm0:'GRC', keywords:['Macedonia','Thrace'],                            name:'Macedonia',             polity:'ROM', adminType:'province' },
+  { adm0:'GRC', keywords:['Epirus'],                                        name:'Epirus',                polity:'ROM', adminType:'province' },
+  { adm0:'GRC',                                                             name:'Achaea',                polity:'ROM', adminType:'province' },
+  { adm0:'CYP',                                                             name:'Cyprus',                polity:'ROM', adminType:'province' },
+  // ── Anatolia & Levant ─────────────────────────────────────────────────────
+  { adm0:'TUR', keywords:['İstanbul','Edirne','Kırklareli','Tekirdağ'],     name:'Bithynia et Pontus',    polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['İzmir','Manisa','Balıkesir','Bursa','Çanakkale','Aydın','Muğla','Afyon','Kütahya'], name:'Asia',  polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['Konya','Ankara','Eskişehir','Karaman'],          name:'Galatia',               polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['Adana','Mersin','Hatay','Gaziantep','Kilis'],    name:'Cilicia',               polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['Kayseri','Sivas','Tokat','Amasya'],              name:'Cappadocia',            polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['Trabzon','Rize','Giresun','Ordu','Samsun'],      name:'Pontus',                polity:'ROM', adminType:'province' },
+  { adm0:'TUR', keywords:['Erzurum','Kars','Ağrı','Van'],                   name:'Armenia Minor',         polity:'ROM', adminType:'province' },
+  { adm0:'TUR',                                                              name:'Lycia et Pamphylia',   polity:'ROM', adminType:'province' },
+  { adm0:'SYR',                                                              name:'Syria Coele',          polity:'ROM', adminType:'province' },
+  { adm0:'LBN',                                                              name:'Syria Phoenice',       polity:'ROM', adminType:'province' },
+  { adm0:'ISR',                                                              name:'Judaea',               polity:'ROM', adminType:'province' },
+  { adm0:'PSE',                                                              name:'Judaea',               polity:'ROM', adminType:'province' },
+  { adm0:'JOR',                                                              name:'Arabia Petraea',       polity:'ROM', adminType:'province' },
+  { adm0:'IRQ', keywords:['Baghdad','Wasit','Diyala','Basra'],               name:'Mesopotamia',          polity:'ROM', adminType:'province' },
+  { adm0:'IRQ',                                                              name:'Mesopotamia (Parthian)', polity:'PAR', adminType:'province' },
+  // ── North Africa ──────────────────────────────────────────────────────────
+  { adm0:'EGY',                                                              name:'Aegyptus',             polity:'ROM', adminType:'province' },
+  { adm0:'LBY',                                                              name:'Cyrenaica',            polity:'ROM', adminType:'province' },
+  { adm0:'TUN',                                                              name:'Africa Proconsularis', polity:'ROM', adminType:'province' },
+  { adm0:'DZA', keywords:['Constantine','Annaba','Guelma','Souk Ahras','Skikda'],  name:'Numidia',        polity:'ROM', adminType:'province' },
+  { adm0:'DZA',                                                              name:'Mauretania Caesariensis', polity:'ROM', adminType:'province' },
+  { adm0:'MAR',                                                              name:'Mauretania Tingitana', polity:'ROM', adminType:'province' },
+  // ── Italia ────────────────────────────────────────────────────────────────
+  { adm0:'ITA',                                                              name:'Italia',               polity:'ROM', adminType:'peninsula' },
+  { adm0:'MLT',                                                              name:'Melita',               polity:'ROM', adminType:'province' },
+  { adm0:'MCO',                                                              name:'Gallia Narbonensis',   polity:'ROM', adminType:'province' },
+  { adm0:'AND',                                                              name:'Hispania Tarraconensis', polity:'ROM', adminType:'province' },
+  { adm0:'SMR',                                                              name:'Italia',               polity:'ROM', adminType:'peninsula' },
+  // ── Armenia ───────────────────────────────────────────────────────────────
+  { adm0:'ARM',                                                              name:'Armenia',              polity:'ARK', adminType:'kingdom' },
+  // ── Parthian territories ──────────────────────────────────────────────────
+  { adm0:'IRN',  keywords:['Tehran','Khorasan','Isfahan','Fars','Kerman','Yazd'], name:'Parthia/Persia', polity:'PAR', adminType:'satrapy' },
+  { adm0:'IRN',  keywords:['Azerbaijan','Gilan','Mazandaran'],               name:'Media Atropatene',     polity:'PAR', adminType:'satrapy' },
+  { adm0:'IRN',                                                              name:'Parthian Homeland',    polity:'PAR', adminType:'satrapy' },
+  { adm0:'TKM',                                                              name:'Margiana',             polity:'PAR', adminType:'satrapy' },
+  // ── Kushan Empire ─────────────────────────────────────────────────────────
+  { adm0:'AFG',                                                              name:'Bactria / Ariana',     polity:'KUS', adminType:'satrapy' },
+  { adm0:'PAK',                                                              name:'Gandhara',             polity:'KUS', adminType:'satrapy' },
+  { adm0:'IND',  keywords:['Punjab','Haryana','Rajasthan','Gujarat','Uttar'],name:'Kushan India',         polity:'KUS', adminType:'satrapy' },
+  { adm0:'IND',                                                              name:'Deccan Kingdoms',      polity:'DEC', adminType:'kingdom' },
+  { adm0:'UZB',                                                              name:'Sogdiana',             polity:'KUS', adminType:'satrapy' },
+  { adm0:'TJK',                                                              name:'Bactria',              polity:'KUS', adminType:'satrapy' },
+  // ── Axum / Nubia / Arabia ──────────────────────────────────────────────────
+  { adm0:'ETH',                                                              name:'Axum',                 polity:'AXU', adminType:'kingdom' },
+  { adm0:'ERI',                                                              name:'Axum',                 polity:'AXU', adminType:'kingdom' },
+  { adm0:'SDN',                                                              name:'Nubia / Meroe',        polity:'NUB', adminType:'kingdom' },
+  { adm0:'SAU',                                                              name:'Arabia Felix',         polity:'ARA', adminType:'kingdom' },
+  { adm0:'YEM',                                                              name:'Arabia Felix',         polity:'ARA', adminType:'kingdom' },
+]
+
+const OTTOMAN_PROVINCE_RULES: ProvinceRule[] = [
+  // Core Anatolian provinces
+  { adm0:'TUR', keywords:['İstanbul','Edirne','Tekirdağ','Kırklareli'],     name:'Rumelia (Trakya)',     polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['İzmir','Manisa','Balıkesir','Bursa','Aydın','Muğla'], name:'Anadolu Eyaleti', polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Konya','Karaman','Isparta','Burdur'],             name:'Karaman Eyaleti',     polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Sivas','Tokat','Amasya','Çorum'],                 name:'Rum Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Trabzon','Rize','Giresun','Ordu'],                name:'Trabzon Eyaleti',     polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Diyarbakır','Mardin','Batman','Siirt'],           name:'Diyarbakır Eyaleti',  polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Maraş','Kahramanmaraş','Adıyaman'],               name:'Dulkadirli Eyaleti',  polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Adana','Mersin','Hatay','Kilis'],                 name:'Adana Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR', keywords:['Erzurum','Kars','Ağrı','Ardahan'],                name:'Erzurum Eyaleti',     polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUR',                                                              name:'Anadolu Eyaleti',     polity:'OTT', adminType:'eyalet' },
+  // Rumelia (Balkans)
+  { adm0:'GRC', keywords:['Macedonia','Thrace'],                             name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'GRC', keywords:['Peloponnese','Ionian'],                           name:'Mora Eyaleti',        polity:'OTT', adminType:'eyalet' },
+  { adm0:'GRC',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'BGR',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'SRB',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'BIH',                                                              name:'Bosna Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'ALB',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'MKD',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'MNE',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'XKX',                                                              name:'Rumeli Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'ROU',                                                              name:'Tuna Nehri Sınırı',   polity:'OTT', adminType:'vassal' },
+  { adm0:'CYP',                                                              name:'Kıbrıs (Ottoman)',    polity:'OTT', adminType:'eyalet' },
+  // Arab provinces
+  { adm0:'SYR',                                                              name:'Şam Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'LBN',                                                              name:'Şam Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'ISR',                                                              name:'Şam Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'PSE',                                                              name:'Şam Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'JOR',                                                              name:'Şam Eyaleti',         polity:'OTT', adminType:'eyalet' },
+  { adm0:'IRQ', keywords:['Baghdad','Wasit','Karbala','Najaf'],              name:'Bağdat Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'IRQ', keywords:['Basra','Maysan','Dhi Qar'],                       name:'Basra Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'IRQ', keywords:['Mosul','Dohuk','Erbil','Sulaymaniyah'],           name:'Musul Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'IRQ',                                                              name:'Bağdat Eyaleti',      polity:'OTT', adminType:'eyalet' },
+  { adm0:'SAU',                                                              name:'Hicaz Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'KWT',                                                              name:'Basra Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'EGY',                                                              name:'Mısır Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'LBY',                                                              name:'Trablusgarp Eyaleti', polity:'OTT', adminType:'eyalet' },
+  { adm0:'TUN',                                                              name:'Tunus Eyaleti',       polity:'OTT', adminType:'eyalet' },
+  { adm0:'DZA',                                                              name:'Cezayir Eyaleti',     polity:'OTT', adminType:'eyalet' },
+  // Non-Ottoman powers
+  { adm0:'IRN',                                                              name:'Safavid Province',    polity:'SAF', adminType:'province' },
+  { adm0:'ARM',                                                              name:'Safavid Armenia',     polity:'SAF', adminType:'province' },
+  { adm0:'AZE',                                                              name:'Safavid Azerbaijan',  polity:'SAF', adminType:'province' },
+  { adm0:'HUN', keywords:['Győr-Moson','Komárom','Fejér','Veszprém','Vas','Zala','Somogy','Baranya','Tolna'], name:'Budin Eyaleti', polity:'OTT', adminType:'eyalet' },
+  { adm0:'HUN',                                                              name:'Royal Hungary',       polity:'HAB', adminType:'kingdom' },
+  { adm0:'HRV',                                                              name:'Croatia (Habsburg)',  polity:'HAB', adminType:'kingdom' },
+  { adm0:'AUT',                                                              name:'Archduchy of Austria',polity:'HAB', adminType:'duchy' },
+  { adm0:'DEU',                                                              name:'Holy Roman Empire',   polity:'HRE', adminType:'territory' },
+  { adm0:'CHE',                                                              name:'Swiss Confederation', polity:'HRE', adminType:'territory' },
+  { adm0:'FRA',                                                              name:'Kingdom of France',   polity:'FRA', adminType:'province' },
+  { adm0:'GBR',                                                              name:'Kingdom of England',  polity:'ENG', adminType:'kingdom' },
+  { adm0:'ESP',                                                              name:'Crown of Castile',    polity:'ESP', adminType:'kingdom' },
+  { adm0:'PRT',                                                              name:'Kingdom of Portugal', polity:'POR', adminType:'kingdom' },
+  { adm0:'POL',                                                              name:'Poland-Lithuania',    polity:'PLT', adminType:'voivodeship' },
+  { adm0:'LTU',                                                              name:'Grand Duchy of Lithuania', polity:'PLT', adminType:'duchy' },
+  { adm0:'RUS',                                                              name:'Muscovy',             polity:'MUS', adminType:'principality' },
+  { adm0:'ITA', keywords:['Veneto','Friuli','Istria'],                        name:'Republic of Venice', polity:'VNC', adminType:'territory' },
+  { adm0:'ITA',                                                              name:'Italian States',      polity:'HRE', adminType:'territory' },
+  { adm0:'ETH',                                                              name:'Ethiopian Empire',    polity:'ETI', adminType:'kingdom' },
+  { adm0:'MOR',                                                              name:'Saadian Morocco',     polity:'MOR', adminType:'kingdom' },
+]
+
+const GREEK_PROVINCE_RULES: ProvinceRule[] = [
+  // ── Greece proper ─────────────────────────────────────────────────────────
+  { adm0:'GRC', keywords:['Macedonia','Thrace'],                             name:'Macedon',             polity:'MAC', adminType:'kingdom' },
+  { adm0:'GRC', keywords:['Epirus'],                                         name:'Epirus',              polity:'EPI', adminType:'kingdom' },
+  { adm0:'GRC', keywords:['Thessaly','Larissa'],                              name:'Thessaly',            polity:'THS', adminType:'league' },
+  { adm0:'GRC', keywords:['Central','Boeotia','Phocis','Locris'],             name:'Boeotia / Thebes',    polity:'THE', adminType:'region' },
+  { adm0:'GRC', keywords:['Attica'],                                          name:'Attica',              polity:'ATH', adminType:'region' },
+  { adm0:'GRC', keywords:['Peloponnese','Laconia','Messenia'],                name:'Laconia / Sparta',    polity:'SPA', adminType:'region' },
+  { adm0:'GRC', keywords:['Achaea','Corinth','Argolis'],                      name:'Achaea / Corinth',    polity:'ACH', adminType:'region' },
+  { adm0:'GRC', keywords:['Crete'],                                           name:'Crete',               polity:'KMT', adminType:'island' },
+  { adm0:'GRC', keywords:['Aegean','Cyclades','Dodecanese','Northern Aegean'],name:'Aegean Islands',      polity:'ATH', adminType:'island' },
+  { adm0:'GRC',                                                               name:'Greek Mainland',      polity:'ATH', adminType:'region' },
+  // ── Macedonia / Thrace ─────────────────────────────────────────────────────
+  { adm0:'MKD',                                                               name:'Upper Macedon',       polity:'MAC', adminType:'region' },
+  { adm0:'BGR',                                                               name:'Thrace',              polity:'SCY', adminType:'tribal' },
+  { adm0:'SRB',                                                               name:'Illyria / Paeonia',   polity:'ILY', adminType:'tribal' },
+  { adm0:'ALB',                                                               name:'Illyria',             polity:'ILY', adminType:'tribal' },
+  { adm0:'MNE',                                                               name:'Illyria',             polity:'ILY', adminType:'tribal' },
+  // ── Anatolia ──────────────────────────────────────────────────────────────
+  { adm0:'TUR', keywords:['İzmir','Manisa','Aydın','Muğla','Çanakkale'],     name:'Ionia / Lydia',       polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR', keywords:['Bursa','Bilecik','Bolu'],                          name:'Bithynia / Mysia',    polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR', keywords:['Ankara','Konya','Afyon','Kütahya','Eskişehir'],   name:'Phrygia',             polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR', keywords:['Kayseri','Sivas','Tokat','Yozgat','Amasya'],       name:'Cappadocia / Pontus', polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR', keywords:['Adana','Mersin','Hatay'],                          name:'Cilicia',             polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR', keywords:['Antalya','Burdur','Isparta'],                      name:'Lycia / Pamphylia',   polity:'TRH', adminType:'satrapy' },
+  { adm0:'TUR',                                                               name:'Anatolia',            polity:'TRH', adminType:'satrapy' },
+  // ── Persia / East ─────────────────────────────────────────────────────────
+  { adm0:'IRN',                                                               name:'Persia / Media',      polity:'EUN', adminType:'satrapy' },
+  { adm0:'IRQ',                                                               name:'Babylonia / Assyria', polity:'EUN', adminType:'satrapy' },
+  { adm0:'SYR',                                                               name:'Syria',               polity:'EUN', adminType:'satrapy' },
+  { adm0:'ISR',                                                               name:'Phoenicia / Coele-Syria', polity:'EUN', adminType:'satrapy' },
+  { adm0:'LBN',                                                               name:'Phoenicia',           polity:'EUN', adminType:'satrapy' },
+  { adm0:'EGY',                                                               name:'Egypt',               polity:'KMT', adminType:'satrapy' },
+  { adm0:'ARM',                                                               name:'Armenia',             polity:'EUN', adminType:'satrapy' },
+  { adm0:'AZE',                                                               name:'Caucasian Albania',   polity:'EUN', adminType:'satrapy' },
+  // ── Western Mediterranean ─────────────────────────────────────────────────
+  { adm0:'ITA', keywords:['Sicilia'],                                          name:'Sicily',             polity:'SRC', adminType:'region' },
+  { adm0:'ITA',                                                                name:'Magna Graecia / Italic Peoples', polity:'ITL', adminType:'tribal' },
+  { adm0:'TUN',                                                                name:'Carthage',           polity:'CAR', adminType:'city-state' },
+  { adm0:'ESP',                                                                name:'Iberian Peoples',    polity:'CEL', adminType:'tribal' },
+  { adm0:'FRA',                                                                name:'Celtic Gaul',        polity:'CEL', adminType:'tribal' },
+  { adm0:'CYP',                                                                name:'Cyprus',             polity:'EUN', adminType:'satrapy' },
+]
+
+const ERA_PROVINCE_RULES: Record<string, ProvinceRule[]> = {
+  roman: ROMAN_PROVINCE_RULES,
+  ottoman: OTTOMAN_PROVINCE_RULES,
+  greek: GREEK_PROVINCE_RULES,
+}
+
+/** Apply province rules to a GeoJSON feature collection (Natural Earth admin-1).
+ *  Returns a new FeatureCollection with only features that have a matching rule,
+ *  each annotated with ancient province metadata. */
+function applyProvinceRules(
+  geojson: GeoJSONFeatureCollection,
+  rules: ProvinceRule[],
+): GeoJSONFeatureCollection {
+  const features: GeoJSONFeatureCollection['features'] = []
+
+  for (const feature of geojson.features) {
+    const props = feature.properties as Record<string, unknown>
+    const adm0 = ((props.adm0_a3 ?? props.ADM0_A3 ?? '') as string).toUpperCase()
+    const regionName = ((props.name ?? props.NAME ?? '') as string)
+
+    // Find matching rule: keyword-first (specific), then default (catch-all)
+    const keywordRule = rules.find(r =>
+      r.adm0 === adm0 && r.keywords && r.keywords.some(k => regionName.includes(k))
+    )
+    const defaultRule = rules.find(r => r.adm0 === adm0 && !r.keywords)
+    const rule = keywordRule ?? defaultRule
+    if (!rule) continue
+
+    features.push({
+      ...feature,
+      properties: {
+        ...props,
+        // Preserve original name for tooltip
+        modernName: regionName,
+        // Ancient province metadata
+        ancientName: rule.name,
+        polityId: rule.polity,
+        adminType: rule.adminType,
+        // Keep adm0_a3 for downstream logic
+        adm0_a3: adm0,
+      },
+    })
+  }
+
+  return { type: 'FeatureCollection', features }
+}
+
+// GET /api/game/ancient-provinces/:era
+gameRouter.get('/ancient-provinces/:era', (req, res) => {
+  const { era } = req.params
+  const rules = ERA_PROVINCE_RULES[era]
+  if (!rules) {
+    res.status(400).json({ error: `No province rules for era: ${era}` })
+    return
+  }
+
+  const provincesPath = join(ERAS_DIR, 'provinces.geojson')
+  const result = readEraFile(provincesPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'provinces.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read provinces file' })
+    return
+  }
+
+  const enriched = applyProvinceRules(result.data, rules)
+  res.json(enriched)
 })
 
 // GET /api/game/provinces — Natural Earth 50m admin-1 states/provinces
