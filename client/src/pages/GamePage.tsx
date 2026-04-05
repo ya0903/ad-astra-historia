@@ -222,6 +222,7 @@ export default function GamePage() {
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveError, setSaveError] = useState<string>('')
   const [cheatOpen, setCheatOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -307,9 +308,11 @@ export default function GamePage() {
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
     } catch (e) {
-      console.error('[Save] failed:', e instanceof Error ? e.message : e)
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[Save] failed:', msg)
+      setSaveError(msg)
       setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 3000)
+      setTimeout(() => { setSaveStatus('idle'); setSaveError('') }, 5000)
     }
   }
 
@@ -917,11 +920,24 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <span>Lore</span>
               {lore.length > 0 && <span className="bg-amber-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{lore.length}</span>}
             </button>
-            <button onClick={handleSave}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-300 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
-              {saveStatus === 'saving' ? '⏳' : saveStatus === 'saved' ? '✓' : saveStatus === 'error' ? '!' : '💾'}
-              <span>{saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Error' : 'Save'}</span>
-            </button>
+            <div className="relative group">
+              <button onClick={handleSave}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-md border text-xs font-semibold transition-all shadow-xl ${
+                  saveStatus === 'error'
+                    ? 'bg-red-950/60 border-red-700/50 text-red-300'
+                    : saveStatus === 'saved'
+                      ? 'bg-green-950/60 border-green-700/50 text-green-300'
+                      : 'bg-[#080f1e]/80 border-white/10 text-gray-300 hover:text-white hover:border-white/20'
+                }`}>
+                {saveStatus === 'saving' ? '⏳' : saveStatus === 'saved' ? '✓' : saveStatus === 'error' ? '⚠' : '💾'}
+                <span>{saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Error' : 'Save'}</span>
+              </button>
+              {saveStatus === 'error' && saveError && (
+                <div className="absolute bottom-full left-0 mb-2 z-50 bg-red-950 border border-red-700/60 rounded-lg px-3 py-2 text-[11px] text-red-200 whitespace-nowrap shadow-xl max-w-xs">
+                  {saveError}
+                </div>
+              )}
+            </div>
             <button onClick={clearGame}
               className="px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
               New Game
