@@ -302,8 +302,15 @@ export default function GamePage() {
 
   const handleSave = async () => {
     setSaveStatus('saving')
-    try { await saveGame('autosave', gameState); setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000) }
-    catch { setSaveStatus('error'); setTimeout(() => setSaveStatus('idle'), 3000) }
+    try {
+      await saveGame('autosave', gameState)
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } catch (e) {
+      console.error('[Save] failed:', e instanceof Error ? e.message : e)
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    }
   }
 
   const handleExecute = () => {

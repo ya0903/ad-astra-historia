@@ -36,8 +36,9 @@ export function createSavesRouter(savesDir: string) {
       mkdirSync(userDir, { recursive: true })
       writeFileSync(filePath, JSON.stringify(body))
       return res.status(201).json({ saved: true, filename })
-    } catch {
-      return res.status(500).json({ error: 'Failed to write save file' })
+    } catch (err) {
+      console.error('[saves] write failed:', err)
+      return res.status(500).json({ error: `Failed to write save file: ${(err as Error).message}` })
     }
   })
 
