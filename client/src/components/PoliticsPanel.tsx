@@ -78,6 +78,26 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
         🏛️
       </button>
 
+      {/* Gov picker flyout — anchored to outer relative, flies left of the main panel */}
+      {isOpen && showGovPicker && (
+        <div className="absolute bottom-11 right-full mr-2 w-48 z-30 bg-[#080f1e]/98 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-white/[0.07]">
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Government Type</p>
+          </div>
+          {GOV_TYPES.map(g => (
+            <button
+              key={g.id}
+              onClick={() => { setPolitics({ governmentType: g.id }); setShowGovPicker(false) }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-[10px] transition-colors ${
+                politics.governmentType === g.id ? 'bg-blue-500/20 text-blue-300' : 'text-gray-400 hover:bg-white/[0.06]'
+              }`}
+            >
+              <span>{g.icon}</span><span>{g.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {isOpen && (
         <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
@@ -85,7 +105,7 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
             <button onClick={() => { onClose(); setShowGovPicker(false) }} className="text-gray-500 hover:text-white text-xs">✕</button>
           </div>
 
-          {/* Government type — outside scroll area so dropdown isn't clipped */}
+          {/* Government type */}
           <div className="px-4 pt-3 pb-2 border-b border-white/[0.05]">
             <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Government</p>
             <button
@@ -96,21 +116,6 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
               <span className="text-xs text-white font-medium">{govInfo?.label ?? politics.governmentType}</span>
               <span className="ml-auto text-[10px] text-gray-500">{showGovPicker ? '▴' : '▾'}</span>
             </button>
-            {showGovPicker && (
-              <div className="mt-1 bg-[#080f1e] border border-white/10 rounded-lg overflow-hidden shadow-2xl">
-                {GOV_TYPES.map(g => (
-                  <button
-                    key={g.id}
-                    onClick={() => { setPolitics({ governmentType: g.id }); setShowGovPicker(false) }}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-[10px] transition-colors ${
-                      politics.governmentType === g.id ? 'bg-blue-500/20 text-blue-300' : 'text-gray-400 hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <span>{g.icon}</span><span>{g.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
