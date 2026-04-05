@@ -1,4 +1,4 @@
-export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern' | 'greek' | 'roman' | 'ottoman'
+export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern' | 'greek' | 'roman' | 'ottoman' | 'abbasid' | 'tang' | 'aztec' | 'songhai' | 'sengoku'
 export type Difficulty = 'passive' | 'realistic' | 'aggressive'
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'custom'
 export type RelationType = 'allied' | 'friendly' | 'neutral' | 'tense' | 'hostile' | 'at_war'

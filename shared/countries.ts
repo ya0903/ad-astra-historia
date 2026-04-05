@@ -114,6 +114,57 @@ export const COUNTRY_COLOURS: Record<string, string> = {
   ETI: '#078930',   // Ethiopia (Ottoman era) — green
   VNC: '#9B1B1B',   // Venice (Ottoman era) — crimson
   HRE: '#DD0000',   // Holy Roman Empire — red
+  // ── Abbasid era (800 CE) ─────────────────────────────────────────────────
+  ABB: '#2A6A3A',   // Abbasid Caliphate — emerald green
+  BYZ: '#7B1A8C',   // Byzantine Empire — imperial purple
+  FRK: '#003580',   // Frankish Empire — royal blue
+  UMA: '#CC5500',   // Umayyad Al-Andalus — orange
+  SAM: '#8A6A2A',   // Samanid/Tahirid Persia — ochre
+  KHZ: '#5A8A3A',   // Khazar Khaganate — olive
+  BUL: '#6A2A2A',   // Bulgarian Empire — dark red
+  IDR: '#C44A1A',   // Idrisid Morocco — terracotta
+  PRH: '#2A4A8A',   // Pratihara India — indigo
+  PAL: '#1A6A4A',   // Pala Bengal — dark teal
+  // ── Tang Dynasty era (700 CE) ────────────────────────────────────────────
+  TNG: '#C40000',   // Tang Dynasty — vermilion red
+  TIB: '#8B4513',   // Tibetan Empire — saddle brown
+  GOK: '#5A7A2A',   // Göktürk / Uyghur — yellow-green
+  SLL: '#2A7A5A',   // Silla (Korea) — jade green
+  NAR: '#8B0000',   // Nara Japan — dark red
+  NNZ: '#7A4A1A',   // Nanzhao (Yunnan) — warm brown
+  KHR: '#4A7A2A',   // Khmer Empire (Tang era) — forest green
+  CLK: '#6A4A8A',   // Chalukya India (Tang era) — violet
+  // ── Aztec era (1500 CE) ──────────────────────────────────────────────────
+  AZT: '#8B0000',   // Aztec Triple Alliance — dark red
+  TLX: '#4A7A1A',   // Tlaxcala — olive green
+  MYA: '#1A6A6A',   // Maya city-states — teal
+  INC: '#C4A000',   // Inca Empire — gold
+  NAH: '#6A4A2A',   // Other Nahua — brown
+  MIX: '#8A2A8A',   // Mixtec — purple
+  CRB: '#1A4A8A',   // Caribbean peoples — ocean blue
+  TUP: '#2A8A2A',   // Tupi (Brazil) — green
+  // ── Songhai era (1490 CE) ────────────────────────────────────────────────
+  SGH: '#C4841A',   // Songhai Empire — amber (distinct from SON)
+  MLR: '#8A6A00',   // Mali remnants (Songhai era) — dark gold
+  KNB: '#6A4A00',   // Kanem-Bornu — brown
+  BNI: '#CC2200',   // Benin Kingdom — red
+  KNG: '#2A6A2A',   // Kongo Kingdom — forest green
+  ZIM: '#8A4A00',   // Mutapa/Zimbabwe — copper
+  YOR: '#AA3300',   // Yoruba/Oyo — burnt orange
+  AKN: '#6A8A00',   // Akan/Ashanti — yellow-green
+  // ── Sengoku era (1560 CE) ────────────────────────────────────────────────
+  ODA: '#1A1A8A',   // Oda clan — dark blue
+  TAK: '#8A1A1A',   // Takeda clan — dark red
+  UES: '#1A8A1A',   // Uesugi clan — dark green
+  MOT: '#8A4A1A',   // Mori clan — copper
+  SHI: '#CC0066',   // Shimazu clan — crimson
+  HOJ: '#1A6A6A',   // Hojo clan — teal
+  DAT: '#6A1A8A',   // Date clan — purple
+  IMA: '#8A6A1A',   // Imagawa clan — gold-brown
+  CHO: '#1A8A6A',   // Chosokabe — sea green
+  ASH: '#8A8A00',   // Ashikaga Shogunate — olive
+  JOS: '#2A5A8A',   // Joseon Korea — steel blue
+  MIN: '#CC0000',   // Ming Dynasty (Sengoku era) — red
 }
 
 export const ERA_START_DATES: Record<Era, string> = {
@@ -125,6 +176,11 @@ export const ERA_START_DATES: Record<Era, string> = {
   'greek':   '0431-01-01',
   'roman':   '0117-01-01',
   'ottoman': '1520-01-01',
+  'abbasid': '0800-01-01',
+  'tang':    '0700-01-01',
+  'aztec':   '1500-01-01',
+  'songhai': '1490-01-01',
+  'sengoku': '1560-01-01',
 }
 
 export function getCountryColour(isoA3: string): string {

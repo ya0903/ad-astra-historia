@@ -81,6 +81,36 @@ export const ERA_DISPUTES: Record<Era, Dispute[]> = {
     { id: 'ott-saf', name: 'Ottoman-Safavid War', parties: ['OTT', 'SAF'], status: 'active', history: ['Battle of Chaldiran 1514 — Ottomans defeat Safavids', 'Religious conflict: Sunni Ottomans vs Shia Safavids', 'Control of Mesopotamia and Azerbaijan disputed'] },
     { id: 'med-piracy', name: 'Mediterranean Piracy', parties: ['OTT', 'VEN', 'POR', 'HAB'], status: 'active', history: ['Barbary corsairs raid Christian shipping', 'Battle of Lepanto (1571) — Holy League defeats Ottoman fleet', 'Control of Mediterranean trade routes at stake'] },
   ],
+
+  'abbasid': [
+    { id: 'abb-byz', name: 'Arab-Byzantine Frontier Wars', parties: ['ABB', 'BYZ'], status: 'active', history: ['Abbasid and Byzantine forces clash along the Taurus Mountains', 'Annual summer raids (Sayfa) into Anatolia', 'Tarsus and Cilicia — contested border fortresses'] },
+    { id: 'frk-abb', name: 'Frankish-Saracen Conflicts', parties: ['FRK', 'UMA'], status: 'active', history: ['Battle of Tours/Poitiers 732 — Charles Martel halts Muslim advance', 'Charlemagne campaigns across the Pyrenees', 'Umayyad Al-Andalus remains a rival power'] },
+    { id: 'abb-sam', name: 'Abbasid-Samanid Rivalry', parties: ['ABB', 'SAM'], status: 'tense' as unknown as 'frozen', history: ['Samanid governors grow increasingly autonomous in Khorasan', 'Control of the Silk Road trade routes disputed', 'Tahirid then Samanid dynasty controls eastern provinces'] },
+  ],
+
+  'tang': [
+    { id: 'tang-tib', name: 'Tang-Tibetan Wars', parties: ['TNG', 'TIB'], status: 'active', history: ['Tibet emerges as a major power under Songtsen Gampo', 'Battle of the Talas River 751 — Tang defeated by Abbasids and Tibetans', 'Four Garrisons of Anxi contested'] },
+    { id: 'tang-tur', name: 'Tang vs Göktürk Khaganate', parties: ['TNG', 'GOK'], status: 'frozen', history: ['Tang defeats Eastern Göktürks 630 — Emperor Taizong becomes Great Khan', 'Western Türks continue to challenge Tang authority in Central Asia', 'Uyghur Khaganate replaces Göktürks as northern power'] },
+    { id: 'silla-unif', name: 'Korean Unification', parties: ['SLL', 'TNG'], status: 'frozen', history: ['Silla allied with Tang to defeat Baekje (660) and Goguryeo (668)', 'Tang attempts to control Korean peninsula; Silla resists', 'Unified Silla established south of the Taedong River'] },
+  ],
+
+  'aztec': [
+    { id: 'azt-tlx', name: 'Aztec-Tlaxcala Conflict', parties: ['AZT', 'TLX'], status: 'active', history: ['Tlaxcala resists Aztec Triple Alliance expansion', 'Flower Wars — ritual combat to capture sacrificial victims', 'Tlaxcala maintains independence as a thorn in Aztec side'] },
+    { id: 'azt-inc', name: 'Aztec-Inca Rivalry', parties: ['AZT', 'INC'], status: 'tense' as unknown as 'frozen', history: ['Two great empires of the Americas — no direct contact but competing spheres', 'Both empires expand rapidly through the 15th century', 'Inca under Huayna Capac rules from Ecuador to Chile'] },
+    { id: 'mya-frag', name: 'Maya City-State Wars', parties: ['MYA', 'AZT'], status: 'active', history: ['Maya cities of Yucatán engage in constant inter-city warfare', 'Aztec influence expands into southern Mexico', 'Chichen Itza in decline; new Maya powers emerge'] },
+  ],
+
+  'songhai': [
+    { id: 'sgh-mali', name: 'Songhai-Mali Rivalry', parties: ['SGH', 'MLR'], status: 'active', history: ['Songhai conquers Timbuktu from Mali 1468 under Sunni Ali', 'Mali Empire in terminal decline; Songhai fills the power vacuum', 'Timbuktu — centre of trans-Saharan gold and salt trade'] },
+    { id: 'sgh-mor', name: 'Songhai-Moroccan Tensions', parties: ['SGH', 'MOR'], status: 'tense' as unknown as 'frozen', history: ['Morocco controls Saharan salt mines vital to Songhai trade', 'Moroccan sultans eye Timbuktu gold', 'Battle of Tondibi 1591 will end Songhai Empire — but not yet'] },
+    { id: 'eth-adal', name: 'Ethiopian-Adal War', parties: ['ETH', 'ABB'], status: 'active', history: ['Adal Sultanate (supported by Ottomans) pressures Christian Ethiopia', 'Imam Ahmad ibn Ibrahim al-Ghazi wages jihad against Ethiopia', 'Portuguese ally with Ethiopia against Muslim expansion'] },
+  ],
+
+  'sengoku': [
+    { id: 'oda-rival', name: 'Oda Unification Wars', parties: ['ODA', 'TAK', 'UES', 'HOJ'], status: 'active', history: ['Oda Nobunaga begins conquest of Japan from Owari province', 'Battle of Okehazama 1560 — Nobunaga defeats Imagawa Yoshimoto', 'Nobunaga allies with Tokugawa Ieyasu; enemies surround him'] },
+    { id: 'tak-ues', name: 'Takeda-Uesugi Rivalry', parties: ['TAK', 'UES'], status: 'active', history: ['Shingen vs Kenshin — five battles of Kawanakajima', 'Legendary rivalry between two greatest generals of Sengoku', 'Neither achieves decisive victory'] },
+    { id: 'mng-jap', name: 'Ming-Japan Trade Tensions', parties: ['MIN', 'ODA', 'JOS'], status: 'tense' as unknown as 'frozen', history: ['Wako pirates (Japanese/Chinese) raid Ming and Korean coasts', 'Official trade restricted; smuggling flourishes', 'Korea acts as intermediary between Japan and China'] },
+  ],
 }
 
 export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
@@ -134,5 +164,35 @@ export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
     { id: 'barbary-corsairs', name: 'Barbary Corsairs', type: 'paramilitary', regions: ['OTT'], strength: 45, sponsors: ['OTT'] },
     { id: 'safavid-qizilbash', name: 'Qizilbash Warriors', type: 'paramilitary', regions: ['SAF'], strength: 55, sponsors: ['SAF'] },
     { id: 'cossacks', name: 'Cossack Hosts', type: 'paramilitary', regions: ['POL', 'MUS'], strength: 40, sponsors: [] },
+  ],
+
+  'abbasid': [
+    { id: 'kharijites', name: 'Kharijite Rebels', type: 'insurgency', regions: ['ABB'], strength: 35, sponsors: [] },
+    { id: 'ismaili', name: 'Ismaili Assassins (proto)', type: 'paramilitary', regions: ['ABB', 'SAM'], strength: 25, sponsors: [] },
+    { id: 'norse-varangians', name: 'Varangian Raiders', type: 'paramilitary', regions: ['BYZ', 'KHZ'], strength: 40, sponsors: [] },
+  ],
+
+  'tang': [
+    { id: 'an-lushan', name: 'An Lushan Rebels', type: 'insurgency', regions: ['TNG'], strength: 65, sponsors: [] },
+    { id: 'wako-tang', name: 'Coastal Pirates', type: 'paramilitary', regions: ['TNG', 'SLL', 'NAR'], strength: 20, sponsors: [] },
+    { id: 'tibetan-raiders', name: 'Tibetan Border Raiders', type: 'paramilitary', regions: ['TIB'], strength: 45, sponsors: ['TIB'] },
+  ],
+
+  'aztec': [
+    { id: 'tlaxcala-warriors', name: 'Tlaxcalan Eagle Warriors', type: 'paramilitary', regions: ['TLX'], strength: 55, sponsors: ['TLX'] },
+    { id: 'maya-raiders', name: 'Maya City-State Raiders', type: 'insurgency', regions: ['MYA'], strength: 30, sponsors: [] },
+    { id: 'zapotec-rebels', name: 'Zapotec Resistance', type: 'separatist', regions: ['AZT'], strength: 25, sponsors: [] },
+  ],
+
+  'songhai': [
+    { id: 'tuareg-raiders', name: 'Tuareg Saharan Raiders', type: 'paramilitary', regions: ['SGH', 'MLR'], strength: 40, sponsors: [] },
+    { id: 'mossi-cavalry', name: 'Mossi Kingdom Raiders', type: 'paramilitary', regions: ['SGH'], strength: 35, sponsors: [] },
+    { id: 'adal-jihadists', name: 'Adal Sultanate Warriors', type: 'paramilitary', regions: ['ETH'], strength: 50, sponsors: [] },
+  ],
+
+  'sengoku': [
+    { id: 'ikko-ikki', name: 'Ikkō-ikki (Buddhist Rebels)', type: 'insurgency', regions: ['ODA'], strength: 55, sponsors: [] },
+    { id: 'wako-pirates', name: 'Wakō Pirates', type: 'paramilitary', regions: ['MIN', 'JOS', 'ODA'], strength: 35, sponsors: [] },
+    { id: 'ninja-clans', name: 'Iga & Kōka Ninja', type: 'paramilitary', regions: ['ODA', 'TAK', 'UES'], strength: 20, sponsors: [] },
   ],
 }

@@ -43,7 +43,27 @@ const CATEGORIES_ANCIENT: Category[] = [
   { id: 'naval', label: 'Naval & Exploration', icon: '⚓', actions: ['Build war galley fleet', 'Train naval archers', 'Establish coastal trading post', 'Send exploratory fleet westward', 'Chart unknown ocean waters', 'Establish colony across the sea', 'Commission ocean-going caravel', 'Recruit experienced navigators', 'Establish naval supply depot', 'Launch transatlantic expedition', 'Claim new territory in the Americas', 'Establish Pacific spice route'] },
 ]
 
-const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman'])
+const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
+
+// Format era dates: BCE for pre-CE years, show year + era suffix
+function formatGameDate(dateStr: string): string {
+  if (!dateStr) return dateStr
+  // Dates like "0431-01-01" → "431 BCE"
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return dateStr
+  const year = parseInt(match[1], 10)
+  const month = parseInt(match[2], 10)
+  const day = parseInt(match[3], 10)
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  // Ancient eras use 4-digit year starting with 0 — treat as BCE if year < 500 CE
+  // Greek (0431), Roman (0117), Tang (0700), Abbasid (0800) are all pre-medieval
+  if (year < 1000) {
+    // Show as BCE/CE year
+    if (year < 500) return `${year} BCE`  // Greek 431, Roman 117
+    return `${year} CE`                   // Tang 700, Abbasid 800
+  }
+  return `${day} ${monthNames[month - 1]} ${year}`
+}
 
 // ── Legend items ─────────────────────────────────────────────────────────────
 
@@ -341,8 +361,18 @@ export default function GamePage() {
       const actionList = pendingActions.map((a, i) => `${i+1}.[${a.id}] ${a.text}`).join('\n')
 
       const isAncient = ANCIENT_ERAS_SET.has(gameState.era)
+      const ERA_DESCRIPTIONS: Record<string, string> = {
+        greek:   '431 BCE Aegean Greek world — phalanxes, triremes, silver talents, city-states, oracles, Olympic games',
+        roman:   '117 CE Roman Imperial world — legions, cohorts, denarii, provinces, senators, aqueducts, gladiators',
+        ottoman: '1520 CE early Ottoman world — janissaries, sipahi cavalry, akçe coinage, pashas, viziers, minarets',
+        abbasid: '800 CE Abbasid Golden Age — caliphs, dirhams, emirs, wazirs, scholars, caravans, madrasas',
+        tang:    '700 CE Tang Dynasty China — armies of the Son of Heaven, bronze coins, silk road merchants, scholars',
+        aztec:   '1500 CE Aztec Triple Alliance — flower wars, cacao currency, eagle warriors, priests, tribute lists',
+        songhai: '1490 CE Songhai Empire — trans-Saharan gold and salt trade, cavalry askia, Timbuktu scholars',
+        sengoku: '1560 CE Sengoku Japan — samurai, ashigaru, daimyo, koku rice stipends, castle sieges, Buddhist monks',
+      }
       const eraContext = isAncient
-        ? `You are simulating ${playerCountry} in the ${gameState.era === 'greek' ? '431 BCE Greek world' : gameState.era === 'roman' ? '117 CE Roman world' : '1520 CE early Ottoman world'}. Use historically authentic language: legions, cavalry, tribute, senators, viziers, phalanxes, triremes, siege weapons, temples, forums, treasuries, talents of gold. GDP represents the state treasury/economy in modern equivalent USD. Military and techLevel use the same scale.`
+        ? `You are simulating ${playerCountry} in the ${ERA_DESCRIPTIONS[gameState.era] ?? gameState.era}. Use historically authentic language for that era. GDP represents the state treasury/economy in modern equivalent USD. Military and techLevel use the same scale.`
         : `You are simulating the ${gameState.era} era geopolitical world.`
 
       const system = `You are a historical strategy simulation engine. ${eraContext} JSON only — no markdown, no explanation.
@@ -893,7 +923,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           {/* Date + era pill + paused indicator */}
           <div className="flex items-center gap-2">
             <div className="pointer-events-auto flex items-center gap-2 bg-[#080f1e]/80 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 shadow-xl">
-              <span className="text-sm font-mono text-white font-semibold">{gameState.currentDate}</span>
+              <span className="text-sm font-mono text-white font-semibold">{formatGameDate(gameState.currentDate)}</span>
               <span className="h-3 w-px bg-white/20" />
               <span className="text-[10px] text-blue-300 uppercase tracking-wider">{gameState.era}</span>
             </div>
@@ -957,7 +987,7 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
               <div className="flex items-center gap-2">
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Timeline</p>
-                  <p className="text-[10px] text-gray-600 font-mono mt-0.5">from {gameState.currentDate}</p>
+                  <p className="text-[10px] text-gray-600 font-mono mt-0.5">from {formatGameDate(gameState.currentDate)}</p>
                 </div>
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
                   timelineResult.outcome === 'failure' ? 'bg-red-950/70 border-red-700/50 text-red-300' :

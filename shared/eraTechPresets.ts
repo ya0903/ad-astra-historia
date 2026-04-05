@@ -6,6 +6,11 @@ const ERA_UNIVERSAL_UNLOCKS: Record<Era, TechId[]> = {
   greek:   [],
   roman:   ['bronze_working', 'iron_working'],
   ottoman: ['bronze_working', 'iron_working', 'steel_forging', 'hoplite_warfare', 'cavalry', 'naval_warfare', 'siege_weapons', 'fortifications'],
+  abbasid: ['bronze_working', 'iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'mathematics', 'medicine', 'astronomy', 'trade_routes', 'road_network'],
+  tang:    ['bronze_working', 'iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'mathematics', 'astronomy', 'printing_press', 'trade_routes', 'road_network'],
+  aztec:   ['bronze_working', 'irrigation', 'crop_rotation', 'trade_routes', 'fortifications', 'professional_army'],
+  songhai: ['bronze_working', 'iron_working', 'cavalry', 'trade_routes', 'road_network'],
+  sengoku: ['bronze_working', 'iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'fortifications', 'cannon', 'professional_army'],
   '1945':  ['basic_industry'],
   '1960s': ['basic_industry'],
   '1990s': ['basic_industry', 'advanced_manufacturing'],
@@ -103,7 +108,7 @@ const ERA_COUNTRY_UNLOCKS: Partial<Record<Era, Record<string, TechId[]>>> = {
     NOR: ['computing', 'renewable_energy'],
     NLD: ['computing', 'ai_research', 'semiconductors'],
   },
-  // Ancient eras — handled by era_universal
+  // Ancient eras — handled by era_universal + country-specific below
   greek:   {},
   roman:   {},
   ottoman: {
@@ -113,6 +118,36 @@ const ERA_COUNTRY_UNLOCKS: Partial<Record<Era, Record<string, TechId[]>>> = {
     ENG: ['iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'longbow', 'fortifications'],
     HAB: ['iron_working', 'steel_forging', 'heavy_cavalry', 'professional_army', 'fortifications'],
     MUG: ['iron_working', 'steel_forging', 'cavalry', 'heavy_cavalry', 'professional_army'],
+  },
+  abbasid: {
+    ABB: ['iron_working', 'steel_forging', 'cavalry', 'heavy_cavalry', 'naval_warfare', 'siege_weapons', 'professional_army', 'mathematics', 'medicine', 'astronomy', 'philosophy', 'trade_routes', 'cartography', 'road_network'],
+    BYZ: ['iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'fortifications', 'professional_army', 'philosophy', 'mathematics'],
+    FRK: ['iron_working', 'steel_forging', 'cavalry', 'heavy_cavalry', 'professional_army', 'fortifications'],
+    SAM: ['iron_working', 'steel_forging', 'cavalry', 'mathematics', 'astronomy', 'trade_routes'],
+  },
+  tang: {
+    TNG: ['iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'professional_army', 'fortifications', 'mathematics', 'astronomy', 'printing_press', 'gunpowder', 'trade_routes', 'road_network', 'cartography'],
+    TIB: ['iron_working', 'steel_forging', 'cavalry', 'heavy_cavalry', 'professional_army', 'fortifications'],
+    SLL: ['iron_working', 'naval_warfare', 'trade_routes'],
+    NAR: ['iron_working', 'naval_warfare', 'philosophy', 'trade_routes'],
+  },
+  aztec: {
+    AZT: ['irrigation', 'crop_rotation', 'trade_routes', 'fortifications', 'professional_army', 'public_granaries'],
+    INC: ['irrigation', 'crop_rotation', 'road_network', 'trade_routes', 'professional_army', 'fortifications', 'public_granaries'],
+    MYA: ['irrigation', 'mathematics', 'astronomy', 'trade_routes'],
+  },
+  songhai: {
+    SGH: ['iron_working', 'cavalry', 'trade_routes', 'road_network', 'professional_army'],
+    MLR: ['iron_working', 'cavalry', 'trade_routes', 'mathematics', 'astronomy'],
+    ETH: ['iron_working', 'cavalry', 'trade_routes', 'naval_warfare'],
+    MOR: ['iron_working', 'steel_forging', 'cavalry', 'trade_routes', 'naval_warfare', 'cartography'],
+  },
+  sengoku: {
+    ODA: ['iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'fortifications', 'cannon', 'professional_army', 'trade_routes'],
+    TAK: ['iron_working', 'steel_forging', 'cavalry', 'heavy_cavalry', 'professional_army', 'fortifications'],
+    UES: ['iron_working', 'steel_forging', 'cavalry', 'professional_army', 'fortifications'],
+    MIN: ['iron_working', 'steel_forging', 'cavalry', 'naval_warfare', 'siege_weapons', 'cannon', 'professional_army', 'fortifications', 'road_network', 'trade_routes', 'printing_press'],
+    JOS: ['iron_working', 'steel_forging', 'naval_warfare', 'trade_routes'],
   },
 }
 

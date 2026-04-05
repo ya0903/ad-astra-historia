@@ -4,7 +4,7 @@ import type { TechNode, Era, TechId } from './types.js'
 // Ancient eras use the ANCIENT_TECH_TREE; modern eras use TECH_TREE.
 // The UI uses this to show only the era-appropriate tree.
 export const MODERN_ERAS: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern']
-export const ANCIENT_ERAS: Era[] = ['greek', 'roman', 'ottoman']
+export const ANCIENT_ERAS: Era[] = ['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku']
 
 export function getEraGroup(era: Era): 'ancient' | 'modern' {
   return ANCIENT_ERAS.includes(era) ? 'ancient' : 'modern'

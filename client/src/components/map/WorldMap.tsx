@@ -11,8 +11,20 @@ interface Props {
   era?: string
 }
 
-const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman'])
-const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean — starting camera position
+const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
+
+// Era-specific starting camera positions
+const ERA_CAMERA: Record<string, { center: [number, number]; zoom: number }> = {
+  greek:   { center: [25,  38], zoom: 4.0 },   // Aegean Sea
+  roman:   { center: [15,  41], zoom: 3.5 },   // Mediterranean
+  ottoman: { center: [32,  39], zoom: 3.5 },   // Anatolia / eastern Med
+  abbasid: { center: [44,  33], zoom: 4.0 },   // Baghdad
+  tang:    { center: [108, 34], zoom: 4.0 },   // Xi'an / central China
+  aztec:   { center: [-99, 19], zoom: 4.5 },   // Mexico City area
+  songhai: { center: [ -3, 16], zoom: 4.0 },   // Timbuktu / Niger bend
+  sengoku: { center: [136, 36], zoom: 4.5 },   // Honshu, Japan
+}
+const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean fallback
 const ANCIENT_ZOOM = 3.5
 
 // ── Biome colours ──────────────────────────────────────────────────────────────
@@ -195,9 +207,8 @@ export default function WorldMap({ children, era }: Props) {
   useEffect(() => {
     if (!mapInstance) return
     if (era && ANCIENT_ERAS.has(era)) {
-      // Start camera at Mediterranean for ancient eras, but don't restrict bounds
-      // — the Americas are colonised by Spain/Portugal and should be explorable
-      mapInstance.flyTo({ center: ANCIENT_CENTER, zoom: ANCIENT_ZOOM, duration: 1200 })
+      const cam = ERA_CAMERA[era] ?? { center: ANCIENT_CENTER, zoom: ANCIENT_ZOOM }
+      mapInstance.flyTo({ center: cam.center, zoom: cam.zoom, duration: 1200 })
     }
     // Always clear any previously set bounds restriction
     mapInstance.setMaxBounds(null as unknown as maplibregl.LngLatBoundsLike)

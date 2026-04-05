@@ -107,6 +107,58 @@ const POLITY_BASE_STATS: Record<string, { military: number; techLevel: number; s
   PRK: { military:62, techLevel:42, stability:55, softPower:15, culturalReach:12 },
   CUB: { military:38, techLevel:52, stability:62, softPower:42, culturalReach:45 },
   VEN: { military:38, techLevel:42, stability:28, softPower:32, culturalReach:38 },
+  // ── Abbasid era polities ──────────────────────────────────────────────────
+  ABB: { military:88, techLevel:82, stability:62, softPower:90, culturalReach:88 },
+  BYZ: { military:78, techLevel:78, stability:65, softPower:75, culturalReach:80 },
+  FRK: { military:82, techLevel:55, stability:60, softPower:58, culturalReach:60 },
+  UMA: { military:68, techLevel:65, stability:55, softPower:72, culturalReach:70 },
+  SAM: { military:65, techLevel:72, stability:62, softPower:68, culturalReach:72 },
+  KHZ: { military:62, techLevel:38, stability:52, softPower:32, culturalReach:28 },
+  BUL: { military:65, techLevel:42, stability:55, softPower:35, culturalReach:32 },
+  IDR: { military:48, techLevel:45, stability:58, softPower:40, culturalReach:38 },
+  PRH: { military:68, techLevel:50, stability:55, softPower:48, culturalReach:52 },
+  PAL: { military:55, techLevel:58, stability:60, softPower:55, culturalReach:58 },
+  // ── Tang era polities ─────────────────────────────────────────────────────
+  TNG: { military:90, techLevel:85, stability:68, softPower:88, culturalReach:90 },
+  TIB: { military:78, techLevel:42, stability:58, softPower:38, culturalReach:35 },
+  GOK: { military:72, techLevel:32, stability:45, softPower:28, culturalReach:25 },
+  SLL: { military:60, techLevel:55, stability:70, softPower:55, culturalReach:52 },
+  NAR: { military:52, techLevel:60, stability:72, softPower:62, culturalReach:58 },
+  NNZ: { military:58, techLevel:40, stability:55, softPower:35, culturalReach:32 },
+  KHR: { military:65, techLevel:52, stability:60, softPower:55, culturalReach:52 },
+  CLK: { military:68, techLevel:58, stability:58, softPower:55, culturalReach:55 },
+  // ── Aztec era polities ────────────────────────────────────────────────────
+  AZT: { military:85, techLevel:55, stability:62, softPower:68, culturalReach:65 },
+  TLX: { military:65, techLevel:48, stability:72, softPower:42, culturalReach:38 },
+  MYA: { military:55, techLevel:58, stability:48, softPower:62, culturalReach:60 },
+  INC: { military:80, techLevel:58, stability:68, softPower:65, culturalReach:62 },
+  TUP: { military:40, techLevel:25, stability:45, softPower:20, culturalReach:18 },
+  NAH: { military:45, techLevel:30, stability:40, softPower:25, culturalReach:22 },
+  MIX: { military:50, techLevel:42, stability:50, softPower:38, culturalReach:35 },
+  CRB: { military:30, techLevel:20, stability:42, softPower:18, culturalReach:15 },
+  // ── Songhai era polities ──────────────────────────────────────────────────
+  SGH: { military:80, techLevel:50, stability:62, softPower:72, culturalReach:70 },
+  MLR: { military:52, techLevel:48, stability:45, softPower:62, culturalReach:60 },
+  KNB: { military:65, techLevel:40, stability:55, softPower:42, culturalReach:40 },
+  KNG: { military:58, techLevel:38, stability:62, softPower:45, culturalReach:42 },
+  ZIM: { military:55, techLevel:42, stability:58, softPower:40, culturalReach:38 },
+  YOR: { military:60, techLevel:42, stability:55, softPower:48, culturalReach:45 },
+  AKN: { military:55, techLevel:38, stability:58, softPower:42, culturalReach:40 },
+  ETH: { military:65, techLevel:45, stability:65, softPower:52, culturalReach:50 },
+  BNI: { military:60, techLevel:45, stability:60, softPower:52, culturalReach:50 },
+  // ── Sengoku era polities ──────────────────────────────────────────────────
+  ODA: { military:88, techLevel:65, stability:55, softPower:60, culturalReach:55 },
+  TAK: { military:85, techLevel:58, stability:62, softPower:48, culturalReach:45 },
+  UES: { military:82, techLevel:55, stability:65, softPower:45, culturalReach:42 },
+  MOT: { military:75, techLevel:58, stability:60, softPower:42, culturalReach:40 },
+  SHI: { military:78, techLevel:52, stability:62, softPower:38, culturalReach:35 },
+  HOJ: { military:72, techLevel:55, stability:65, softPower:40, culturalReach:38 },
+  DAT: { military:70, techLevel:52, stability:60, softPower:38, culturalReach:35 },
+  IMA: { military:65, techLevel:50, stability:58, softPower:38, culturalReach:35 },
+  CHO: { military:68, techLevel:48, stability:60, softPower:35, culturalReach:32 },
+  ASH: { military:42, techLevel:60, stability:35, softPower:65, culturalReach:70 },
+  JOS: { military:58, techLevel:65, stability:72, softPower:60, culturalReach:62 },
+  MIN: { military:85, techLevel:78, stability:65, softPower:80, culturalReach:85 },
 }
 
 /** Derive base stats for countries not in the lookup table, based on GDP tier. */
@@ -353,10 +405,146 @@ const GREEK_MAP: Record<string, string> = {
   SAU:'ARA', YEM:'ARA', OMN:'ARA', ARE:'ARA', QAT:'ARA', BHR:'ARA', KWT:'ARA',
 }
 
+// ── Abbasid Caliphate (800 CE — Harun al-Rashid) ─────────────────────────────
+const ABBASID_MAP: Record<string, string> = {
+  // Abbasid Caliphate core
+  IRQ:'ABB', SYR:'ABB', LBN:'ABB', ISR:'ABB', PSE:'ABB', JOR:'ABB',
+  EGY:'ABB', KWT:'ABB', SAU:'ABB', YEM:'ABB', OMN:'ABB', ARE:'ABB', QAT:'ABB', BHR:'ABB',
+  // Abbasid eastern provinces (still nominally under caliph)
+  IRN:'SAM', AFG:'SAM', TKM:'SAM', UZB:'SAM', TJK:'SAM', KGZ:'SAM', KAZ:'SAM',
+  // Byzantine Empire
+  TUR:'BYZ', GRC:'BYZ', BGR:'BYZ', MKD:'BYZ', ALB:'BYZ', MNE:'BYZ',
+  SRB:'BYZ', HRV:'BYZ', BIH:'BYZ', ROU:'BYZ', MDA:'BYZ', CYP:'BYZ',
+  ARM:'BYZ', GEO:'BYZ', AZE:'BYZ',
+  // Frankish Empire (Charlemagne)
+  FRA:'FRK', BEL:'FRK', NLD:'FRK', LUX:'FRK', DEU:'FRK', CHE:'FRK',
+  AUT:'FRK', CZE:'FRK', SVK:'FRK', HUN:'FRK', SVN:'FRK',
+  // Umayyad Al-Andalus
+  ESP:'UMA', PRT:'UMA', AND:'UMA', GIB:'UMA',
+  // England / Anglo-Saxon kingdoms
+  GBR:'FRK', IRL:'FRK',
+  // Idrisid Morocco
+  MAR:'IDR', ESH:'IDR',
+  // North Africa (Aghlabid — nominally Abbasid)
+  TUN:'ABB', LBY:'ABB', DZA:'ABB',
+  // Khazar Khaganate
+  UKR:'KHZ', POL:'KHZ', LTU:'KHZ', LVA:'KHZ', EST:'KHZ', FIN:'KHZ',
+  // Viking Scandinavia
+  DNK:'FRK', NOR:'FRK', SWE:'FRK',
+  // Bulgaria
+  // (already in BYZ)
+  // India (Pratihara + Pala + Rashtrakuta)
+  IND:'PRH', PAK:'PRH', NPL:'PRH', BTN:'PRH', BGD:'PRH',
+  // East Africa
+  ETH:'AXU', ERI:'AXU', DJI:'AXU', SOM:'AXU',
+  // Sub-Saharan
+  SDN:'NUB', SSD:'NUB',
+  // Tang China (off-map) included for completeness
+  RUS:'KHZ', MNG:'KHZ',
+}
+
+// ── Tang Dynasty China (700 CE — Emperor Xuanzong era) ───────────────────────
+const TANG_MAP: Record<string, string> = {
+  // Tang Dynasty core + territories
+  CHN:'TNG', TWN:'TNG', HKG:'TNG',
+  // Tang client states / tributary
+  KOR:'SLL', PRK:'SLL',
+  // Nara Japan
+  JPN:'NAR',
+  // Tibetan Empire (major rival)
+  TIB:'TIB',
+  // Actually TIB isn't an ISO — use Nepal and Tibet area
+  NPL:'TIB', BTN:'TIB',
+  // Göktürk / Uyghur Khaganate (Central Asia)
+  MNG:'GOK', KAZ:'GOK', KGZ:'GOK', TJK:'GOK', TKM:'GOK', UZB:'GOK',
+  // Nanzhao (Yunnan)
+  VNM:'NNZ', LAO:'NNZ', THA:'NNZ', MMR:'NNZ',
+  // Khmer Empire
+  KHM:'KHR', MYS:'KHR', IDN:'KHR', SGP:'KHR', BRN:'KHR',
+  // Chalukya + Indian kingdoms
+  IND:'CLK', PAK:'CLK', BGD:'CLK', LKA:'CLK',
+  // Umayyad / early Abbasid (just west)
+  IRN:'ABB', AFG:'ABB', IRQ:'ABB',
+  // Byzantine
+  TUR:'BYZ', GRC:'BYZ', BGR:'BYZ',
+}
+
+// ── Aztec Triple Alliance (1500 CE) ──────────────────────────────────────────
+const AZTEC_MAP: Record<string, string> = {
+  // Aztec Triple Alliance (central Mexico)
+  MEX:'AZT',
+  // Tlaxcala (enclave of resistance — use Guatemala as proxy)
+  GTM:'TLX', BLZ:'TLX',
+  // Maya city-states (Yucatan + Central America)
+  HND:'MYA', SLV:'MYA', NIC:'MYA',
+  // Inca Empire (South America)
+  PER:'INC', BOL:'INC', ECU:'INC', CHL:'INC', ARG:'INC', COL:'INC',
+  // Tupi (Brazil)
+  BRA:'TUP',
+  // Other Nahua / Caribbean
+  CUB:'CRB', DOM:'CRB', HTI:'CRB', JAM:'CRB', TTO:'CRB', PAN:'CRB',
+  CRI:'NAH', VEN:'NAH',
+  // Mixtec (Oaxaca — use separate)
+  GUY:'MIX', SUR:'MIX',
+}
+
+// ── Songhai Empire (1490 CE — Sunni Ali / Askia Muhammad) ────────────────────
+const SONGHAI_MAP: Record<string, string> = {
+  // Songhai Empire (Niger bend)
+  MLI:'SGH', NER:'SGH', BFA:'SGH', SEN:'SGH', GMB:'SGH', GNB:'SGH', GIN:'SGH',
+  // Mali remnants
+  MRT:'MLR',
+  // Kanem-Bornu
+  TCD:'KNB', CMR:'KNB', NGA:'KNB',
+  // Benin Kingdom
+  // (part of Nigeria — use separate entry)
+  // Kongo Kingdom
+  COD:'KNG', COG:'KNG', AGO:'KNG', GAB:'KNG', GNQ:'KNG',
+  // Mutapa / Zimbabwe
+  ZWE:'ZIM', MOZ:'ZIM', ZMB:'ZIM',
+  // Ethiopian Empire (Abyssinia)
+  ETH:'ETH', ERI:'ETH', DJI:'ETH', SOM:'ETH',
+  // Yoruba / Oyo (use Benin/Togo as proxy)
+  BEN:'YOR', TGO:'YOR',
+  // Akan / Ashanti
+  GHA:'AKN', CIV:'AKN', LBR:'AKN', SLE:'AKN',
+  // Saadian Morocco
+  MAR:'MOR', ESH:'MOR',
+  // Egypt + North Africa (Mamluk — Ottoman soon to conquer)
+  EGY:'MOR', TUN:'MOR', LBY:'MOR', DZA:'MOR',
+  // East Africa Swahili
+  TZA:'ZIM', KEN:'ZIM', UGA:'ZIM', RWA:'ZIM', BDI:'ZIM',
+  // Sudan (Funj Sultanate)
+  SDN:'KNB', SSD:'KNB', CAF:'KNB',
+}
+
+// ── Sengoku Japan (1560 CE) ──────────────────────────────────────────────────
+const SENGOKU_MAP: Record<string, string> = {
+  // Japanese clans — map all of Japan to different factions
+  // (Japan has no internal ISO_A3 breakdown so we approximate)
+  JPN:'ODA',
+  // Joseon Korea
+  KOR:'JOS', PRK:'JOS',
+  // Ming Dynasty China
+  CHN:'MIN', TWN:'MIN', MNG_CON:'MIN', HKG:'MIN',
+  // Other regional
+  MNG:'GOK',  // Mongolian steppe (Northern Yuan / Tümed)
+  VNM:'MIN',  // Dai Viet (tributary of Ming)
+  // Southeast Asia
+  THA:'MIN',  // Ayutthaya (trade partner)
+  // Briefly include Russia as expanding
+  RUS:'MIN',
+}
+
 const ERA_COUNTRY_MAPS: Partial<Record<Era, Record<string, string>>> = {
   ottoman: OTTOMAN_MAP,
   roman:   ROMAN_MAP,
   greek:   GREEK_MAP,
+  abbasid: ABBASID_MAP,
+  tang:    TANG_MAP,
+  aztec:   AZTEC_MAP,
+  songhai: SONGHAI_MAP,
+  sengoku: SENGOKU_MAP,
 }
 
 /**
@@ -400,16 +588,40 @@ function remapToAncientPolities(
 
 // Polity display names used in rendered ancient borders
 const POLITY_NAMES: Record<string, string> = {
+  // Greek
   ATH:'Athens', SPA:'Sparta', THE:'Thebes', MAC:'Macedon', EPI:'Epirus',
   THS:'Thessaly', ACH:'Achaea', ILY:'Illyria', TRH:'Anatolia', CRT:'Crete',
   ITL:'Italian Peoples', SRC:'Syracuse', KMT:'Egypt', CAR:'Carthage',
   CEL:'Celtic Gaul', SCY:'Scythia', NUB:'Nubia', ARA:'Arabia', EUN:'Persia',
+  // Roman
   ROM:'Roman Empire', PAR:'Parthian Empire', KUS:'Kushan Empire',
   DEC:'Deccan Kingdoms', GER:'Germania', SAR:'Sarmatia', AXU:'Axum', ARK:'Armenia',
+  // Ottoman
   OTT:'Ottoman Empire', SAF:'Safavid Persia', HAB:'Habsburg Empire',
   HRE:'Holy Roman Empire', FRA:'France', ENG:'England', PLT:'Poland-Lithuania',
   POR:'Portugal', ESP:'Spain', VNC:'Venice', MUS:'Muscovy',
   MUG:'Mughal Empire', SON:'Songhai', MOR:'Morocco', ETI:'Ethiopia',
+  // Abbasid
+  ABB:'Abbasid Caliphate', BYZ:'Byzantine Empire', FRK:'Frankish Empire',
+  UMA:'Umayyad Al-Andalus', SAM:'Samanid Persia', KHZ:'Khazar Khaganate',
+  BUL:'Bulgarian Empire', IDR:'Idrisid Morocco', PRH:'Pratihara India',
+  PAL:'Pala Bengal',
+  // Tang
+  TNG:'Tang Dynasty', TIB:'Tibetan Empire', GOK:'Göktürk Khaganate',
+  SLL:'Unified Silla', NAR:'Nara Japan', NNZ:'Nanzhao', KHR:'Khmer Empire',
+  CLK:'Chalukya India',
+  // Aztec
+  AZT:'Aztec Triple Alliance', TLX:'Tlaxcala', MYA:'Maya City-States',
+  INC:'Inca Empire', NAH:'Nahua Peoples', MIX:'Mixtec', CRB:'Caribbean Peoples',
+  TUP:'Tupi Peoples',
+  // Songhai
+  SGH:'Songhai Empire', MLR:'Mali Remnants', KNB:'Kanem-Bornu',
+  BNI:'Benin Kingdom', KNG:'Kongo Kingdom', ZIM:'Mutapa Empire',
+  YOR:'Yoruba States', AKN:'Akan Peoples', ETH:'Ethiopian Empire',
+  // Sengoku
+  ODA:'Oda Clan', TAK:'Takeda Clan', UES:'Uesugi Clan', MOT:'Mori Clan',
+  SHI:'Shimazu Clan', HOJ:'Hojo Clan', DAT:'Date Clan', IMA:'Imagawa Clan',
+  CHO:'Chosokabe', ASH:'Ashikaga Shogunate', JOS:'Joseon Korea', MIN:'Ming Dynasty',
 }
 
 export const gameRouter = Router()
@@ -737,10 +949,155 @@ const GREEK_PROVINCE_RULES: ProvinceRule[] = [
   { adm0:'CYP',                                                                name:'Cyprus',             polity:'EUN', adminType:'satrapy' },
 ]
 
+const ABBASID_PROVINCE_RULES: ProvinceRule[] = [
+  // Abbasid Caliphate
+  { adm0:'IRQ',                                                              name:'Sawad (Iraq)',        polity:'ABB', adminType:'province' },
+  { adm0:'SYR',                                                              name:'Bilad al-Sham',       polity:'ABB', adminType:'province' },
+  { adm0:'EGY',                                                              name:'Misr (Egypt)',        polity:'ABB', adminType:'province' },
+  { adm0:'SAU',                                                              name:'Hijaz & Nejd',        polity:'ABB', adminType:'province' },
+  { adm0:'YEM',                                                              name:'Yemen',               polity:'ABB', adminType:'province' },
+  { adm0:'ISR',                                                              name:'Jund Filastin',       polity:'ABB', adminType:'province' },
+  { adm0:'JOR',                                                              name:'Jund al-Urdunn',      polity:'ABB', adminType:'province' },
+  { adm0:'LBN',                                                              name:'Jund Hims',           polity:'ABB', adminType:'province' },
+  { adm0:'TUN',                                                              name:'Ifriqiya',            polity:'ABB', adminType:'province' },
+  { adm0:'LBY',                                                              name:'Barqa',               polity:'ABB', adminType:'province' },
+  { adm0:'DZA',                                                              name:'Maghreb al-Awsat',    polity:'ABB', adminType:'province' },
+  // Samanid Persia
+  { adm0:'IRN',                                                              name:'Khorasan / Fars',     polity:'SAM', adminType:'province' },
+  { adm0:'AFG',                                                              name:'Khorasan East',       polity:'SAM', adminType:'province' },
+  { adm0:'UZB',                                                              name:'Transoxiana',         polity:'SAM', adminType:'province' },
+  { adm0:'TKM',                                                              name:'Margiana',            polity:'SAM', adminType:'province' },
+  { adm0:'TJK',                                                              name:'Bactria',             polity:'SAM', adminType:'province' },
+  // Byzantine Empire
+  { adm0:'TUR', keywords:['İstanbul','Edirne','Bursa','İzmir'],             name:'Thrace & Bithynia',   polity:'BYZ', adminType:'theme' },
+  { adm0:'TUR', keywords:['Konya','Antalya','Burdur','Isparta'],            name:'Anatolikon Theme',     polity:'BYZ', adminType:'theme' },
+  { adm0:'TUR', keywords:['Trabzon','Samsun','Rize','Giresun'],             name:'Armeniakon Theme',     polity:'BYZ', adminType:'theme' },
+  { adm0:'TUR',                                                              name:'Anatolia (Byzantine)', polity:'BYZ', adminType:'theme' },
+  { adm0:'GRC',                                                              name:'Hellas Theme',         polity:'BYZ', adminType:'theme' },
+  { adm0:'BGR',                                                              name:'Bulgaria',             polity:'BUL', adminType:'kingdom' },
+  { adm0:'CYP',                                                              name:'Cyprus (Byzantine)',   polity:'BYZ', adminType:'province' },
+  // Frankish Empire
+  { adm0:'FRA',                                                              name:'Francia',              polity:'FRK', adminType:'county' },
+  { adm0:'DEU', keywords:['Bayern','Baden','Württemberg'],                   name:'Bavaria',              polity:'FRK', adminType:'duchy' },
+  { adm0:'DEU',                                                              name:'Saxony / Austrasia',   polity:'FRK', adminType:'duchy' },
+  { adm0:'ITA',                                                              name:'Lombard Italy',        polity:'FRK', adminType:'duchy' },
+  { adm0:'ESP',                                                              name:'Spanish March',        polity:'FRK', adminType:'march' },
+  // Umayyad Al-Andalus
+  { adm0:'ESP', keywords:['Andaluc','Murcia','Extremadura'],                 name:'Al-Andalus (south)',   polity:'UMA', adminType:'province' },
+  { adm0:'PRT',                                                              name:'Al-Gharb (Portugal)',  polity:'UMA', adminType:'province' },
+  // Morocco
+  { adm0:'MAR',                                                              name:'Idrisid Morocco',      polity:'IDR', adminType:'kingdom' },
+  // India
+  { adm0:'IND',                                                              name:'Pratihara Kingdom',    polity:'PRH', adminType:'kingdom' },
+  { adm0:'PAK',                                                              name:'Sindh / Gandhara',     polity:'PRH', adminType:'kingdom' },
+  { adm0:'BGD',                                                              name:'Pala Bengal',          polity:'PAL', adminType:'kingdom' },
+  // East Africa
+  { adm0:'ETH',                                                              name:'Axum Empire',          polity:'AXU', adminType:'kingdom' },
+]
+
+const TANG_PROVINCE_RULES: ProvinceRule[] = [
+  // Tang Dynasty provinces (jimi prefectures / circuits)
+  { adm0:'CHN', keywords:['Hebei','Beijing','Tianjin','Shanxi','Shaanxi'],  name:'He Bei / He Dong Circuit', polity:'TNG', adminType:'circuit' },
+  { adm0:'CHN', keywords:['Henan','Shandong','Jiangsu','Anhui'],            name:'Henan / Huainan Circuit',  polity:'TNG', adminType:'circuit' },
+  { adm0:'CHN', keywords:['Sichuan','Chongqing','Yunnan','Guizhou'],        name:'Jiannan Circuit',          polity:'TNG', adminType:'circuit' },
+  { adm0:'CHN', keywords:['Guangdong','Guangxi','Fujian','Zhejiang'],       name:'Lingnan / Jiangnan Circuit',polity:'TNG', adminType:'circuit' },
+  { adm0:'CHN', keywords:['Gansu','Qinghai','Xinjiang'],                    name:'Hexi / Longyou Circuit',   polity:'TNG', adminType:'circuit' },
+  { adm0:'CHN',                                                              name:'Tang Dynasty China',       polity:'TNG', adminType:'circuit' },
+  { adm0:'TWN',                                                              name:'Yizhou Island',            polity:'TNG', adminType:'circuit' },
+  // Tibetan Empire
+  { adm0:'NPL',                                                              name:'Nepal (Tibetan sphere)',   polity:'TIB', adminType:'kingdom' },
+  { adm0:'BTN',                                                              name:'Bhutan (Tibetan)',         polity:'TIB', adminType:'region' },
+  // Göktürk
+  { adm0:'MNG',                                                              name:'Uyghur Khaganate',         polity:'GOK', adminType:'khanate' },
+  { adm0:'KAZ',                                                              name:'Western Türk Steppe',      polity:'GOK', adminType:'khanate' },
+  // Korea
+  { adm0:'KOR',                                                              name:'Silla Kingdom',            polity:'SLL', adminType:'kingdom' },
+  { adm0:'PRK',                                                              name:'Balhae / Parhae',          polity:'SLL', adminType:'kingdom' },
+  // Japan
+  { adm0:'JPN',                                                              name:'Nara Japan',               polity:'NAR', adminType:'province' },
+  // Nanzhao
+  { adm0:'VNM',                                                              name:'Dai Viet (Tang tributary)',  polity:'NNZ', adminType:'province' },
+  { adm0:'THA',                                                              name:'Srivijaya sphere',         polity:'KHR', adminType:'mandala' },
+  // Khmer
+  { adm0:'KHM',                                                              name:'Khmer Empire',             polity:'KHR', adminType:'mandala' },
+  // India
+  { adm0:'IND',                                                              name:'Chalukya / Pallava India',  polity:'CLK', adminType:'kingdom' },
+]
+
+const AZTEC_PROVINCE_RULES: ProvinceRule[] = [
+  { adm0:'MEX', keywords:['Ciudad de México','Mexico City','Hidalgo','Puebla','Tlaxcala','Morelos'],  name:'Valley of Mexico',           polity:'AZT', adminType:'altepetl' },
+  { adm0:'MEX', keywords:['Veracruz','Tabasco','Campeche'],                 name:'Gulf Coast Provinces',      polity:'AZT', adminType:'altepetl' },
+  { adm0:'MEX', keywords:['Oaxaca'],                                         name:'Mixtec Region',             polity:'MIX', adminType:'altepetl' },
+  { adm0:'MEX', keywords:['Yucatán','Quintana Roo','Chiapas'],               name:'Maya Yucatan',              polity:'MYA', adminType:'altepetl' },
+  { adm0:'MEX',                                                              name:'Aztec Frontier Zone',       polity:'AZT', adminType:'altepetl' },
+  { adm0:'GTM',                                                              name:'Maya Highlands',            polity:'MYA', adminType:'altepetl' },
+  { adm0:'HND',                                                              name:'Maya / Lenca Territory',    polity:'MYA', adminType:'altepetl' },
+  { adm0:'PER',                                                              name:'Tawantinsuyu (Inca)',        polity:'INC', adminType:'suyu' },
+  { adm0:'BOL',                                                              name:'Qullasuyu (Inca)',          polity:'INC', adminType:'suyu' },
+  { adm0:'ECU',                                                              name:'Chinchaysuyu (Inca)',       polity:'INC', adminType:'suyu' },
+  { adm0:'CHL',                                                              name:'Antisuyu / Southern Inca', polity:'INC', adminType:'suyu' },
+  { adm0:'ARG',                                                              name:'Southern Inca borderlands', polity:'INC', adminType:'suyu' },
+  { adm0:'COL',                                                              name:'Northern Inca sphere',     polity:'INC', adminType:'suyu' },
+  { adm0:'BRA',                                                              name:'Tupi Territory',            polity:'TUP', adminType:'tribal' },
+  { adm0:'CUB',                                                              name:'Taíno Caribbean',           polity:'CRB', adminType:'chiefdom' },
+]
+
+const SONGHAI_PROVINCE_RULES: ProvinceRule[] = [
+  { adm0:'MLI', keywords:['Tombouctou','Timbuktu','Gao'],                   name:'Songhai Heartland',         polity:'SGH', adminType:'province' },
+  { adm0:'MLI',                                                              name:'Mali Remnants',             polity:'MLR', adminType:'province' },
+  { adm0:'NER',                                                              name:'Songhai East',              polity:'SGH', adminType:'province' },
+  { adm0:'BFA',                                                              name:'Songhai Southwest',         polity:'SGH', adminType:'province' },
+  { adm0:'SEN',                                                              name:'Wolof / Tekrur',            polity:'MLR', adminType:'kingdom' },
+  { adm0:'GIN',                                                              name:'Fula Highlands',            polity:'MLR', adminType:'kingdom' },
+  { adm0:'NGA', keywords:['Kano','Katsina','Zaria','Sokoto'],               name:'Hausa Kingdoms',            polity:'KNB', adminType:'emirate' },
+  { adm0:'NGA', keywords:['Lagos','Oyo','Osun','Ogun','Ondo'],              name:'Yoruba / Oyo States',       polity:'YOR', adminType:'kingdom' },
+  { adm0:'NGA', keywords:['Edo','Delta','Bayelsa'],                          name:'Benin Kingdom',             polity:'BNI', adminType:'kingdom' },
+  { adm0:'NGA',                                                              name:'Niger Delta Peoples',       polity:'KNB', adminType:'chiefdom' },
+  { adm0:'TCD',                                                              name:'Kanem-Bornu',               polity:'KNB', adminType:'sultanate' },
+  { adm0:'CMR',                                                              name:'Kanem borderlands',         polity:'KNB', adminType:'chiefdom' },
+  { adm0:'COD',                                                              name:'Kongo Kingdom',             polity:'KNG', adminType:'kingdom' },
+  { adm0:'AGO',                                                              name:'Kongo South',               polity:'KNG', adminType:'kingdom' },
+  { adm0:'ZWE',                                                              name:'Mutapa Empire',             polity:'ZIM', adminType:'kingdom' },
+  { adm0:'MOZ',                                                              name:'Mutapa Coast',              polity:'ZIM', adminType:'kingdom' },
+  { adm0:'ETH',                                                              name:'Ethiopian Highlands',       polity:'ETH', adminType:'kingdom' },
+  { adm0:'GHA',                                                              name:'Akan Gold Coast',           polity:'AKN', adminType:'chiefdom' },
+  { adm0:'CIV',                                                              name:'Akan Rainforest',           polity:'AKN', adminType:'chiefdom' },
+  { adm0:'MAR',                                                              name:'Saadian Morocco',           polity:'MOR', adminType:'sultanate' },
+  { adm0:'EGY',                                                              name:'Mamluk Egypt',              polity:'MOR', adminType:'sultanate' },
+]
+
+const SENGOKU_PROVINCE_RULES: ProvinceRule[] = [
+  // Japanese provinces — approximate by modern prefecture
+  { adm0:'JPN', keywords:['Aichi','Mie','Shizuoka','Gifu','Nagoya'],        name:'Owari / Mikawa (Oda)',       polity:'ODA', adminType:'domain' },
+  { adm0:'JPN', keywords:['Kyoto','Osaka','Hyogo','Nara','Shiga'],          name:'Kinai Region (Contested)',   polity:'ASH', adminType:'domain' },
+  { adm0:'JPN', keywords:['Yamanashi','Nagano'],                             name:'Kai / Shinano (Takeda)',     polity:'TAK', adminType:'domain' },
+  { adm0:'JPN', keywords:['Niigata'],                                        name:'Echigo (Uesugi)',            polity:'UES', adminType:'domain' },
+  { adm0:'JPN', keywords:['Hiroshima','Shimane','Yamaguchi','Tottori'],      name:'Chugoku (Mori)',             polity:'MOT', adminType:'domain' },
+  { adm0:'JPN', keywords:['Kagoshima','Miyazaki','Kumamoto'],                name:'Satsuma (Shimazu)',          polity:'SHI', adminType:'domain' },
+  { adm0:'JPN', keywords:['Kanagawa','Saitama','Tokyo'],                     name:'Sagami / Musashi (Hojo)',   polity:'HOJ', adminType:'domain' },
+  { adm0:'JPN', keywords:['Miyagi','Fukushima','Yamagata','Iwate'],          name:'Mutsu / Dewa (Date)',        polity:'DAT', adminType:'domain' },
+  { adm0:'JPN', keywords:['Kochi'],                                           name:'Tosa (Chosokabe)',          polity:'CHO', adminType:'domain' },
+  { adm0:'JPN',                                                              name:'Japanese Domains',           polity:'ODA', adminType:'domain' },
+  // Korea
+  { adm0:'KOR',                                                              name:'Joseon Korea',               polity:'JOS', adminType:'province' },
+  { adm0:'PRK',                                                              name:'Joseon North',               polity:'JOS', adminType:'province' },
+  // Ming China
+  { adm0:'CHN', keywords:['Guangdong','Fujian','Zhejiang','Jiangsu'],       name:'Ming Southern Provinces',   polity:'MIN', adminType:'province' },
+  { adm0:'CHN', keywords:['Hebei','Shanxi','Shaanxi','Henan','Shandong'],   name:'Ming Northern Provinces',   polity:'MIN', adminType:'province' },
+  { adm0:'CHN', keywords:['Sichuan','Yunnan','Guizhou'],                    name:'Ming Western Provinces',    polity:'MIN', adminType:'province' },
+  { adm0:'CHN',                                                              name:'Ming Dynasty',              polity:'MIN', adminType:'province' },
+  { adm0:'TWN',                                                              name:'Taiwan (Ming sphere)',      polity:'MIN', adminType:'province' },
+]
+
 const ERA_PROVINCE_RULES: Record<string, ProvinceRule[]> = {
   roman: ROMAN_PROVINCE_RULES,
   ottoman: OTTOMAN_PROVINCE_RULES,
   greek: GREEK_PROVINCE_RULES,
+  abbasid: ABBASID_PROVINCE_RULES,
+  tang: TANG_PROVINCE_RULES,
+  aztec: AZTEC_PROVINCE_RULES,
+  songhai: SONGHAI_PROVINCE_RULES,
+  sengoku: SENGOKU_PROVINCE_RULES,
 }
 
 /** Apply province rules to a GeoJSON feature collection (Natural Earth admin-1).
