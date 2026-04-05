@@ -778,7 +778,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 }), {
   name: 'aah-game',
   partialize: (s) => ({ state: s.state }),
-  onRehydrateStorage: () => () => {
-    useGameStore.setState({ _hasHydrated: true })
+  // Called when rehydration completes (or when there is nothing to rehydrate).
+  // `state` is the store instance — use it directly to avoid circular-ref issues
+  // that arise if we call useGameStore.setState() before the export is assigned.
+  onRehydrateStorage: () => (state) => {
+    if (state) {
+      state._hasHydrated = true
+    }
   },
 }))
