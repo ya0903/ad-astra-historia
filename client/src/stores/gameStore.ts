@@ -7,7 +7,7 @@ import type {
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
-import { getCountryCentre, getCityCentre } from '../lib/mapFly'
+import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
 import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
 import {
@@ -160,6 +160,7 @@ interface GameStoreState {
   isJumping: boolean
   isPaused: boolean
   error: string | null
+  _hasHydrated: boolean
   initGame: (conditions: EraStartConditions, playerCountryId: string, difficulty: Difficulty) => void
   loadGame: (saved: GameState) => void
   clearGame: () => void
@@ -202,6 +203,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   isJumping: false,
   isPaused: false,
   error: null,
+  _hasHydrated: false,
 
   initGame: (conditions, playerCountryId, difficulty) => {
     const newState: GameState = {
@@ -539,9 +541,14 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           ? bp.cities
           : [bp.fromCity!, bp.toCity!].filter(Boolean)
         const fallback = getCountryCentre(targetIso) ?? getCountryCentre(pid) ?? [0, 0] as [number, number]
-        const waypoints = citiesList
+        const rawWaypoints = citiesList
           .map(c => getCityCentre(c, targetIso) ?? fallback)
           .map(c => [c[0], c[1]] as [number, number])
+        // Border restriction: clamp any waypoint that falls outside the target country
+        // to the country's centre — prevents cross-border rail lines
+        const waypoints = rawWaypoints.map(pt =>
+          isCoordInCountry(pt[0], pt[1], targetIso) ? pt : (fallback as [number, number])
+        )
         const fromCoords = waypoints[0] ?? (fallback as [number, number])
         const toCoords = waypoints[waypoints.length - 1] ?? (fallback as [number, number])
         newBuilds.push({
@@ -768,4 +775,10 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     if (controlled.includes(isoUpper)) return {}
     return { state: { ...s.state, controlledCountries: [...controlled, isoUpper] } }
   }),
-}), { name: 'aah-game', partialize: (s) => ({ state: s.state }) }))
+}), {
+  name: 'aah-game',
+  partialize: (s) => ({ state: s.state }),
+  onRehydrateStorage: () => () => {
+    useGameStore.setState({ _hasHydrated: true })
+  },
+}))

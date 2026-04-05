@@ -83,8 +83,8 @@ export default function NewsPanel({ onClose }: NewsPanelProps) {
   const breakingCount = newsItems.filter(n => n.importance === 'breaking').length
 
   return (
-    <div className="absolute bottom-14 left-4 z-30 w-80 flex flex-col rounded-2xl bg-[#07101f]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden"
-      style={{ maxHeight: 'calc(100vh - 120px)' }}
+    <div className="absolute bottom-20 right-16 z-30 w-80 flex flex-col rounded-2xl bg-[#07101f]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden"
+      style={{ maxHeight: 'calc(100vh - 140px)' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">

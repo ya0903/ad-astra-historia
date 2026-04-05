@@ -4,6 +4,8 @@
   "workspaces": ["shared", "server", "client"],
   "scripts": {
     "start": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "start:pm2": "pm2 start ecosystem.config.cjs",
+    "stop:pm2": "pm2 stop all",
     "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
     "test": "npm run test --workspaces --if-present"
   },

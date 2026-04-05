@@ -320,6 +320,118 @@ const CITY_CENTRES: Record<string, [number, number, number]> = {
   brussels: [4.4, 50.8, 9],
 }
 
+// ── Country bounding boxes for rail border validation ─────────────────────────
+// Format: [minLng, minLat, maxLng, maxLat] with generous padding
+// Used to reject rail waypoints that land in a different country
+const COUNTRY_BBOX: Record<string, [number, number, number, number]> = {
+  // South Asia
+  PAK: [60.0, 23.0, 77.5, 37.5],
+  IND: [68.0, 6.0, 97.5, 36.5],
+  BGD: [88.0, 20.5, 92.8, 26.8],
+  LKA: [79.5, 5.7, 81.9, 9.9],
+  // East Asia
+  CHN: [73.4, 15.5, 135.1, 53.6],
+  JPN: [122.6, 24.0, 153.8, 45.7],
+  KOR: [125.0, 33.0, 130.0, 38.7],
+  PRK: [124.0, 37.5, 130.7, 42.8],
+  TWN: [119.9, 21.9, 122.1, 25.4],
+  MNG: [87.7, 41.5, 119.9, 52.2],
+  // Southeast Asia
+  VNM: [102.1, 8.3, 109.5, 23.5],
+  THA: [97.3, 5.5, 105.7, 20.5],
+  MMR: [92.1, 9.4, 101.2, 28.5],
+  IDN: [95.0, -11.0, 141.0, 6.1],
+  PHL: [116.9, 4.5, 126.6, 21.1],
+  MYS: [99.6, 0.8, 119.3, 7.4],
+  // Central Asia
+  KAZ: [50.3, 40.5, 87.4, 55.5],
+  UZB: [56.0, 37.1, 73.2, 45.6],
+  TKM: [52.5, 35.1, 66.7, 42.8],
+  KGZ: [69.3, 39.2, 80.3, 43.3],
+  TJK: [67.3, 36.7, 75.2, 41.1],
+  AFG: [60.5, 29.4, 74.9, 38.5],
+  // Middle East
+  IRN: [44.0, 25.1, 63.4, 39.8],
+  IRQ: [38.8, 29.1, 48.7, 37.4],
+  SAU: [36.7, 16.4, 55.7, 32.2],
+  TUR: [25.9, 35.8, 44.8, 42.2],
+  SYR: [35.7, 32.3, 42.4, 37.3],
+  ISR: [34.2, 29.5, 35.9, 33.4],
+  YEM: [42.5, 12.1, 54.6, 18.0],
+  ARE: [51.5, 22.5, 56.4, 26.1],
+  OMN: [52.0, 16.6, 59.9, 26.4],
+  JOR: [34.9, 29.2, 39.3, 33.4],
+  LBN: [35.1, 33.0, 36.7, 34.7],
+  KWT: [46.5, 28.5, 48.4, 30.1],
+  QAT: [50.7, 24.5, 51.7, 26.2],
+  BHR: [50.4, 25.8, 50.7, 26.3],
+  // Europe
+  RUS: [-180.0, 41.2, 180.0, 82.0],
+  DEU: [5.8, 47.3, 15.0, 55.1],
+  FRA: [-5.2, 41.3, 9.6, 51.1],
+  GBR: [-8.7, 49.8, 2.0, 61.0],
+  ESP: [-9.4, 36.0, 4.4, 43.8],
+  ITA: [6.6, 36.7, 18.6, 47.1],
+  POL: [14.1, 49.0, 24.2, 54.9],
+  UKR: [22.1, 44.4, 40.3, 52.4],
+  SWE: [10.9, 55.3, 24.2, 69.1],
+  NOR: [4.0, 57.8, 31.3, 71.2],
+  FIN: [19.1, 59.8, 31.6, 70.1],
+  GRC: [19.4, 34.8, 29.7, 42.0],
+  PRT: [-9.5, 36.8, -6.2, 42.2],
+  CHE: [5.9, 45.8, 10.5, 47.8],
+  AUT: [9.5, 46.4, 17.2, 49.0],
+  BEL: [2.5, 49.5, 6.5, 51.5],
+  NLD: [3.3, 50.8, 7.2, 53.6],
+  HUN: [16.1, 45.7, 22.9, 48.6],
+  ROU: [20.3, 43.6, 29.7, 48.3],
+  BGR: [22.4, 41.2, 28.7, 44.2],
+  CZE: [12.1, 48.5, 18.9, 51.1],
+  SVK: [16.8, 47.7, 22.6, 49.6],
+  HRV: [13.5, 42.4, 19.4, 46.6],
+  SRB: [18.8, 42.2, 23.0, 46.2],
+  // Africa
+  EGY: [24.7, 21.9, 37.0, 31.7],
+  NGA: [2.7, 4.3, 15.0, 13.9],
+  ZAF: [16.5, -35.0, 33.0, -22.1],
+  ETH: [33.0, 3.4, 48.0, 15.0],
+  KEN: [33.9, -4.7, 41.9, 5.0],
+  TZA: [29.3, -11.7, 40.4, -1.0],
+  MAR: [-13.2, 27.7, -1.1, 36.0],
+  DZA: [-8.7, 18.9, 12.0, 37.1],
+  LBY: [9.3, 19.5, 25.2, 33.2],
+  SDN: [21.8, 8.7, 38.6, 22.2],
+  ANG: [11.7, -18.1, 24.1, -4.4],
+  MOZ: [30.2, -26.9, 40.8, -10.5],
+  GHA: [-3.3, 4.7, 1.2, 11.2],
+  COD: [12.2, -13.5, 31.3, 5.4],
+  // Americas
+  USA: [-179.1, 18.9, -66.9, 71.4],
+  CAN: [-141.0, 41.7, -52.6, 83.1],
+  MEX: [-118.4, 14.5, -86.7, 32.7],
+  BRA: [-73.9, -33.7, -28.8, 5.3],
+  ARG: [-73.6, -55.1, -53.6, -21.8],
+  CHL: [-75.6, -55.9, -66.5, -17.5],
+  COL: [-79.0, -4.2, -66.9, 12.5],
+  PER: [-81.3, -18.4, -68.7, 0.0],
+  VEN: [-73.3, 0.6, -59.8, 12.2],
+  // Oceania
+  AUS: [112.9, -43.6, 154.0, -10.7],
+  NZL: [166.4, -47.4, 178.6, -34.4],
+}
+
+/**
+ * Returns true if [lng, lat] is inside the rough bounding box of the country.
+ * Adds generous ±3° margin to avoid false rejections at borders.
+ */
+export function isCoordInCountry(lng: number, lat: number, iso: string): boolean {
+  const bbox = COUNTRY_BBOX[iso.toUpperCase()]
+  if (!bbox) return true  // unknown country — allow through
+  const MARGIN = 3.0
+  return lng >= bbox[0] - MARGIN && lng <= bbox[2] + MARGIN
+      && lat >= bbox[1] - MARGIN && lat <= bbox[3] + MARGIN
+}
+
 // Disambiguates city names that exist in multiple countries.
 // Key: ISO_A3 → map of ambiguous lowercase city name → [lng, lat]
 const COUNTRY_CITY_OVERRIDES: Record<string, Record<string, [number, number]>> = {

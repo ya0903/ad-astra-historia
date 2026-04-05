@@ -29,7 +29,7 @@ const POLITY_BASE_STATS: Record<string, { military: number; techLevel: number; s
   SAF: { military:75, techLevel:52, stability:58, softPower:55, culturalReach:55 },
   HAB: { military:70, techLevel:65, stability:52, softPower:52, culturalReach:50 },
   HRE: { military:58, techLevel:62, stability:38, softPower:45, culturalReach:48 },
-  FRA: { military:65, techLevel:62, stability:65, softPower:68, culturalReach:65 },
+  FRA_OTT: { military:65, techLevel:62, stability:65, softPower:68, culturalReach:65 },  // Ottoman-era France (Kingdom of France)
   ENG: { military:50, techLevel:57, stability:70, softPower:42, culturalReach:40 },
   PLT: { military:68, techLevel:48, stability:58, softPower:38, culturalReach:35 },
   ESP: { military:80, techLevel:60, stability:62, softPower:58, culturalReach:55 },

@@ -242,6 +242,11 @@ export default function GamePage() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') togglePause()
       if (e.key === '\\') setCheatOpen(o => !o)
+      if (e.key === 'r' || e.key === 'R') {
+        if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+          setTechTreeOpen(o => !o)
+        }
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -757,34 +762,17 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           <LandmarksLayer />
         </WorldMap>
 
-        {/* ── Legend + News toggle buttons ── */}
-        <div className="absolute bottom-4 left-4 z-20 flex gap-2">
-          <button
-            onClick={() => { setLegendOpen(o => !o); setNewsOpen(false) }}
-            title="Toggle Legend"
-            className={`w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
-              legendOpen
-                ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
-                : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-            }`}>
-            🗺
-          </button>
-          <button
-            onClick={() => { setNewsOpen(o => !o); setLegendOpen(false) }}
-            title="World News"
-            className={`relative w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
-              newsOpen
-                ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
-                : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-            }`}>
-            📰
-            {breakingNewsCount > 0 && !newsOpen && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
-                {breakingNewsCount > 9 ? '9+' : breakingNewsCount}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* ── Legend toggle button (bottom-left) ── */}
+        <button
+          onClick={() => setLegendOpen(o => !o)}
+          title="Toggle Legend"
+          className={`absolute bottom-4 left-4 z-20 w-9 h-9 flex items-center justify-center rounded-xl backdrop-blur-md border text-sm shadow-xl transition-all ${
+            legendOpen
+              ? 'bg-blue-900/60 border-blue-500/50 text-blue-200'
+              : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+          }`}>
+          🗺
+        </button>
 
         {/* ── Floating Legend panel ── */}
         {legendOpen && (
@@ -883,18 +871,6 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
 
         {/* ── News panel ── */}
         {newsOpen && <NewsPanel onClose={() => setNewsOpen(false)} />}
-
-        {/* ── Tech Tree floating button ── */}
-        <button
-          onClick={() => setTechTreeOpen(o => !o)}
-          title="Technology Tree"
-          className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border shadow-xl text-base transition-all ${
-            techTreeOpen
-              ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
-              : 'bg-[#080f1e]/80 border-white/10 text-gray-400 hover:text-blue-300 hover:border-blue-500/40'
-          }`}>
-          🔬
-        </button>
 
         {/* ── Full-screen Tech Tree overlay ── */}
         {techTreeOpen && <TechTreeFullscreen onClose={() => setTechTreeOpen(false)} />}
@@ -1062,8 +1038,19 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
           </div>
         )}
 
-        {/* ── Bottom-right floating buttons ── */}
+        {/* ── Bottom-right floating buttons (Tech Tree · Orgs · Advisor · Diplomacy · News · Cheat) ── */}
         <div className="absolute bottom-20 right-4 z-10 flex flex-col items-end gap-2">
+          {/* Tech Tree — sits above Organisations */}
+          <button
+            onClick={() => setTechTreeOpen(o => !o)}
+            title="Technology Tree (R)"
+            className={`w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-base transition-all ${
+              techTreeOpen
+                ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
+                : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-blue-300 hover:border-blue-500/40'
+            }`}>
+            🔬
+          </button>
           <OrgPanel />
           <AdvisorPanel gameContext={{ playerCountry: player?.name ?? gameState.playerCountryId, currentDate: gameState.currentDate, era: gameState.era, stats: stats as unknown as Record<string, number> ?? {}, topCountries, recentHistory, warDamageSummary }} />
           <DiplomacyPanel gameContext={{
@@ -1076,6 +1063,22 @@ bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none)
             recentHistory,
             warDamageSummary,
           }} />
+          {/* News button — right-side panel consistent with Orgs/Advisor */}
+          <button
+            onClick={() => setNewsOpen(o => !o)}
+            title="World News"
+            className={`relative w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-base transition-all ${
+              newsOpen
+                ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
+                : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-white hover:border-white/30'
+            }`}>
+            📰
+            {breakingNewsCount > 0 && !newsOpen && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
+                {breakingNewsCount > 9 ? '9+' : breakingNewsCount}
+              </span>
+            )}
+          </button>
           <button onClick={() => setCheatOpen(o => !o)}
             className={`w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-xs font-mono transition-all ${
               cheatOpen ? 'bg-green-800 border-green-600 text-green-200' : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-green-400 hover:border-green-700'

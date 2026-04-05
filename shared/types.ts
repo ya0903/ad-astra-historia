@@ -191,30 +191,60 @@ export interface BuildProject {
 
 // ── Research ──────────────────────────────────────────────────────────────────
 
+export type TechCategory =
+  | 'infrastructure' | 'military' | 'economy' | 'government' | 'society' | 'science'
+
 export type TechId =
-  | 'basic_industry' | 'advanced_manufacturing' | 'photolithography'
-  | 'semiconductors' | 'computing' | 'ai_research' | 'nuclear_fission'
-  | 'nuclear_fusion' | 'space_launch' | 'satellite_network' | 'moon_landing'
-  | 'biotech' | 'renewable_energy' | 'stealth_tech' | 'hypersonics'
+  // ── Modern / Post-1900s ───────────────────────────────────────────────────
+  // Infrastructure
+  | 'basic_industry' | 'advanced_manufacturing' | 'renewable_energy'
+  | 'national_grid' | 'highway_network' | 'high_speed_rail_tech'
+  | 'deepwater_port' | 'civil_aviation' | 'water_sanitation'
+  | 'telecom_infrastructure' | 'internet_backbone' | '5g_network'
+  // Science & Technology
+  | 'photolithography' | 'semiconductors' | 'computing' | 'ai_research'
+  | 'nuclear_fission' | 'nuclear_fusion' | 'quantum_computing'
+  | 'space_launch' | 'satellite_network' | 'moon_landing' | 'mars_mission'
+  | 'biotech' | 'genetic_engineering' | 'nanotechnology'
+  // Military
+  | 'stealth_tech' | 'hypersonics' | 'drone_warfare'
+  | 'cyber_warfare' | 'missile_defence' | 'aircraft_carrier'
+  // Economy
+  | 'central_banking' | 'stock_exchange' | 'free_trade_zone'
+  | 'industrial_agriculture' | 'green_agriculture' | 'sovereign_wealth'
+  // Government
+  | 'census_bureau' | 'civil_service' | 'anti_corruption'
+  | 'public_broadcasting' | 'digital_governance'
+  // Society
+  | 'universal_healthcare' | 'public_education' | 'social_security'
+  | 'mass_media' | 'space_programme_culture'
   // ── Ancient / Medieval ────────────────────────────────────────────────────
+  // Metallurgy / Infrastructure
   | 'bronze_working' | 'iron_working' | 'steel_forging'
+  | 'road_network' | 'aqueducts' | 'architecture'
+  | 'irrigation' | 'qanat_system' | 'crop_rotation'
+  // Military
   | 'hoplite_warfare' | 'cavalry' | 'heavy_cavalry' | 'naval_warfare'
   | 'siege_weapons' | 'fortifications' | 'professional_army'
-  | 'road_network' | 'aqueducts' | 'architecture'
-  | 'philosophy' | 'mathematics' | 'medicine' | 'astronomy'
-  | 'irrigation' | 'qanat_system' | 'crop_rotation'
-  | 'coinage' | 'trade_routes' | 'merchant_guilds'
-  | 'trebuchet' | 'gunpowder' | 'printing_press'
+  | 'trebuchet' | 'gunpowder' | 'cannon' | 'janissary_corps'
   | 'plate_armour' | 'longbow' | 'crossbow'
-  | 'caravel' | 'cannon' | 'janissary_corps'
-  // ── Naval & Exploration ───────────────────────────────────────────────────
+  // Science / Knowledge
+  | 'philosophy' | 'mathematics' | 'medicine' | 'astronomy'
+  | 'printing_press'
+  // Economy
+  | 'coinage' | 'trade_routes' | 'merchant_guilds'
+  // Naval & Exploration
   | 'coastal_navigation' | 'cartography' | 'compass_navigation'
-  | 'ocean_navigation' | 'deep_sea_exploration'
+  | 'caravel' | 'ocean_navigation' | 'deep_sea_exploration'
+  // Government / Society
+  | 'law_codification' | 'census_taxation' | 'diplomatic_corps'
+  | 'state_religion' | 'public_granaries' | 'civic_administration'
 
 export interface TechNode {
   id: TechId
   name: string
   description: string
+  category: TechCategory
   researchWeeks: number            // realistic research time
   cost: number                     // researchPoints
   prerequisites: TechId[]
