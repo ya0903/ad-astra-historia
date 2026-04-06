@@ -4,5 +4,10 @@ dist/
 config.json
 saves/
 *.geojson
-!shared/eras/*.geojson
+shared/eras/biomes.geojson
+shared/eras/biomes-blended.geojson
+shared/eras/rivers.geojson
+shared/eras/ocean.geojson
+shared/eras/lakes.geojson
+shared/eras/provinces.geojson
 .superpowers/

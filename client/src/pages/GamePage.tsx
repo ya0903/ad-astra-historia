@@ -3,7 +3,7 @@ import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stor
 import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer, PlanetMap } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, LakesLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer, PlanetMap } from '../components/map'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -858,6 +858,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
             }
             <BiomesLayer />
             <RiversLayer />
+            <LakesLayer />
             <CountryLabelOverlay />
             <DamageLayer />
             <CitiesLayer />

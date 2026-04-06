@@ -143,31 +143,77 @@ export default function WorldMap({ children, era }: Props) {
         // Biome tint — desert, forest, grassland, wetland, tundra overlays
         if (biomesRes.status === 'fulfilled') {
           map.addSource('biomes', { type: 'geojson', data: biomesRes.value as never })
-          // Base fill — low opacity so dark background bleeds through
+
+          // Buffer ring layers — outermost first (level 3), lowest opacity
+          // Each ring uses the blendOpacity from the feature property, scaled by zoom
+          for (const level of [3, 2, 1] as const) {
+            map.addLayer({
+              id: `biomes-buffer-${level}`,
+              type: 'fill',
+              source: 'biomes',
+              minzoom: 2,
+              filter: ['==', ['get', 'bufferLevel'], level] as unknown as ExpressionSpecification,
+              paint: {
+                'fill-color': buildBiomeColour(),
+                'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                  2, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.6],
+                  4, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.9],
+                  7, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.75],
+                ] as unknown as ExpressionSpecification,
+                'fill-antialias': true,
+              },
+            })
+          }
+
+          // Core biome fills — bufferLevel 0 (highest opacity)
           map.addLayer({
             id: 'biomes-fill',
             type: 'fill',
             source: 'biomes',
             minzoom: 2,
+            filter: ['==', ['get', 'bufferLevel'], 0] as unknown as ExpressionSpecification,
             paint: {
               'fill-color': buildBiomeColour(),
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, 0.18,
-                4, 0.32,
-                7, 0.26,
+                2, 0.22,
+                4, 0.38,
+                7, 0.30,
               ] as ExpressionSpecification,
               'fill-antialias': true,
             },
           })
+
+          // Fallback layer for raw biomes.geojson (no bufferLevel property)
+          map.addLayer({
+            id: 'biomes-fill-fallback',
+            type: 'fill',
+            source: 'biomes',
+            minzoom: 2,
+            filter: ['!', ['has', 'bufferLevel']] as unknown as ExpressionSpecification,
+            paint: {
+              'fill-color': buildBiomeColour(),
+              'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, 0.22,
+                4, 0.38,
+                7, 0.30,
+              ] as ExpressionSpecification,
+              'fill-antialias': true,
+            },
+          })
+
           // Soft blurred edge layer — wide blurry lines along biome boundaries
           // give the appearance of gradual gradient transitions rather than hard
-          // polygon edges. The line colour matches each biome, the blur radius
-          // creates a "halo" that overlaps adjacent biomes and blends them.
+          // polygon edges. Only applied to core polygons (bufferLevel 0) or
+          // features without bufferLevel (fallback path).
           map.addLayer({
             id: 'biomes-edge-blur',
             type: 'line',
             source: 'biomes',
             minzoom: 2,
+            filter: ['any',
+              ['==', ['get', 'bufferLevel'], 0],
+              ['!', ['has', 'bufferLevel']],
+            ] as unknown as ExpressionSpecification,
             paint: {
               'line-color': buildBiomeColour(),
               'line-width': ['interpolate', ['linear'], ['zoom'],
