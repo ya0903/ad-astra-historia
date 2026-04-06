@@ -3,6 +3,7 @@ import cors from 'cors'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { existsSync } from 'fs'
+import { execSync } from 'child_process'
 import { aiRouter } from './routes/ai.js'
 import { authRouter } from './routes/auth.js'
 import { createSavesRouter } from './routes/saves.js'
@@ -56,8 +57,22 @@ export function createApp(options: AppOptions = {}) {
   return app
 }
 
+function ensureGeoData() {
+  const erasDir = join(__dirname, '../shared/eras')
+  const required = ['biomes.geojson', 'rivers.geojson', 'ocean.geojson', 'lakes.geojson']
+  const missing = required.filter(f => !existsSync(join(erasDir, f)))
+  if (missing.length === 0) return
+  console.warn(`[startup] Missing GeoJSON files: ${missing.join(', ')} — running download script...`)
+  try {
+    execSync('node shared/eras/download.mjs', { stdio: 'inherit' })
+  } catch (err) {
+    console.warn('[startup] GeoJSON download failed — map features may be unavailable.', err)
+  }
+}
+
 // Only start server when run directly (not during tests)
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  ensureGeoData()
   const PORT = Number(process.env.PORT ?? 3001)
   createApp().listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)

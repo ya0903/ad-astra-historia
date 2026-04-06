@@ -78,6 +78,10 @@ const BIOMES_URL =
 const OCEAN_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_ocean.geojson'
 
+// 10m lakes
+const LAKES_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_lakes.geojson'
+
 // 50m admin-1 provinces/states — for sub-national territory control
 const PROVINCES_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson'
@@ -148,6 +152,14 @@ try {
     await downloadFile(OCEAN_URL, oceanPath, 'ocean.geojson (110m ocean polygons)')
   }
 
+  // Lakes
+  const lakesPath = join(__dirname, 'lakes.geojson')
+  if (existsSync(lakesPath)) {
+    console.log(`lakes.geojson already exists (${featureCount(lakesPath)} features) — skipping.`)
+  } else {
+    await downloadFile(LAKES_URL, lakesPath, 'lakes.geojson (10m lakes)')
+  }
+
   // Provinces
   const provincesPath = join(__dirname, 'provinces.geojson')
   if (existsSync(provincesPath)) {
@@ -163,6 +175,7 @@ try {
   console.log('  Rivers:     rivers.geojson (50m rivers)')
   console.log('  Biomes:     biomes.geojson (10m geographic regions)')
   console.log('  Ocean:      ocean.geojson (110m ocean polygons)')
+  console.log('  Lakes:      lakes.geojson (10m lakes)')
   console.log('  Provinces:  provinces.geojson (50m admin-1 states/provinces)')
 } catch (err) {
   console.error('Error:', err.message)

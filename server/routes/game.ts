@@ -738,6 +738,21 @@ gameRouter.get('/rivers', (_req, res) => {
   res.json(result.data)
 })
 
+// GET /api/game/lakes — Natural Earth 10m lakes
+gameRouter.get('/lakes', (_req, res) => {
+  const lakesPath = join(ERAS_DIR, 'lakes.geojson')
+  const result = readEraFile(lakesPath)
+  if ('notFound' in result) {
+    res.status(404).json({ error: 'lakes.geojson not found. Run: node shared/eras/download.mjs' })
+    return
+  }
+  if ('error' in result) {
+    res.status(500).json({ error: 'Failed to read lakes file' })
+    return
+  }
+  res.json(result.data)
+})
+
 // ── Ancient province lookup tables ───────────────────────────────────────────
 // Each entry: adm0_a3 → { name, polity, adminType }
 // For countries spanning multiple provinces, nameKeywords lets us sub-divide

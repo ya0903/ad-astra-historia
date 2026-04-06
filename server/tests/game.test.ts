@@ -43,3 +43,36 @@ describe('GET /api/game/era/:era', () => {
     expect(res.body.countries.USA.id).toBe('USA')
   })
 })
+
+describe('GET /api/game/lakes', () => {
+  it('returns 200 with a FeatureCollection', async () => {
+    const app = createApp()
+    const res = await request(app).get('/api/game/lakes')
+    expect(res.status).toBe(200)
+    expect(res.body.type).toBe('FeatureCollection')
+    expect(Array.isArray(res.body.features)).toBe(true)
+    expect(res.body.features.length).toBeGreaterThan(0)
+  })
+})
+
+describe('GET /api/game/biomes', () => {
+  it('returns 200 with a FeatureCollection', async () => {
+    const app = createApp()
+    const res = await request(app).get('/api/game/biomes')
+    expect(res.status).toBe(200)
+    expect(res.body.type).toBe('FeatureCollection')
+    expect(Array.isArray(res.body.features)).toBe(true)
+    expect(res.body.features.length).toBeGreaterThan(0)
+  })
+})
+
+describe('GET /api/game/rivers', () => {
+  it('returns 200 with a FeatureCollection', async () => {
+    const app = createApp()
+    const res = await request(app).get('/api/game/rivers')
+    expect(res.status).toBe(200)
+    expect(res.body.type).toBe('FeatureCollection')
+    expect(Array.isArray(res.body.features)).toBe(true)
+    expect(res.body.features.length).toBeGreaterThan(0)
+  })
+})
