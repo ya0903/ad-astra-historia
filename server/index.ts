@@ -61,16 +61,33 @@ function ensureGeoData() {
   const erasDir = join(__dirname, '../shared/eras')
   const required = ['biomes.geojson', 'rivers.geojson', 'ocean.geojson', 'lakes.geojson']
   const missing = required.filter(f => !existsSync(join(erasDir, f)))
-  if (missing.length === 0) return
-  console.warn(`[startup] Missing GeoJSON files: ${missing.join(', ')} — running download script...`)
-  try {
-    execSync('node shared/eras/download.mjs', {
-      cwd: join(__dirname, '..'),
-      stdio: 'inherit',
-      timeout: 120_000,
-    })
-  } catch (err) {
-    console.warn('[startup] GeoJSON download failed — map features may be unavailable.', err)
+  if (missing.length > 0) {
+    console.warn(`[startup] Missing GeoJSON files: ${missing.join(', ')} — running download script...`)
+    try {
+      execSync('node shared/eras/download.mjs', {
+        cwd: join(__dirname, '..'),
+        stdio: 'inherit',
+        timeout: 120_000,
+      })
+    } catch (err) {
+      console.warn('[startup] GeoJSON download failed — map features may be unavailable.', err)
+    }
+  }
+
+  // Generate blended biome buffer zones if biomes exist but blended file doesn't
+  const biomesPath = join(erasDir, 'biomes.geojson')
+  const blendedPath = join(erasDir, 'biomes-blended.geojson')
+  if (existsSync(biomesPath) && !existsSync(blendedPath)) {
+    console.warn('[startup] biomes-blended.geojson not found — generating buffer zones (this may take a few minutes)...')
+    try {
+      execSync('node shared/eras/generateBiomeBuffers.mjs', {
+        cwd: join(__dirname, '..'),
+        stdio: 'inherit',
+        timeout: 300_000,
+      })
+    } catch (err) {
+      console.warn('[startup] Biome buffer generation failed — falling back to raw biomes.geojson.', err)
+    }
   }
 }
 

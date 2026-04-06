@@ -18,5 +18,9 @@
   },
   "devDependencies": {
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@turf/buffer": "^7.3.4",
+    "@turf/helpers": "^7.3.4"
   }
 }
