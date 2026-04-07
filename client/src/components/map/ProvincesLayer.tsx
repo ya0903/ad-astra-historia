@@ -37,7 +37,8 @@ export default function ProvincesLayer() {
           },
         })
 
-        // Controlled region fills — colored in player tint
+        // Controlled region fills — full player country colour at the same
+        // opacity as country fills, so the territory looks properly absorbed
         map.addLayer({
           id: 'province-controlled',
           type: 'fill',
@@ -45,11 +46,31 @@ export default function ProvincesLayer() {
           filter: ['in', ['get', 'name'], ['literal', [] as string[]]],
           paint: {
             'fill-color': '#1a4a7a',
-            'fill-opacity': ['step', ['zoom'], 0.55, 3, 0.50, 4, 0.40, 5, 0.25, 6, 0.12],
+            'fill-opacity': ['step', ['zoom'],
+              0.65, // z<3
+              3, 0.55,
+              4, 0.45,
+              5, 0.40,
+              6, 0.35,
+              8, 0.28,
+            ],
           },
         })
 
-        // Controlled region border highlight
+        // Controlled region border highlight — bright player-colour glow
+        map.addLayer({
+          id: 'province-controlled-border-glow',
+          type: 'line',
+          source: 'provinces',
+          filter: ['in', ['get', 'name'], ['literal', [] as string[]]],
+          paint: {
+            'line-color': '#60a5fa',
+            'line-width': 6,
+            'line-opacity': 0.45,
+            'line-blur': 4,
+          },
+        })
+
         map.addLayer({
           id: 'province-controlled-border',
           type: 'line',
@@ -57,15 +78,15 @@ export default function ProvincesLayer() {
           filter: ['in', ['get', 'name'], ['literal', [] as string[]]],
           paint: {
             'line-color': '#93c5fd',
-            'line-width': 1.2,
-            'line-opacity': 0.7,
+            'line-width': 2,
+            'line-opacity': 0.95,
           },
         })
       })
       .catch(() => { /* provinces.geojson not downloaded yet */ })
 
     return () => {
-      for (const id of ['province-controlled-border', 'province-controlled', 'province-borders']) {
+      for (const id of ['province-controlled-border', 'province-controlled-border-glow', 'province-controlled', 'province-borders']) {
         if (map.getLayer(id)) map.removeLayer(id)
       }
       if (map.getSource('provinces')) map.removeSource('provinces')
@@ -97,15 +118,12 @@ export default function ProvincesLayer() {
     const filter = ['in', ['get', 'name'], ['literal', matchedNames]]
     map.setFilter('province-controlled', filter as never)
     map.setFilter('province-controlled-border', filter as never)
-    map.setPaintProperty('province-controlled', 'fill-color', lightenForOccupied(playerColour))
+    if (map.getLayer('province-controlled-border-glow')) {
+      map.setFilter('province-controlled-border-glow', filter as never)
+    }
+    // Use the FULL player country colour so annexed regions look properly absorbed
+    map.setPaintProperty('province-controlled', 'fill-color', playerColour)
   }, [map, controlledRegions, playerCountryId, countries])
 
   return null
-}
-
-function lightenForOccupied(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `rgba(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 50)},1)`
 }
