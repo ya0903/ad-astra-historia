@@ -1,6 +1,7 @@
 import type { CountryPersonality, Country, WorldTickEvent, WorldTickEventType, NewsCategory, NewsImportance } from './types.js'
 import { COUNTRY_PERSONALITIES } from './countryPersonalities.js'
 import { countryName } from './newsGenerator.js'
+import { MODERN_COUNTRY_DATA } from './countryData.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ export function worldTick(
       const key = relationKey(a, b)
       relationDeltas[key] = (relationDeltas[key] ?? 0) + relDelta
 
-      events.push(makeEvent(eventType, stronger, weaker, date, relDelta))
+      events.push(makeEvent(eventType, stronger, weaker, date, relDelta, countries))
     }
   }
 
@@ -227,7 +228,7 @@ export function worldTick(
       const key = relationKey(a, b)
       relationDeltas[key] = (relationDeltas[key] ?? 0) + relDelta
 
-      events.push(makeEvent(eventType, a, b, date, relDelta))
+      events.push(makeEvent(eventType, a, b, date, relDelta, countries))
     }
   }
 
@@ -280,10 +281,10 @@ export function worldTick(
     }
 
     // Election: democracies ~0.5%
-    if (stability > 50 && approval > 30) {
-      if (roll(0.005)) {
-        events.push(makeInternalEvent('election_held', iso, date))
-      }
+    const govType = MODERN_COUNTRY_DATA[iso]?.governmentType ?? ''
+    const isDemocratic = ['democracy', 'federal_republic', 'republic', 'constitutional_monarchy'].includes(govType)
+    if (isDemocratic && roll(0.005)) {
+      events.push(makeInternalEvent('election_held', iso, date))
     }
 
     // Humanitarian crisis: stability < 30, 0.8%
@@ -304,13 +305,13 @@ export function worldTick(
         const p = getPersonality(iso)
         // Condemn (diplomatic_incident against aggressor) — 40% * diplomacy
         if (roll(0.4 * p.diplomacy / 100)) {
-          chainEvents.push(makeEvent('diplomatic_incident', iso, evt.primaryCountry, date, -5))
+          chainEvents.push(makeEvent('diplomatic_incident', iso, evt.primaryCountry, date, -5, countries))
           const key = relationKey(iso, evt.primaryCountry)
           relationDeltas[key] = (relationDeltas[key] ?? 0) - 5
         }
         // Sanction — 15% * economicFocus
         if (roll(0.15 * p.economicFocus / 100)) {
-          chainEvents.push(makeEvent('sanctions_imposed', iso, evt.primaryCountry, date, -10))
+          chainEvents.push(makeEvent('sanctions_imposed', iso, evt.primaryCountry, date, -10, countries))
           const key = relationKey(iso, evt.primaryCountry)
           relationDeltas[key] = (relationDeltas[key] ?? 0) - 10
         }
@@ -323,7 +324,7 @@ export function worldTick(
         if (iso === evt.primaryCountry || iso === evt.targetCountry) continue
         const relToTarget = getRelation(relations, iso, evt.targetCountry)
         if (relToTarget > 20 && roll(0.25)) {
-          chainEvents.push(makeEvent('military_exercise', iso, evt.primaryCountry, date, -3))
+          chainEvents.push(makeEvent('military_exercise', iso, evt.primaryCountry, date, -3, countries))
           const key = relationKey(iso, evt.primaryCountry)
           relationDeltas[key] = (relationDeltas[key] ?? 0) - 3
         }
@@ -378,6 +379,7 @@ function makeEvent(
   target: string,
   date: string,
   relDelta: number,
+  countries?: Record<string, Country>,
 ): WorldTickEvent {
   return {
     id: uid('wt'),
@@ -389,7 +391,7 @@ function makeEvent(
     category: eventCategory(type),
     importance: eventImportance(type),
     relationsDelta: { [relationKey(primary, target)]: relDelta },
-    statChanges: getStatChanges(type, primary, target),
+    statChanges: getStatChanges(type, primary, target, countries),
   }
 }
 
@@ -410,7 +412,7 @@ function makeInternalEvent(
   }
 }
 
-function getStatChanges(type: WorldTickEventType, primary: string, target: string): WorldTickEvent['statChanges'] {
+function getStatChanges(type: WorldTickEventType, primary: string, target: string, countries?: Record<string, Country>): WorldTickEvent['statChanges'] {
   switch (type) {
     case 'war_declared':
       return [
@@ -424,17 +426,22 @@ function getStatChanges(type: WorldTickEventType, primary: string, target: strin
         { country: primary, field: 'stability', delta: -3 },
         { country: target, field: 'stability', delta: -3 },
       ]
-    case 'sanctions_imposed':
+    case 'sanctions_imposed': {
+      const targetGdp = countries?.[target]?.stats.gdp ?? 0
       return [
-        { country: target, field: 'gdp', delta: -50_000_000_000 },
+        { country: target, field: 'gdp', delta: Math.round(targetGdp * -0.03) },
         { country: target, field: 'approval', delta: -3 },
       ]
+    }
     case 'trade_deal_proposed':
-    case 'trade_deal_signed':
+    case 'trade_deal_signed': {
+      const primaryGdp = countries?.[primary]?.stats.gdp ?? 0
+      const targetGdp2 = countries?.[target]?.stats.gdp ?? 0
       return [
-        { country: primary, field: 'gdp', delta: 20_000_000_000 },
-        { country: target, field: 'gdp', delta: 20_000_000_000 },
+        { country: primary, field: 'gdp', delta: Math.round(primaryGdp * 0.01) },
+        { country: target, field: 'gdp', delta: Math.round(targetGdp2 * 0.01) },
       ]
+    }
     case 'alliance_proposed':
     case 'alliance_formed':
       return [

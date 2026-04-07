@@ -660,6 +660,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
               stats.stability = Math.max(0, Math.min(100, (stats.stability ?? 70) + change.delta))
             } else if (change.field === 'approval') {
               stats.approval = Math.max(0, Math.min(100, stats.approval + change.delta))
+            } else if (change.field === 'gdp') {
+              stats.gdp = Math.max(0, stats.gdp + change.delta)
+            } else if (change.field === 'softPower') {
+              stats.softPower = Math.max(0, Math.min(100, stats.softPower + change.delta))
+            } else if (change.field === 'military') {
+              stats.military = Math.max(0, Math.min(100, stats.military + change.delta))
             }
             newCountries[change.country] = { ...country, stats }
           }
