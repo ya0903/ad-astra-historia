@@ -421,14 +421,22 @@ export default function SetupPage() {
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-1">Country</label>
               {(() => {
-                const topChosen = Object.entries(countryHistory)
+                const fromHistory = Object.entries(countryHistory)
                   .filter(([iso]) => eraConditions?.countries[iso])
                   .sort((a, b) => b[1] - a[1])
                   .slice(0, 5)
                   .map(([iso]) => eraConditions!.countries[iso])
+                // Fallback to popular default picks if no history yet
+                const POPULAR_FALLBACK = ['USA', 'CHN', 'RUS', 'GBR', 'IND', 'DEU', 'FRA', 'JPN', 'PAK', 'BRA']
+                const fallback = POPULAR_FALLBACK
+                  .filter(iso => eraConditions?.countries[iso])
+                  .slice(0, 5)
+                  .map(iso => eraConditions!.countries[iso])
+                const topChosen = fromHistory.length > 0 ? fromHistory : fallback
+                const label = fromHistory.length > 0 ? '★ Most Chosen' : '★ Popular Picks'
                 return topChosen.length > 0 && (
                   <div className="mb-3">
-                    <p className="text-[10px] text-amber-400 uppercase tracking-wider mb-1.5">★ Most Chosen</p>
+                    <p className="text-[10px] text-amber-400 uppercase tracking-wider mb-1.5">{label}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {topChosen.map(c => (
                         <button

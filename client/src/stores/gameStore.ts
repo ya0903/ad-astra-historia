@@ -236,7 +236,14 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const isAncient = ANCIENT_ERAS.includes(conditions.era)
     const player = conditions.countries[playerCountryId]
     const baseData = !isAncient ? MODERN_COUNTRY_DATA[playerCountryId.toUpperCase()] : undefined
+    // Generate a unique save slot name: country-era-timestamp
+    const countryName = (player?.name ?? playerCountryId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const eraName = conditions.era.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const ts = Date.now().toString(36)
+    const saveSlot = `${countryName}-${eraName}-${ts}`
+
     const newState: GameState = {
+      saveSlot,
       era: conditions.era,
       currentDate: conditions.startDate,
       playerCountryId,

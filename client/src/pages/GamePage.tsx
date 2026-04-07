@@ -357,7 +357,8 @@ export default function GamePage() {
   const handleSave = async () => {
     setSaveStatus('saving')
     try {
-      await saveGame('autosave', gameState)
+      const slot = gameState.saveSlot || 'autosave'
+      await saveGame(slot, gameState)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
     } catch (e) {
@@ -738,15 +739,20 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                     placeholder="Describe your action… (Enter to queue)"
                     className="w-full h-24 bg-white/[0.04] border border-white/10 rounded-xl p-3 pr-9 text-sm resize-none focus:outline-none focus:border-blue-500/50 text-white placeholder-gray-600"
                   />
-                  <button
-                    onClick={() => { setSuggestError(''); handleAiSuggest(actionText) }}
-                    disabled={!actionText.trim() || suggestLoading || !config}
-                    title="AI Refine — rewrites your text into a specific action"
-                    className={`absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-sm ${
-                      suggestLoading ? 'bg-purple-600/60 text-purple-200 animate-pulse' : 'bg-white/[0.06] text-gray-500 hover:text-purple-300 hover:bg-purple-900/30 disabled:opacity-30'
-                    }`}>
-                    ✦
-                  </button>
+                  <div className="absolute top-2 right-2 group">
+                    <button
+                      onClick={() => { setSuggestError(''); handleAiSuggest(actionText) }}
+                      disabled={!actionText.trim() || suggestLoading || !config}
+                      className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-sm ${
+                        suggestLoading ? 'bg-purple-600/60 text-purple-200 animate-pulse' : 'bg-white/[0.06] text-gray-500 hover:text-purple-300 hover:bg-purple-900/30 disabled:opacity-30'
+                      }`}>
+                      ✦
+                    </button>
+                    <div className="pointer-events-none absolute top-full right-0 mt-1.5 w-52 px-3 py-2 rounded-lg bg-[#0c1424] border border-purple-500/30 shadow-xl text-[10px] text-gray-300 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                      <span className="text-purple-300 font-semibold">✦ AI Refine</span><br/>
+                      Rewrites your typed text into a specific, well-formed action.
+                    </div>
+                  </div>
                 </div>
                 {suggestError && <p className="text-xs text-red-400 mt-1">{suggestError}</p>}
                 {suggestActionsError && <p className="text-xs text-red-400 mt-1">{suggestActionsError}</p>}
@@ -755,17 +761,22 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                     className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
                     Queue Action
                   </button>
-                  <button
-                    onClick={handleAiSuggestActions}
-                    disabled={suggestActionsLoading || !config}
-                    title="AI Suggest Actions — generates 4 contextual action proposals you can review"
-                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-lg ${
-                      suggestActionsLoading
-                        ? 'bg-purple-600/60 text-purple-200 animate-pulse'
-                        : 'bg-purple-700/60 hover:bg-purple-600/70 text-purple-100 disabled:opacity-30'
-                    }`}>
-                    ✨
-                  </button>
+                  <div className="relative group">
+                    <button
+                      onClick={handleAiSuggestActions}
+                      disabled={suggestActionsLoading || !config}
+                      className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-lg ${
+                        suggestActionsLoading
+                          ? 'bg-purple-600/60 text-purple-200 animate-pulse'
+                          : 'bg-purple-700/60 hover:bg-purple-600/70 text-purple-100 disabled:opacity-30'
+                      }`}>
+                      ✨
+                    </button>
+                    <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 w-56 px-3 py-2 rounded-lg bg-[#0c1424] border border-purple-500/30 shadow-xl text-[10px] text-gray-300 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                      <span className="text-purple-300 font-semibold">✨ AI Suggest Actions</span><br/>
+                      Reads the world state and generates 4 contextual action proposals. Delete the ones you don't want before jumping forward.
+                    </div>
+                  </div>
                 </div>
               </div>
 

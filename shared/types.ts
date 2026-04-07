@@ -556,6 +556,7 @@ export interface GameState {
   era: Era
   currentDate: string
   playerCountryId: string
+  saveSlot?: string            // unique save filename for this playthrough — set at game creation
   empireName?: string          // set when player has expanded into an empire
   controlledCountries?: string[] // ISO_A3 of countries under player control
   controlledRegions?: Array<{ name: string; adm0_a3: string }> // sub-national provinces/regions under control
