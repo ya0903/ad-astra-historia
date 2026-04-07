@@ -252,7 +252,15 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       recentDisasters: [],
       warDamage: {},
       lore: [],
-      newsItems: [],
+      newsItems: conditions.disputes.map(d => ({
+        id: `news-dispute-${d.id}`,
+        date: conditions.startDate,
+        headline: `${d.name} — ${d.status === 'active' ? 'Ongoing' : d.status === 'negotiating' ? 'Talks Underway' : d.status === 'frozen' ? 'Frozen Conflict' : 'Resolved'}`,
+        body: d.history.join(' '),
+        category: (d.status === 'active' ? 'military' : 'diplomacy') as any,
+        importance: 'major' as any,
+        country: d.parties[0],
+      })),
       yesman: false,
       // ── Deep simulation state ──────────────────────────────────────────────
       eraPhase: isAncient ? 'ancient' : 'modern',
