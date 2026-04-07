@@ -15,6 +15,9 @@ const CATEGORY_META: Record<NewsCategory, { icon: string; label: string; colour:
   disaster:  { icon: '⚠️',  label: 'Disaster',  colour: 'text-amber-400 border-amber-500/30 bg-amber-900/20' },
   politics:  { icon: '🏛️', label: 'Politics',  colour: 'text-orange-400 border-orange-500/30 bg-orange-900/20' },
   world:     { icon: '🌍', label: 'World',     colour: 'text-sky-400 border-sky-500/30 bg-sky-900/20' },
+  culture:        { icon: '🎭', label: 'Culture',        colour: 'text-pink-400 border-pink-500/30 bg-pink-900/20' },
+  infrastructure: { icon: '🏗️', label: 'Infrastructure', colour: 'text-cyan-400 border-cyan-500/30 bg-cyan-900/20' },
+  government:     { icon: '⚖️', label: 'Government',     colour: 'text-indigo-400 border-indigo-500/30 bg-indigo-900/20' },
 }
 
 const IMPORTANCE_DOT: Record<NewsImportance, string> = {

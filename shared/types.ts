@@ -554,7 +554,7 @@ export interface WorldTickEvent {
   }>
 }
 
-export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world'
+export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world' | 'culture' | 'infrastructure' | 'government'
 export type NewsImportance = 'breaking' | 'major' | 'minor'
 
 /** A natural resource that has been nationalised by the player country. */

@@ -19,7 +19,8 @@
     "./railDrawing": "./dist/railDrawing.js",
     "./eraConfig": "./dist/eraConfig.js",
     "./historicalPolities": "./dist/historicalPolities.js",
-    "./historicalEraTechTrees": "./dist/historicalEraTechTrees.js"
+    "./historicalEraTechTrees": "./dist/historicalEraTechTrees.js",
+    "./newsTemplates": "./dist/newsTemplates.js"
   },
   "scripts": {
     "build": "tsc",
