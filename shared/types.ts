@@ -513,8 +513,8 @@ export interface ActionResult {
   annexedCountry?: string      // ISO_A3 of entire sovereign country brought under control
   annexedRegion?: string       // province/state name when taking sub-national territory (e.g. "Kashmir", "Crimea")
   focusIso?: string            // ISO_A3 to fly map camera to
-  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }  // single build (legacy)
-  buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }> // multiple builds from one action
+  buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string }  // single build (legacy)
+  buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string }> // multiple builds from one action
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
   bombardment?: string[]       // ISO_A3 list of countries heavily bombed/damaged
   foundColony?: {              // Moon or Mars colony founded by this action

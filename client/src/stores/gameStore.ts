@@ -887,7 +887,20 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     /** Push a build project, or queue a blocked-rail news item for rail types. */
-    function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }, targetIso: string) {
+    function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string }, targetIso: string) {
+      // Embassies are always built in a foreign host country, not the player's territory.
+      // Use hostCountry if provided, else try to detect the host from the city name.
+      if (bp.type === 'embassy') {
+        if (bp.hostCountry) {
+          targetIso = bp.hostCountry.toUpperCase()
+        } else if (bp.city) {
+          // Try to find which country the city belongs to (excluding the player's country)
+          for (const iso of Object.keys(s.countries)) {
+            if (iso === pid) continue
+            if (getCityCentre(bp.city, iso)) { targetIso = iso; break }
+          }
+        }
+      }
       const weeks = BUILD_WEEKS[bp.type] ?? 52
       if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
         const citiesList: string[] = bp.cities?.length
