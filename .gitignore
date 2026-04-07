@@ -3,11 +3,8 @@ dist/
 .env
 config.json
 saves/
-*.geojson
-shared/eras/biomes.geojson
-shared/eras/biomes-blended.geojson
-shared/eras/rivers.geojson
-shared/eras/ocean.geojson
-shared/eras/lakes.geojson
-shared/eras/provinces.geojson
 .superpowers/
+
+# Downloaded Natural Earth GeoJSON (auto-downloaded by server on startup)
+# These are large files fetched from github.com/nvkelso/natural-earth-vector
+# Do NOT ignore them — they must be committed so deploys work without outbound internet
