@@ -5,6 +5,7 @@ import { dirname, join } from 'path'
 import { ERA_START_DATES, getCountryColour } from '@ad-astra/shared/countries'
 import type { Era, EraStartConditions, Country, CountryStats, CountrySectors, PassageStatus } from '@ad-astra/shared/types'
 import { ERA_DISPUTES, ERA_NON_STATE_ACTORS } from '@ad-astra/shared/eraConflicts'
+import { MODERN_COUNTRY_DATA } from '@ad-astra/shared/countryData'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -221,8 +222,11 @@ interface GeoJSONFeatureCollection {
   features: Array<{ properties: GeoJSONProperties }>
 }
 
-function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection): Record<string, Country> {
+const MODERN_ERA_LIST: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern']
+
+function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection, era?: Era): Record<string, Country> {
   const countries: Record<string, Country> = {}
+  const isModernEra = era != null && MODERN_ERA_LIST.includes(era)
 
   for (const feature of geojson.features) {
     const props = feature.properties
@@ -231,7 +235,15 @@ function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection): Record<st
     if (isoA3 === '-99' || !isoA3) continue
 
     const name = props.ADMIN ?? props.NAME ?? isoA3
-    const gdp = props.GDP_MD != null ? props.GDP_MD * 1_000_000 : 0
+
+    // For modern eras, prefer database GDP over GeoJSON value
+    let gdp = props.GDP_MD != null ? props.GDP_MD * 1_000_000 : 0
+    if (isModernEra) {
+      const dbEntry = MODERN_COUNTRY_DATA[isoA3]
+      if (dbEntry) {
+        gdp = dbEntry.gdp
+      }
+    }
 
     countries[isoA3] = {
       id: isoA3,
@@ -1288,7 +1300,7 @@ gameRouter.get('/era/:era', (req, res) => {
   const response: EraStartConditions = {
     era,
     startDate: ERA_START_DATES[era],
-    countries: buildCountriesFromGeoJSON(geojsonData),
+    countries: buildCountriesFromGeoJSON(geojsonData, era),
     organisations: [],
     disputes: ERA_DISPUTES[era] ?? [],
     nonStateActors: ERA_NON_STATE_ACTORS[era] ?? [],
