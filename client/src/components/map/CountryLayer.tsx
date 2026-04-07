@@ -53,7 +53,10 @@ function injectColours(
     features: geojson.features.map(f => {
       const p = f.properties as Record<string, unknown>
       const iso = (p?.ISO_A3 ?? p?.ADM0_A3 ?? '') as string
-      const base = getCountryColour(iso)
+      // Historical eras pre-compute fill_colour per polity; modern eras use
+      // the shared COUNTRY_COLOURS table keyed by ISO_A3.
+      const preComputed = (p?.fill_colour as string | undefined)
+      const base = preComputed ?? getCountryColour(iso)
       const colour =
         iso === playerCountryId ? lightenColour(base) :
         controlledSet.has(iso) ? tintOccupied(playerColour) :
@@ -132,12 +135,12 @@ export default function CountryLayer() {
           paint: {
             'fill-color': ['coalesce', ['get', 'fill_colour'], '#1a4a7a'] as ExpressionSpecification,
             'fill-opacity': ['step', ['zoom'],
-              0.35,
-              3, 0.30,
-              4, 0.25,
-              5, 0.22,
-              6, 0.18,
-              8, 0.12,
+              0.65,
+              3, 0.58,
+              4, 0.50,
+              5, 0.42,
+              6, 0.35,
+              8, 0.25,
             ] as ExpressionSpecification,
           },
         })

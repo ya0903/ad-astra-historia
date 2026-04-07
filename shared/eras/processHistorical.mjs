@@ -142,7 +142,7 @@ function normaliseEra(eraId, geojson) {
         ADMIN: name,
         NAME: name,
         playable: !isUnknown,
-        fill_colour: generatePolityColour(name, eraId),
+        fill_colour: isUnknown ? '#3a3f47' : generatePolityColour(name, eraId),
         border_precision: typeof props.BORDERPRECISION === 'number' ? props.BORDERPRECISION : 2,
       },
     })
