@@ -5,6 +5,21 @@ import { fetchEraConditions, listSaves, loadSave, deleteSave, renameSave } from 
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+const COUNTRY_HISTORY_KEY = 'aah-country-history'
+
+function loadCountryHistory(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(COUNTRY_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function bumpCountryHistory(iso: string) {
+  const history = loadCountryHistory()
+  history[iso] = (history[iso] ?? 0) + 1
+  try { localStorage.setItem(COUNTRY_HISTORY_KEY, JSON.stringify(history)) } catch { /* ignore */ }
+}
+
 const MODEL_HINTS: Record<AIProvider, string> = {
   openai: 'gpt-4o',
   anthropic: 'claude-sonnet-4-6',
@@ -96,6 +111,7 @@ export default function SetupPage() {
   const [selectedCountry, setSelectedCountry] = useState('')
   const [difficulty, setDifficulty] = useState<Difficulty>('realistic')
   const [startError, setStartError] = useState('')
+  const [countryHistory] = useState<Record<string, number>>(() => loadCountryHistory())
 
   useEffect(() => {
     // Load saves list for landing screen
@@ -169,6 +185,7 @@ export default function SetupPage() {
   function handleStartGame() {
     if (!eraConditions) { setStartError('Select an era first.'); return }
     if (!selectedCountry) { setStartError('Select a country.'); return }
+    bumpCountryHistory(selectedCountry)
     initGame(eraConditions, selectedCountry, difficulty)
   }
 
@@ -403,6 +420,33 @@ export default function SetupPage() {
             <SectionTitle>Step 3 — Country &amp; Difficulty</SectionTitle>
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-1">Country</label>
+              {(() => {
+                const topChosen = Object.entries(countryHistory)
+                  .filter(([iso]) => eraConditions?.countries[iso])
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([iso]) => eraConditions!.countries[iso])
+                return topChosen.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-amber-400 uppercase tracking-wider mb-1.5">★ Most Chosen</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {topChosen.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedCountry(c.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                            selectedCountry === c.id
+                              ? 'bg-amber-700/60 border-amber-500 text-white'
+                              : 'bg-amber-950/30 border-amber-700/40 text-amber-200 hover:bg-amber-900/50'
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
               <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)}
                 placeholder="Search countries…"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 mb-2" />
