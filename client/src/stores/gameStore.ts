@@ -807,7 +807,38 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     // Add any build projects from AI results
     const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
     const newBuilds: BuildProject[] = []
+    const blockedRailNewsItems: NewsItem[] = []
 
+    // Countries friendly to the player: own country + allies + controlled countries
+    const friendlyCountries = new Set<string>([
+      pid,
+      ...(s.allies ?? []),
+      ...(s.controlledCountries ?? []),
+    ])
+
+    /**
+     * Checks whether a rail route (given as raw [lng,lat] waypoints) crosses
+     * into non-friendly territory.  Returns the ISO_A3 of the first blocking
+     * country found, or null if the route is entirely within friendly territory.
+     */
+    function findBlockingCountry(rawWaypoints: [number, number][], targetIso: string): string | null {
+      // targetIso must itself be friendly
+      if (!friendlyCountries.has(targetIso)) return targetIso
+
+      // Check each waypoint against every non-friendly country bounding box
+      const nonFriendlyIsos = Object.keys(s.countries).filter(iso => !friendlyCountries.has(iso))
+      for (const pt of rawWaypoints) {
+        // Skip the point if it's inside the target (friendly) country — no issue
+        if (isCoordInCountry(pt[0], pt[1], targetIso)) continue
+        // Point is outside targetIso — find which non-friendly country it's in
+        for (const iso of nonFriendlyIsos) {
+          if (isCoordInCountry(pt[0], pt[1], iso)) return iso
+        }
+      }
+      return null
+    }
+
+    /** Push a build project, or queue a blocked-rail news item for rail types. */
     function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[] }, targetIso: string) {
       const weeks = BUILD_WEEKS[bp.type] ?? 52
       if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
@@ -818,8 +849,25 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         const rawWaypoints = citiesList
           .map(c => getCityCentre(c, targetIso) ?? fallback)
           .map(c => [c[0], c[1]] as [number, number])
-        // Border restriction: clamp any waypoint that falls outside the target country
-        // to the country's centre — prevents cross-border rail lines
+
+        // ── Border routing check ──────────────────────────────────────────────
+        // Prevent rail lines from crossing into non-allied territory
+        const blockingIso = findBlockingCountry(rawWaypoints, targetIso)
+        if (blockingIso) {
+          const blockingName = s.countries[blockingIso]?.name ?? blockingIso
+          blockedRailNewsItems.push({
+            id: `rail-blocked-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            date: s.currentDate,
+            headline: `Rail construction halted — route crosses ${blockingName} territory`,
+            body: `Cannot build rail — route crosses non-allied territory. Establish an alliance or trade agreement with ${blockingName} to enable cross-border rail.`,
+            category: 'world',
+            importance: 'minor',
+            country: pid,
+          })
+          return
+        }
+
+        // Clamp any remaining out-of-bounds waypoints to the country centre
         const waypoints = rawWaypoints.map(pt =>
           isCoordInCountry(pt[0], pt[1], targetIso) ? pt : (fallback as [number, number])
         )
@@ -919,7 +967,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         pendingActions: [],
         actionHistory: newHistory,
         buildQueue: [...(s.buildQueue ?? []), ...newBuilds],
-        newsItems: [...actionNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
+        newsItems: [...blockedRailNewsItems, ...actionNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         warDamage: results.reduce((dmg, r) => {
           const updated = { ...dmg }
           for (const iso of r.nuclearStrike ?? []) updated[iso] = 'nuked'
