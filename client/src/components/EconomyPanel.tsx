@@ -1,5 +1,6 @@
 import { useGameStore } from '../stores'
 import { getCountryResources, resourceMonthlyIncome, type ResourceType } from '@ad-astra/shared/countryResources'
+import { BUILD_MONTHLY_INCOME } from '@ad-astra/shared/types'
 
 function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; max?: number; colour?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
@@ -28,12 +29,41 @@ interface EconomyPanelProps { isOpen: boolean; onOpen: () => void; onClose: () =
 export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelProps) {
   const economy = useGameStore(s => s.state?.economy)
   const setEconomy = useGameStore(s => s.setEconomy)
+  const payDownDebt = useGameStore(s => s.payDownDebt)
   const gdp = useGameStore(s => s.state?.countries[s.state?.playerCountryId ?? '']?.stats.gdp ?? 0)
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const nationalisedResources = useGameStore(s => s.state?.nationalisedResources ?? [])
+  const infrastructureMap = useGameStore(s => s.state?.infrastructureMap ?? [])
 
   if (!economy) return null
+
+  // ── Monthly income calculation (same formula as advanceDate tick) ──
+  // 1. Infrastructure income
+  let monthlyInfra = 0
+  for (const inf of infrastructureMap) {
+    if (inf.countryId !== playerCountryId) continue
+    const base = BUILD_MONTHLY_INCOME[inf.type] ?? 0
+    monthlyInfra += Math.round(base * (1 + 0.6 * ((inf.level ?? 1) - 1)))
+  }
+  // 2. Nationalised resources
+  let monthlyResources = 0
+  for (const nr of nationalisedResources) {
+    monthlyResources += resourceMonthlyIncome(nr.type as ResourceType, nr.abundance, nr.extractionLevel, nr.exportsAllowed)
+  }
+  // 3. Power surplus
+  const POWER_OUTPUT: Record<string, number> = {
+    nuclear_plant: 10, hydro_dam: 8, fossil_fuel_plant: 6, solar_farm: 3, wind_farm: 3,
+  }
+  let powerGen = 0
+  for (const inf of infrastructureMap) {
+    if (inf.countryId !== playerCountryId) continue
+    const base = POWER_OUTPUT[inf.type] ?? 0
+    if (base > 0) powerGen += base * (1 + 0.5 * ((inf.level ?? 1) - 1))
+  }
+  const nationalDemand = Math.max(1, Math.round(gdp / 100_000_000_000))
+  const monthlyPower = Math.max(0, powerGen - nationalDemand) * 2_000_000
+  const monthlyTotal = monthlyInfra + monthlyResources + monthlyPower
 
   // Resources: show ALL of the country's natural reserves, mark which are nationalised
   const countryResources = getCountryResources(playerCountryId)
@@ -79,8 +109,18 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
           <div className="p-4 space-y-4">
             {/* GDP */}
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">GDP</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">GDP</p>
+                <span className="text-[10px] font-mono text-emerald-400">
+                  +{formatMoney(monthlyTotal)}/mo
+                </span>
+              </div>
               <p className="text-lg font-bold text-white font-mono">{formatMoney(gdp)}</p>
+              <div className="flex justify-between text-[9px] text-gray-600 mt-0.5">
+                <span>Infra: {formatMoney(monthlyInfra)}</span>
+                <span>Resources: {formatMoney(monthlyResources)}</span>
+                <span>Power: {formatMoney(monthlyPower)}</span>
+              </div>
             </div>
 
             {/* Debt */}
@@ -93,6 +133,26 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
                 </span>
               </div>
               <Bar value={Math.min(100, debtRatio * 100)} colour={debtColour} />
+              {economy.debt > 0 && (
+                <div className="flex gap-1 mt-2">
+                  <button
+                    onClick={() => payDownDebt(monthlyTotal)}
+                    disabled={monthlyTotal <= 0 || gdp < monthlyTotal}
+                    title={`Pay 1 month of income (${formatMoney(monthlyTotal)})`}
+                    className="flex-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.05] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-600/50 text-gray-300 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Pay {formatMoney(monthlyTotal)} (1mo)
+                  </button>
+                  <button
+                    onClick={() => payDownDebt(monthlyTotal * 12)}
+                    disabled={monthlyTotal <= 0 || gdp < monthlyTotal * 12}
+                    title={`Pay 12 months of income (${formatMoney(monthlyTotal * 12)})`}
+                    className="flex-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.05] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-600/50 text-gray-300 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Pay {formatMoney(monthlyTotal * 12)} (1yr)
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Inflation */}

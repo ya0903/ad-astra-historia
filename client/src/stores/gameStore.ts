@@ -250,6 +250,8 @@ interface GameStoreState {
   // Deep system setters
   setEraPhase: (phase: EraPhase) => void
   setEconomy: (patch: Partial<EconomyState>) => void
+  /** Pay down debt from GDP. Returns silently if funds insufficient. */
+  payDownDebt: (amount: number) => void
   setMilitaryState: (patch: Partial<MilitaryState>) => void
   setPolitics: (patch: Partial<PoliticsState>) => void
   setSociety: (patch: Partial<SocietyState>) => void
@@ -1584,6 +1586,42 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   setEconomy: (patch) => set(s => {
     if (!s.state?.economy) return {}
     return { state: { ...s.state, economy: { ...s.state.economy, ...patch } } }
+  }),
+
+  payDownDebt: (amount) => set(s => {
+    if (!s.state?.economy) return {}
+    const st = s.state
+    const player = st.countries[st.playerCountryId]
+    if (!player) return {}
+    const currentDebt = st.economy!.debt
+    if (currentDebt <= 0) return {} // no debt to pay
+    // Cap: can't pay more than owed, and can't spend more GDP than available
+    const affordable = Math.min(amount, currentDebt, Math.max(0, player.stats.gdp))
+    if (affordable <= 0) return {}
+    const newCountries = {
+      ...st.countries,
+      [st.playerCountryId]: {
+        ...player,
+        stats: { ...player.stats, gdp: player.stats.gdp - affordable },
+      },
+    }
+    const newsItem: NewsItem = {
+      id: `news-paydebt-${Date.now()}`,
+      date: st.currentDate,
+      headline: `${player.name} Repays $${(affordable / 1e9).toFixed(1)}B in National Debt`,
+      body: `Treasury makes an early debt repayment. Remaining debt: $${((currentDebt - affordable) / 1e9).toFixed(1)}B.`,
+      category: 'economy',
+      importance: 'minor',
+      country: st.playerCountryId,
+    }
+    return {
+      state: {
+        ...st,
+        countries: newCountries,
+        economy: { ...st.economy!, debt: currentDebt - affordable },
+        newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
+      },
+    }
   }),
 
   setMilitaryState: (patch) => set(s => {
