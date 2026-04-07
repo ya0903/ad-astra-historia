@@ -630,19 +630,42 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         } satisfies Infrastructure
       })
 
-    // Convert completed rail builds into RailLine map features
+    // Convert completed rail builds into RailLine map features.
+    // For builds with pendingRailLine (player-drawn), use that exact data.
+    // Otherwise fall back to the legacy from/to coords approach.
     const newRailLines: RailLine[] = completedBuilds
-      .filter(b => RAIL_INFRA_TYPES.has(b.type) && b.fromCoords && b.toCoords)
-      .map(b => ({
-        id: `rail-${b.id}`,
-        countryId: b.countryId ?? s.playerCountryId,
-        fromCity: b.fromCity ?? '',
-        toCity: b.toCity ?? '',
-        fromCoords: b.fromCoords!,
-        toCoords: b.toCoords!,
-        waypoints: b.waypoints,
-        type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
-      }))
+      .filter(b => RAIL_INFRA_TYPES.has(b.type) && (b.pendingRailLine || (b.fromCoords && b.toCoords)))
+      .map(b => {
+        if (b.pendingRailLine) {
+          return {
+            ...b.pendingRailLine,
+            id: `rail-${b.id}`,
+            countryId: b.countryId ?? s.playerCountryId,
+          }
+        }
+        return {
+          id: `rail-${b.id}`,
+          countryId: b.countryId ?? s.playerCountryId,
+          fromCity: b.fromCity ?? '',
+          toCity: b.toCity ?? '',
+          fromCoords: b.fromCoords!,
+          toCoords: b.toCoords!,
+          waypoints: b.waypoints,
+          type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
+        }
+      })
+
+    // Apply pending station upgrades from completed build projects
+    const stationUpgradesByName = new Map<string, number>()
+    for (const cb of completedBuilds) {
+      if (cb.pendingStationUpgrade) {
+        stationUpgradesByName.set(cb.pendingStationUpgrade.stationName.toLowerCase(), cb.pendingStationUpgrade.targetLevel)
+      }
+    }
+    if (stationUpgradesByName.size > 0) {
+      // Will be merged into the railLines array in the return below
+      // (handled by the existing s.railLines update path)
+    }
 
     // ── Monthly recurring income (infrastructure + resources + power) ────────
     // Every month the player earns income from:
@@ -974,7 +997,21 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           }),
           ...newInfra,
         ],
-        railLines: [...(s.railLines ?? []), ...newRailLines],
+        railLines: [
+          // Apply pending station upgrades to existing rail lines
+          ...(s.railLines ?? []).map(rail => {
+            if (rail.countryId !== s.playerCountryId || !rail.stations || stationUpgradesByName.size === 0) return rail
+            let changed = false
+            const newStations = rail.stations.map(stn => {
+              const lvl = stationUpgradesByName.get(stn.name.toLowerCase())
+              if (lvl == null || lvl <= stn.level) return stn
+              changed = true
+              return { ...stn, level: lvl }
+            })
+            return changed ? { ...rail, stations: newStations } : rail
+          }),
+          ...newRailLines,
+        ],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
         newsItems: [...buildCompletionNews, ...delayNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
@@ -1223,6 +1260,37 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       for (const bp of bpList) {
         pushBuildProject(bp, targetIso)
       }
+      // Station upgrade goes to build queue (delayed completion)
+      if (r.upgradeRailStation) {
+        const u = r.upgradeRailStation
+        const targetLvl = Math.max(1, Math.min(5, u.targetLevel))
+        // Find the station to validate + get current level
+        let foundLvl = 0
+        for (const rail of s.railLines) {
+          if (rail.countryId !== pid || !rail.stations) continue
+          const match = rail.stations.find(stn =>
+            stn.name.toLowerCase().includes(u.stationName.toLowerCase()) ||
+            u.stationName.toLowerCase().includes(stn.name.toLowerCase())
+          )
+          if (match) { foundLvl = match.level; break }
+        }
+        if (foundLvl > 0 && targetLvl > foundLvl) {
+          // Build period: 26 weeks (6 months) per level jumped
+          const weeks = 26 * (targetLvl - foundLvl)
+          newBuilds.push({
+            id: `bp-stnup-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: 'high_speed_rail', // category — station upgrade is a rail-related build
+            name: `${u.stationName} Upgrade → L${targetLvl}`,
+            weeksRemaining: weeks,
+            totalWeeks: weeks,
+            startDate: s.currentDate,
+            countryId: pid,
+            startLevel: foundLvl,
+            targetLevel: targetLvl,
+            pendingStationUpgrade: { stationName: u.stationName, targetLevel: targetLvl },
+          })
+        }
+      }
     }
 
     const newHistory = [
@@ -1302,26 +1370,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           }
           return acc
         }, s.controlledRegions ?? []),
-        railLines: (() => {
-          // Apply station upgrades from action results to existing rail lines
-          const upgrades = results
-            .filter(r => r.outcome !== 'failure' && r.upgradeRailStation)
-            .map(r => r.upgradeRailStation!)
-          if (upgrades.length === 0) return s.railLines
-          return s.railLines.map(rail => {
-            if (rail.countryId !== pid || !rail.stations) return rail
-            let changed = false
-            const newStations = rail.stations.map(stn => {
-              const match = upgrades.find(u => stn.name.toLowerCase().includes(u.stationName.toLowerCase()) || u.stationName.toLowerCase().includes(stn.name.toLowerCase()))
-              if (!match) return stn
-              const targetLvl = Math.max(1, Math.min(5, match.targetLevel))
-              if (targetLvl <= stn.level) return stn
-              changed = true
-              return { ...stn, level: targetLvl }
-            })
-            return changed ? { ...rail, stations: newStations } : rail
-          })
-        })(),
+        // (Station upgrades are queued as build projects below — see newBuilds)
         nationalisedResources: results.reduce((acc, r) => {
           if (r.outcome === 'failure' || !r.nationaliseResource) return acc
           const nr = r.nationaliseResource
@@ -1643,19 +1692,33 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const st = s.state
     const player = st.countries[st.playerCountryId]
     if (!player) return {}
-    const newRail: RailLine = {
-      ...rail,
-      id: `rail-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    // Push to build queue instead of railLines — gets a build period based on length
+    const lengthKm = rail.lengthKm ?? 100
+    const totalWeeks = Math.max(26, Math.round(26 * (1 + lengthKm / 500)))
+    const buildProject: BuildProject = {
+      id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type: rail.type === 'domestic_hsr' ? 'high_speed_rail' : 'rail_line',
+      name: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'}`,
+      weeksRemaining: totalWeeks,
+      totalWeeks,
+      startDate: st.currentDate,
       countryId: st.playerCountryId,
+      fromCity: rail.fromCity,
+      toCity: rail.toCity,
+      fromCoords: rail.fromCoords,
+      toCoords: rail.toCoords,
+      cities: rail.stations?.map(stn => stn.name),
+      waypoints: rail.waypoints,
+      pendingRailLine: rail,
     }
     const newEconomy = st.economy
       ? { ...st.economy, debt: st.economy.debt + totalCost }
       : st.economy
     const newsItem: NewsItem = {
-      id: `news-rail-${newRail.id}`,
+      id: `news-rail-${buildProject.id}`,
       date: st.currentDate,
-      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Under Construction`,
-      body: `New ${(rail.lengthKm ?? 0).toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations. Total cost: $${(totalCost / 1e9).toFixed(2)}B.`,
+      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Construction Begins`,
+      body: `Groundbreaking on ${lengthKm.toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations. Total cost: $${(totalCost / 1e9).toFixed(2)}B. Expected completion in ${(totalWeeks / 52).toFixed(1)} years.`,
       category: 'economy',
       importance: 'major',
       country: st.playerCountryId,
@@ -1663,7 +1726,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     return {
       state: {
         ...st,
-        railLines: [...(st.railLines ?? []), newRail],
+        buildQueue: [...(st.buildQueue ?? []), buildProject],
         economy: newEconomy,
         newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
       },

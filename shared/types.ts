@@ -335,6 +335,15 @@ export interface BuildProject {
   toCoords?: [number, number]
   cities?: string[]              // all stops for multi-city rail routes
   waypoints?: [number, number][] // resolved coords for all cities in order
+  // Pending rail line — when this build completes, this RailLine is committed
+  // to state.railLines. Used for player-drawn rail lines that need a build period.
+  pendingRailLine?: Omit<RailLine, 'id' | 'countryId'>
+  // Pending station upgrade — when this build completes, the named station's
+  // level is raised to targetLevel.
+  pendingStationUpgrade?: {
+    stationName: string
+    targetLevel: number
+  }
 }
 
 // ── Research ──────────────────────────────────────────────────────────────────
