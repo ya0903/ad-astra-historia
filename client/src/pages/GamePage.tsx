@@ -960,8 +960,6 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                     { color: 'rgba(195,155,55,0.7)',  label: 'Desert' },
                     { color: 'rgba(105,152,48,0.7)',  label: 'Plains / Lowland' },
                     { color: 'rgba(28,128,118,0.7)',  label: 'Wetlands / Delta' },
-                    { color: 'rgba(148,168,192,0.7)', label: 'Mountain / Alpine' },
-                    { color: 'rgba(138,150,172,0.7)', label: 'Plateau' },
                     { color: 'rgba(65,120,58,0.7)',   label: 'Valley / Basin' },
                     { color: 'rgba(155,195,225,0.7)', label: 'Tundra' },
                     { color: '#2563eb',               label: 'Rivers' },

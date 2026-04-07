@@ -42,10 +42,6 @@ const BIOME_COLOURS: Record<string, string> = {
   // Wetland
   'Wetlands':                'rgba(28,128,118,0.58)',
   'Delta':                   'rgba(35,138,110,0.55)',
-  // Highland / mountain — grey-blue
-  'Range/mtn':               'rgba(148,168,192,0.50)',
-  'Plateau':                 'rgba(138,150,172,0.45)',
-  'Foothills':               'rgba(128,145,165,0.42)',
   // Valleys and basins — muted greens
   'Valley':                  'rgba(65,120,58,0.48)',
   'Basin':                   'rgba(100,140,65,0.42)',
