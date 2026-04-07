@@ -20,6 +20,32 @@ function adaptHistoricalNode(n: HistoricalTechNode): TechNode {
   }
 }
 
+// ── Era-themed scrollbar ─────────────────────────────────────────────────────
+// Returns thumb/track/accent colours for the tech-tree scroll region. Ancient
+// eras get bronze/stone, medieval get gold/parchment, industrial+ get steel.
+function eraScrollTheme(era: AnyEraId | string): { track: string; thumb: string; thumbHover: string; border: string } {
+  const ancient = new Set<string>([
+    'bronze_age', 'classical_greek', 'alexander', 'qin_expansion', 'punic_wars',
+    'roman_peak', 'late_antiquity', 'greek', 'roman',
+  ])
+  const medieval = new Set<string>([
+    'tang_abbasid', 'high_medieval', 'age_of_exploration', 'ottoman_classical',
+    'enlightenment', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku',
+  ])
+  const industrial = new Set<string>(['industrial_dawn', 'great_war', 'interwar'])
+  if (ancient.has(era)) {
+    return { track: '#2a1a0e', thumb: 'linear-gradient(180deg,#b08d57,#7a5a2e)', thumbHover: 'linear-gradient(180deg,#d4a870,#8f6a36)', border: '#5c3a1a' }
+  }
+  if (medieval.has(era)) {
+    return { track: '#1a1208', thumb: 'linear-gradient(180deg,#d4af37,#8a6d1e)', thumbHover: 'linear-gradient(180deg,#f0c850,#a8831f)', border: '#5c4410' }
+  }
+  if (industrial.has(era)) {
+    return { track: '#1a1a1f', thumb: 'linear-gradient(180deg,#8b95a1,#545c68)', thumbHover: 'linear-gradient(180deg,#a8b3c1,#6a7380)', border: '#3a4048' }
+  }
+  // Modern (default)
+  return { track: '#0a1628', thumb: 'linear-gradient(180deg,#60a5fa,#2563eb)', thumbHover: 'linear-gradient(180deg,#93c5fd,#3b82f6)', border: '#1e40af' }
+}
+
 // ── Constants (preserved) ────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<TechCategory, { label: string; icon: string; activeClass: string; dotClass: string; color: string; borderColor: string }> = {
@@ -311,8 +337,30 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
         })}
       </div>
 
-      {/* ── Active category content (vertical scroll) ────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Active category content (vertical scroll, era-themed) ────────── */}
+      {(() => {
+        const theme = eraScrollTheme(viewingEra)
+        return (
+          <style>{`
+            .era-tech-scroll::-webkit-scrollbar { width: 14px; height: 14px; }
+            .era-tech-scroll::-webkit-scrollbar-track {
+              background: ${theme.track};
+              border-left: 1px solid ${theme.border};
+              border-right: 1px solid ${theme.border};
+            }
+            .era-tech-scroll::-webkit-scrollbar-thumb {
+              background: ${theme.thumb};
+              border: 2px solid ${theme.track};
+              border-radius: 7px;
+              box-shadow: inset 0 0 4px rgba(0,0,0,0.4);
+            }
+            .era-tech-scroll::-webkit-scrollbar-thumb:hover { background: ${theme.thumbHover}; }
+            .era-tech-scroll::-webkit-scrollbar-corner { background: ${theme.track}; }
+            .era-tech-scroll { scrollbar-color: ${theme.border} ${theme.track}; scrollbar-width: auto; }
+          `}</style>
+        )
+      })()}
+      <div className="era-tech-scroll flex-1 overflow-y-auto">
         {(() => {
           const cat = activeCategory
           const meta = CATEGORY_META[cat]
