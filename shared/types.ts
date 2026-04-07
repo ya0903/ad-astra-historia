@@ -33,6 +33,15 @@ export interface Infrastructure {
   nationalised?: boolean
 }
 
+export interface RailStation {
+  id: string
+  lat: number
+  lng: number
+  name: string
+  level: number          // 1-5
+  city?: string          // snapped city name (if any)
+}
+
 export interface RailLine {
   id: string
   countryId: string
@@ -42,6 +51,8 @@ export interface RailLine {
   toCoords: [number, number]
   waypoints?: [number, number][]  // full multi-city route coords in order
   type: RailType
+  stations?: RailStation[]        // stops along the line (in order)
+  lengthKm?: number               // total length in km, computed at creation
 }
 
 export interface LandUseRegion {
@@ -253,9 +264,9 @@ export const BUILD_MONTHLY_INCOME: Record<InfrastructureType, number> = {
   financial_institution: 30_000_000,
   industrial_zone: 100_000_000,   // exports + employment
   desalination_plant: 20_000_000, // water services
-  // Rail
-  rail_line: 50_000_000,          // freight + passenger
-  high_speed_rail: 200_000_000,   // HSR transforms a corridor
+  // Rail — income now comes from stations, not the line itself
+  rail_line: 0,
+  high_speed_rail: 0,
 }
 
 /**

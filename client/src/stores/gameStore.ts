@@ -20,6 +20,7 @@ import {
   newsFromWorldTickEvent,
 } from '@ad-astra/shared/newsGenerator'
 import { worldTick } from '@ad-astra/shared/worldSimulation'
+import { stationIncomeMonthly } from '@ad-astra/shared/railDrawing'
 
 // ── Infrastructure level helpers ──────────────────────────────────────────────
 
@@ -28,6 +29,15 @@ import { worldTick } from '@ad-astra/shared/worldSimulation'
  * to a high level is much more expensive than incrementing one at a time.
  * Going from level (N-1) to level N costs BUILD_COSTS[type] * 1.25^(N-1).
  */
+function estimateCityPopulation(cityName: string, countryIso: string): number {
+  const country = MODERN_COUNTRY_DATA[countryIso.toUpperCase()]
+  if (!country) return 0
+  const pop = country.population
+  const name = cityName.toLowerCase()
+  if (name.includes('capital') || name.includes('central')) return Math.floor(pop * 0.06)
+  return Math.floor(pop * 0.02)
+}
+
 function costForLevelRange(type: InfrastructureType, fromLevel: number, toLevel: number): number {
   const base = BUILD_COSTS[type] ?? 1_000_000_000
   let total = 0
@@ -250,6 +260,7 @@ interface GameStoreState {
   // Deep system setters
   setEraPhase: (phase: EraPhase) => void
   setEconomy: (patch: Partial<EconomyState>) => void
+  commitDrawnRail: (rail: Omit<import('@ad-astra/shared/types').RailLine, 'id' | 'countryId'>, totalCost: number) => void
   /** Pay down debt from GDP. Returns silently if funds insufficient. */
   payDownDebt: (amount: number) => void
   setMilitaryState: (patch: Partial<MilitaryState>) => void
@@ -679,6 +690,30 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       const powerSurplus = Math.max(0, powerGeneration - nationalDemand)
       const powerIncome = powerSurplus * 2_000_000
       totalMonthly += powerIncome
+
+      // 1b. Rail station income
+      const cityStationCount = new Map<string, number>()
+      for (const rail of s.railLines) {
+        if (rail.countryId !== s.playerCountryId) continue
+        for (const stn of (rail.stations ?? [])) {
+          if (!stn.city) continue
+          cityStationCount.set(stn.city, (cityStationCount.get(stn.city) ?? 0) + 1)
+        }
+      }
+      for (const rail of s.railLines) {
+        if (rail.countryId !== s.playerCountryId) continue
+        for (const stn of (rail.stations ?? [])) {
+          const pop = stn.city ? estimateCityPopulation(stn.city, s.playerCountryId) : 0
+          const count = stn.city ? (cityStationCount.get(stn.city) ?? 1) : 1
+          const income = stationIncomeMonthly({
+            cityPopulation: pop,
+            level: stn.level,
+            isFirstInCity: count === 1,
+            cannibalised: count > 1,
+          })
+          totalMonthly += income
+        }
+      }
 
       if (totalMonthly > 0) {
         const player = newCountries[s.playerCountryId]
@@ -1581,6 +1616,38 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   setEraPhase: (phase) => set(s => {
     if (!s.state) return {}
     return { state: { ...s.state, eraPhase: phase } }
+  }),
+
+  commitDrawnRail: (rail, totalCost) => set(s => {
+    if (!s.state) return {}
+    const st = s.state
+    const player = st.countries[st.playerCountryId]
+    if (!player) return {}
+    const newRail: RailLine = {
+      ...rail,
+      id: `rail-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      countryId: st.playerCountryId,
+    }
+    const newEconomy = st.economy
+      ? { ...st.economy, debt: st.economy.debt + totalCost }
+      : st.economy
+    const newsItem: NewsItem = {
+      id: `news-rail-${newRail.id}`,
+      date: st.currentDate,
+      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Under Construction`,
+      body: `New ${(rail.lengthKm ?? 0).toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations. Total cost: $${(totalCost / 1e9).toFixed(2)}B.`,
+      category: 'economy',
+      importance: 'major',
+      country: st.playerCountryId,
+    }
+    return {
+      state: {
+        ...st,
+        railLines: [...(st.railLines ?? []), newRail],
+        economy: newEconomy,
+        newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
+      },
+    }
   }),
 
   setEconomy: (patch) => set(s => {

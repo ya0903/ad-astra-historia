@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useGameStore, useConfigStore, useMapStore, useAuthStore } from '../stores'
+import { useGameStore, useConfigStore, useMapStore, useAuthStore, useRailDrawStore } from '../stores'
 import { logout } from '../lib/api'
 import { saveGame } from '../lib/api'
 import { callAI } from '../lib/aiClient'
-import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RiversLayer, LakesLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer, PlanetMap } from '../components/map'
+import { WorldMap, CountryLayer, CountryLabelOverlay, CitiesLayer, InfraLayer, RailLayer, RailDrawOverlay, RiversLayer, LakesLayer, BiomesLayer, LandUseLayer, DamageLayer, ProvincesLayer, AncientProvincesLayer, LandmarksLayer, PlanetMap } from '../components/map'
+import RailDrawPanel from '../components/RailDrawPanel'
 import { flyToLocation } from '../lib/mapFly'
 import OrgPanel from '../components/OrgPanel'
 import AdvisorPanel from '../components/AdvisorPanel'
@@ -946,10 +947,21 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
             <CitiesLayer />
             <InfraLayer />
             <RailLayer />
+            <RailDrawOverlay />
             <LandUseLayer />
             <LandmarksLayer />
           </WorldMap>
         )}
+
+        {/* ── Rail draw panel + trigger ── */}
+        <RailDrawPanel />
+        <button
+          onClick={() => useRailDrawStore.getState().startDrawing('domestic_hsr')}
+          title="Draw Rail Line"
+          className="absolute bottom-4 left-16 z-20 h-9 px-3 flex items-center gap-1 rounded-xl backdrop-blur-md border border-purple-500/40 bg-[#0a1628]/80 text-purple-200 text-xs font-semibold hover:bg-purple-900/40 hover:border-purple-400 transition-colors shadow-xl"
+        >
+          🚆 Draw Rail
+        </button>
 
         {/* ── Legend toggle button (bottom-left) ── */}
         <button

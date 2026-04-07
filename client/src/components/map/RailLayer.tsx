@@ -101,6 +101,35 @@ export default function RailLayer() {
       popupRef.current = null
     }
 
+    // ── Station dots on top of rail lines ──
+    const stationFeatures = gameState.railLines.flatMap(r =>
+      (r.stations ?? []).map(s => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
+        properties: { name: s.name, level: s.level, city: s.city ?? '' },
+      }))
+    )
+    const stationGeojson = { type: 'FeatureCollection' as const, features: stationFeatures }
+    const STATION_SOURCE = 'rail-stations'
+    const STATION_LAYER = 'rail-station-dots'
+    if (map.getSource(STATION_SOURCE)) {
+      (map.getSource(STATION_SOURCE) as maplibregl.GeoJSONSource).setData(stationGeojson)
+    } else {
+      map.addSource(STATION_SOURCE, { type: 'geojson', data: stationGeojson })
+      map.addLayer({
+        id: STATION_LAYER,
+        type: 'circle',
+        source: STATION_SOURCE,
+        minzoom: 3,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['get', 'level'], 1, 3, 3, 6, 5, 10],
+          'circle-color': '#ffffff',
+          'circle-stroke-color': ['interpolate', ['linear'], ['get', 'level'], 1, '#94a3b8', 3, '#60a5fa', 5, '#22d3ee'],
+          'circle-stroke-width': ['interpolate', ['linear'], ['get', 'level'], 1, 0.5, 3, 1.5, 5, 3],
+        },
+      })
+    }
+
     const railLayerIds = ['rail-line-domestic_hsr', 'rail-line-cross_continent', 'rail-line-undersea_tunnel']
     railLayerIds.forEach(id => {
       map.on('mousemove', id, onMouseMove)
@@ -116,6 +145,8 @@ export default function RailLayer() {
       railTypes.forEach(t => {
         if (map.getSource(`rail-${t}`)) map.removeSource(`rail-${t}`)
       })
+      if (map.getLayer('rail-station-dots')) map.removeLayer('rail-station-dots')
+      if (map.getSource('rail-stations')) map.removeSource('rail-stations')
       popupRef.current?.remove()
     }
   }, [map, gameState])
