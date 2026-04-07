@@ -144,6 +144,17 @@ export default function CountryLayer() {
             'line-color': '#4a5568',
             'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.8, 5, 1.2, 7, 1.8] as ExpressionSpecification,
             'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 3, 0.65, 6, 0.8] as ExpressionSpecification,
+            'line-dasharray': [
+              'case',
+              ['<=', ['coalesce', ['get', 'border_precision'], 3], 1], ['literal', [3, 3]],
+              ['literal', [1, 0]],
+            ] as ExpressionSpecification,
+            'line-blur': [
+              'case',
+              ['<=', ['coalesce', ['get', 'border_precision'], 3], 1], 1,
+              ['<=', ['coalesce', ['get', 'border_precision'], 3], 2], 0.5,
+              0,
+            ] as ExpressionSpecification,
           },
         })
 
