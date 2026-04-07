@@ -279,6 +279,8 @@ export default function GamePage() {
   const [editText, setEditText] = useState('')
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestError, setSuggestError] = useState('')
+  const [suggestActionsLoading, setSuggestActionsLoading] = useState(false)
+  const [suggestActionsError, setSuggestActionsError] = useState('')
   const [jumpError, setJumpError] = useState('')
   const [loreOpen, setLoreOpen] = useState(false)
   const [dismissedWorldEvent, setDismissedWorldEvent] = useState<string | null>(null)
@@ -555,6 +557,33 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
     finally { setSuggestLoading(false) }
   }
 
+  const handleAiSuggestActions = async () => {
+    if (!config || !gameState) return
+    setSuggestActionsLoading(true)
+    setSuggestActionsError('')
+    try {
+      const playerName = player?.name ?? gameState.playerCountryId
+      const newsContext = (gameState.newsItems ?? []).slice(0, 8).map(n => `- ${n.headline}`).join('\n')
+      const statsLine = `GDP $${((stats?.gdp ?? 0) / 1e9).toFixed(0)}B · Military ${stats?.military ?? 0} · Approval ${stats?.approval ?? 0} · Stability ${stats?.stability ?? 70} · Tech ${stats?.techLevel ?? 0}`
+      const system = `You are a strategic advisor for ${playerName} in ${gameState.era} (${gameState.currentDate}). Suggest 4 specific, actionable moves the player could take this turn based on the current world state. Each action should be 1 short sentence (under 15 words). Mix categories: economy, military, diplomacy, infrastructure, tech, culture. Ground suggestions in the actual world events listed below — react to what's happening. Be specific (use real country names, real cities, real proposals).`
+      const userPrompt = `Current state: ${statsLine}\nRecent world events:\n${newsContext || '(no recent events)'}\n\nReturn ONLY a JSON array of 4 strings, no commentary. Example: ["Sign trade agreement with India", "Build deep-water port at Gwadar", "Open embassy in Tokyo", "Increase R&D spending on quantum computing"]`
+      const reply = await callAI(config, system, [{ role: 'user', content: userPrompt }])
+      const match = reply.match(/\[[\s\S]*\]/)
+      if (!match) throw new Error('No JSON array found in AI response')
+      const actions: string[] = JSON.parse(match[0])
+      if (!Array.isArray(actions)) throw new Error('AI response was not an array')
+      for (const action of actions) {
+        if (typeof action === 'string' && action.trim()) {
+          addPendingAction(action.trim())
+        }
+      }
+    } catch (e) {
+      setSuggestActionsError(e instanceof Error ? e.message : 'AI error')
+    } finally {
+      setSuggestActionsLoading(false)
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   const timelineResult = timelineIdx !== null ? lastResults[timelineIdx] : null
@@ -720,10 +749,24 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                   </button>
                 </div>
                 {suggestError && <p className="text-xs text-red-400 mt-1">{suggestError}</p>}
-                <button onClick={handleExecute} disabled={!actionText.trim()}
-                  className="mt-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
-                  Queue Action
-                </button>
+                {suggestActionsError && <p className="text-xs text-red-400 mt-1">{suggestActionsError}</p>}
+                <div className="flex gap-2 mt-2">
+                  <button onClick={handleExecute} disabled={!actionText.trim()}
+                    className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
+                    Queue Action
+                  </button>
+                  <button
+                    onClick={handleAiSuggestActions}
+                    disabled={suggestActionsLoading || !config}
+                    title="AI Suggest Actions — generates 4 contextual action proposals you can review"
+                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-lg ${
+                      suggestActionsLoading
+                        ? 'bg-purple-600/60 text-purple-200 animate-pulse'
+                        : 'bg-purple-700/60 hover:bg-purple-600/70 text-purple-100 disabled:opacity-30'
+                    }`}>
+                    ✨
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
