@@ -18,7 +18,8 @@
     "./countryResources": "./dist/countryResources.js",
     "./railDrawing": "./dist/railDrawing.js",
     "./eraConfig": "./dist/eraConfig.js",
-    "./historicalPolities": "./dist/historicalPolities.js"
+    "./historicalPolities": "./dist/historicalPolities.js",
+    "./historicalEraTechTrees": "./dist/historicalEraTechTrees.js"
   },
   "scripts": {
     "build": "tsc",
