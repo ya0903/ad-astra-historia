@@ -1,3 +1,4 @@
 export * from './types.js'
 export * from './countries.js'
 export * from './infraColours.js'
+export { MODERN_COUNTRY_DATA, type CountryBaseData } from './countryData.js'

@@ -10,7 +10,8 @@
     "./countries": "./dist/countries.js",
     "./infraColours": "./dist/infraColours.js",
     "./eraConflicts": "./eraConflicts.ts",
-    "./techTree": "./techTree.ts"
+    "./techTree": "./techTree.ts",
+    "./countryData": "./dist/countryData.js"
   },
   "scripts": {
     "build": "tsc",
