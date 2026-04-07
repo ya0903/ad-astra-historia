@@ -78,9 +78,9 @@ export default function CountryLayer() {
         map.addLayer({
           id: 'country-borders', type: 'line', source: 'countries',
           paint: {
-            'line-color': '#2a5580',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 3, 1.0, 5, 1.6, 7, 2.2] as ExpressionSpecification,
-            'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 3, 0.75, 6, 0.9] as ExpressionSpecification,
+            'line-color': '#4a5568',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.8, 5, 1.2, 7, 1.8] as ExpressionSpecification,
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 3, 0.65, 6, 0.8] as ExpressionSpecification,
           },
         })
 
