@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
+import difference from '@turf/difference'
+import type { Feature, FeatureCollection, Polygon, MultiPolygon, Geometry } from 'geojson'
 import { getCountryColour } from '@ad-astra/shared/countries'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
@@ -8,14 +10,43 @@ import { useGameStore } from '../../stores'
 /**
  * Stamps fill_colour onto every GeoJSON feature using the shared COUNTRY_COLOURS
  * table. Player territory is lightened; controlled territory gets a player-tinted hue.
+ *
+ * Also clips controlled provinces out of their parent country polygon using
+ * turf.difference — so the annexed region no longer has the parent country's
+ * fill rendering underneath at all.
  */
 function injectColours(
   geojson: GeoJSON.FeatureCollection,
   playerCountryId: string,
-  controlledCountries: string[]
+  controlledCountries: string[],
+  controlledRegions: Array<{ name: string; adm0_a3: string }>,
+  provincesGeojson: FeatureCollection | null,
 ): GeoJSON.FeatureCollection {
   const playerColour = getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
+
+  // Pre-resolve the province polygons that will be clipped from their parents,
+  // grouped by parent country ISO_A3
+  const provincesByParent = new Map<string, Feature<Polygon | MultiPolygon>[]>()
+  if (provincesGeojson && controlledRegions.length > 0) {
+    for (const region of controlledRegions) {
+      const needle = region.name.toLowerCase()
+      const parentIso = region.adm0_a3.toUpperCase()
+      for (const pf of provincesGeojson.features) {
+        const pp = pf.properties as Record<string, unknown> ?? {}
+        const pName = String(pp?.name ?? '').toLowerCase()
+        const pIso = String(pp?.adm0_a3 ?? '').toUpperCase()
+        if (pIso === parentIso && (pName.includes(needle) || needle.includes(pName))) {
+          const geom = pf.geometry as Geometry
+          if (geom && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
+            if (!provincesByParent.has(parentIso)) provincesByParent.set(parentIso, [])
+            provincesByParent.get(parentIso)!.push(pf as Feature<Polygon | MultiPolygon>)
+          }
+        }
+      }
+    }
+  }
+
   return {
     ...geojson,
     features: geojson.features.map(f => {
@@ -26,7 +57,30 @@ function injectColours(
         iso === playerCountryId ? lightenColour(base) :
         controlledSet.has(iso) ? tintOccupied(playerColour) :
         base
-      return { ...f, properties: { ...p, fill_colour: colour } }
+
+      // If this parent country has controlled provinces, clip them out of its polygon
+      let outputGeometry = f.geometry
+      const provincesToClip = provincesByParent.get(iso.toUpperCase())
+      if (provincesToClip && provincesToClip.length > 0 && f.geometry
+          && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
+        try {
+          let clipped: Feature<Polygon | MultiPolygon> = f as Feature<Polygon | MultiPolygon>
+          for (const province of provincesToClip) {
+            // @turf/difference v7 takes a FeatureCollection of exactly 2 features
+            const fc: FeatureCollection<Polygon | MultiPolygon> = {
+              type: 'FeatureCollection',
+              features: [clipped, province],
+            }
+            const diff = difference(fc)
+            if (diff) clipped = diff
+          }
+          outputGeometry = clipped.geometry
+        } catch (err) {
+          console.warn('[CountryLayer] turf.difference failed for', iso, err)
+        }
+      }
+
+      return { ...f, geometry: outputGeometry, properties: { ...p, fill_colour: colour } }
     }),
   }
 }
@@ -39,10 +93,13 @@ export default function CountryLayer() {
   const map = useMap()
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
+  const controlledRegions = useGameStore(s => s.state?.controlledRegions ?? [])
   const era = useGameStore(s => s.state?.era)
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
   // Raw GeoJSON stored after fetch — Effect 2 re-injects colours when empire changes
   const rawGeojsonRef = useRef<GeoJSON.FeatureCollection | null>(null)
+  // Province GeoJSON cached so we can clip controlled regions out of parent country polygons
+  const provincesGeojsonRef = useRef<FeatureCollection | null>(null)
 
   // ── Effect 1: fetch borders and set up layers ─────────────────────────────
   useEffect(() => {
@@ -50,13 +107,19 @@ export default function CountryLayer() {
 
     const controller = new AbortController()
     const bordersUrl = ANCIENT_ERAS.has(era) ? `/api/game/borders/${era}` : '/api/game/borders'
-    fetch(bordersUrl, { signal: controller.signal })
-      .then(r => r.json())
-      .then((geojson: GeoJSON.FeatureCollection) => {
+    // Fetch both borders and provinces in parallel so the clipping step has both
+    Promise.all([
+      fetch(bordersUrl, { signal: controller.signal }).then(r => r.json() as Promise<GeoJSON.FeatureCollection>),
+      fetch('/api/game/provinces', { signal: controller.signal })
+        .then(r => r.ok ? r.json() as Promise<FeatureCollection> : null)
+        .catch(() => null),
+    ])
+      .then(([geojson, provinces]) => {
         if (map.getSource('countries')) return
 
         rawGeojsonRef.current = geojson
-        const coloured = injectColours(geojson, playerCountryId, controlledCountries)
+        provincesGeojsonRef.current = provinces
+        const coloured = injectColours(geojson, playerCountryId, controlledCountries, controlledRegions, provinces)
 
         map.addSource('countries', { type: 'geojson', data: coloured })
 
@@ -130,6 +193,7 @@ export default function CountryLayer() {
     return () => {
       controller.abort()
       rawGeojsonRef.current = null
+      provincesGeojsonRef.current = null
       map.off('mousemove', 'country-fills', onMouseMove)
       map.off('mouseleave', 'country-fills', onMouseLeave)
       for (const id of ['player-border', 'player-border-glow', 'country-hover', 'country-borders', 'country-fills']) {
@@ -139,16 +203,22 @@ export default function CountryLayer() {
     }
   }, [map, playerCountryId, era]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Effect 2: re-inject colours when empire changes ───────────────────────
+  // ── Effect 2: re-inject colours and re-clip provinces when empire changes ──
   useEffect(() => {
     if (!map || !playerCountryId || !rawGeojsonRef.current) return
     const src = map.getSource('countries') as maplibregl.GeoJSONSource | undefined
     if (!src) return
-    src.setData(injectColours(rawGeojsonRef.current, playerCountryId, controlledCountries))
+    src.setData(injectColours(
+      rawGeojsonRef.current,
+      playerCountryId,
+      controlledCountries,
+      controlledRegions,
+      provincesGeojsonRef.current,
+    ))
     const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
     if (map.getLayer('player-border')) map.setFilter('player-border', empireFilter)
     if (map.getLayer('player-border-glow')) map.setFilter('player-border-glow', empireFilter)
-  }, [map, playerCountryId, controlledCountries])
+  }, [map, playerCountryId, controlledCountries, controlledRegions])
 
   return null
 }

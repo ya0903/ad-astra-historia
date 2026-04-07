@@ -78,10 +78,12 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
 
     try {
       const { playerCountry, currentDate, era, stats, topCountries, recentHistory, warDamageSummary } = gameContext
-      const statsStr = Object.entries(stats)
+      // Stats may contain non-primitive nested values (e.g. objects) — filter to primitives only
+      const statsStr = Object.entries(stats ?? {})
+        .filter(([, v]) => typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
         .map(([k, v]) => `${k}: ${typeof v === 'number' && v > 1e8 ? `$${(v / 1e9).toFixed(1)}B` : v}`)
         .join(', ')
-      const topStr = topCountries.slice(0, 10)
+      const topStr = (topCountries ?? []).slice(0, 10)
         .map((c, i) => `${i + 1}. ${c.name} ($${(c.gdp / 1e9).toFixed(0)}B)`)
         .join('\n')
       const historyBlock = recentHistory ? `\nRecent events in this timeline:\n${recentHistory}` : ''
@@ -92,9 +94,16 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
         ...messages.slice(-6) as ChatMessage[],
         { role: 'user', content: msg },
       ])
-      setMessages([...newHistory, { role: 'assistant', content: reply.trim() }])
+      const trimmed = reply.trim()
+      if (!trimmed) {
+        setError('Advisor returned an empty response. Check your model and API endpoint.')
+      } else {
+        setMessages([...newHistory, { role: 'assistant', content: trimmed }])
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Network error')
+      const errMsg = e instanceof Error ? e.message : String(e)
+      console.error('[AdvisorPanel] sendMessage failed:', e)
+      setError(errMsg.length > 200 ? errMsg.slice(0, 200) + '…' : errMsg)
     } finally {
       setLoading(false)
     }
@@ -168,7 +177,12 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
                 <div className="bg-white/10 rounded-lg px-3 py-2 text-xs text-gray-400 animate-pulse">Analysing…</div>
               </div>
             )}
-            {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+            {error && (
+              <div className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2">
+                <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-0.5">⚠ Error</p>
+                <p className="text-xs text-red-200 break-words">{error}</p>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 

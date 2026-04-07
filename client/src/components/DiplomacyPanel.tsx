@@ -135,6 +135,10 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
 
       const reply = await callAI(config, system, history)
       const trimmedReply = reply.trim()
+      if (!trimmedReply) {
+        setError(`${targetCountry} returned an empty response. Check your model and API endpoint.`)
+        return
+      }
       setMessages(m => [...m, { role: 'country', country: targetCountry, content: trimmedReply }])
       appendDiplomaticChat(targetCountry, { role: 'country', content: trimmedReply, date: gameContext.currentDate })
       // Add a news headline summarising the latest exchange
@@ -148,7 +152,9 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
         importance: 'minor',
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'AI error')
+      const errMsg = e instanceof Error ? e.message : String(e)
+      console.error('[DiplomacyPanel] sendMessage failed:', e)
+      setError(errMsg.length > 200 ? errMsg.slice(0, 200) + '…' : errMsg)
     } finally {
       setLoading(false)
     }
@@ -331,7 +337,12 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                 </div>
               </div>
             )}
-            {error && <p className="text-red-400 text-xs">{error}</p>}
+            {error && (
+              <div className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2">
+                <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-0.5">⚠ Error</p>
+                <p className="text-xs text-red-200 break-words">{error}</p>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 
