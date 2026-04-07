@@ -5,6 +5,7 @@ import {
   lineLengthKm, railLineCost, stationBuildCost, type LngLat,
 } from '@ad-astra/shared/railDrawing'
 import type { RailLine, RailStation, RailType } from '@ad-astra/shared/types'
+import { formatCurrency } from '../lib/currency'
 
 function interpolatePath(tool: string, waypoints: LngLat[]): LngLat[] {
   if (waypoints.length < 2) return waypoints
@@ -23,13 +24,9 @@ const TOOL_BUTTONS: { id: 'straight' | 'bend' | 'doubleBend' | 'squiggle'; icon:
   { id: 'squiggle', icon: '≈', label: 'Squiggle' },
 ]
 
-function fmtMoney(v: number): string {
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
-  return `$${v.toFixed(0)}`
-}
-
 export default function RailDrawPanel() {
+  const era = useGameStore(s => s.state?.era ?? 'modern')
+  const fmtMoney = (v: number) => formatCurrency(v, era, 'native')
   const mode = useRailDrawStore(s => s.mode)
   const tool = useRailDrawStore(s => s.tool)
   const railType = useRailDrawStore(s => s.railType)

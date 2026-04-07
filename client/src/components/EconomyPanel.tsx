@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useGameStore } from '../stores'
 import { getCountryResources, resourceMonthlyIncome, type ResourceType } from '@ad-astra/shared/countryResources'
 import { BUILD_MONTHLY_INCOME } from '@ad-astra/shared/types'
+import { formatCurrency, getCurrencyMode, getCurrencyIcon } from '../lib/currency'
 
 function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; max?: number; colour?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
@@ -15,15 +17,6 @@ function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; m
   )
 }
 
-function formatMoney(v: number): string {
-  const abs = Math.abs(v)
-  const sign = v < 0 ? '-' : ''
-  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(1)}T`
-  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`
-  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`
-  return `${sign}$${Math.round(abs)}`
-}
-
 interface EconomyPanelProps { isOpen: boolean; onOpen: () => void; onClose: () => void }
 
 export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelProps) {
@@ -32,9 +25,20 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
   const payDownDebt = useGameStore(s => s.payDownDebt)
   const gdp = useGameStore(s => s.state?.countries[s.state?.playerCountryId ?? '']?.stats.gdp ?? 0)
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
+  const era = useGameStore(s => s.state?.era ?? 'modern')
+  const hasPaperMoney = useGameStore(s => (s.state?.unlockedTechs ?? []).includes('banking_paper_money' as any))
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const nationalisedResources = useGameStore(s => s.state?.nationalisedResources ?? [])
   const infrastructureMap = useGameStore(s => s.state?.infrastructureMap ?? [])
+
+  const [showUsd, setShowUsd] = useState(() => localStorage.getItem('aah-currency-toggle') === 'usd')
+  const toggleUsd = () => {
+    const next = !showUsd
+    setShowUsd(next)
+    localStorage.setItem('aah-currency-toggle', next ? 'usd' : 'native')
+  }
+  const currencyMode = getCurrencyMode(era, hasPaperMoney)
+  const fmt = (v: number) => formatCurrency(v, era, 'native')
 
   if (!economy) return null
 
@@ -112,14 +116,19 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
               <div className="flex items-center justify-between">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest">GDP</p>
                 <span className="text-[10px] font-mono text-emerald-400">
-                  +{formatMoney(monthlyTotal)}/mo
+                  +{fmt(monthlyTotal)}/mo
                 </span>
               </div>
-              <p className="text-lg font-bold text-white font-mono">{formatMoney(gdp)}</p>
+              <div className="flex items-center gap-2">
+                <button onClick={toggleUsd} className="hover:opacity-80 text-base" title="Toggle USD equivalent">
+                  {getCurrencyIcon(currencyMode)}
+                </button>
+                <p className="text-lg font-bold text-white font-mono">{formatCurrency(gdp, era, showUsd ? 'usd' : 'native')}</p>
+              </div>
               <div className="flex justify-between text-[9px] text-gray-600 mt-0.5">
-                <span>Infra: {formatMoney(monthlyInfra)}</span>
-                <span>Resources: {formatMoney(monthlyResources)}</span>
-                <span>Power: {formatMoney(monthlyPower)}</span>
+                <span>Infra: {fmt(monthlyInfra)}</span>
+                <span>Resources: {fmt(monthlyResources)}</span>
+                <span>Power: {fmt(monthlyPower)}</span>
               </div>
             </div>
 
@@ -128,7 +137,7 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest">Debt</p>
                 <span className="text-[10px] font-mono" style={{ color: debtColour }}>
-                  {formatMoney(economy.debt)}
+                  {fmt(economy.debt)}
                   {gdp > 0 && <span className="text-gray-500"> ({(debtRatio * 100).toFixed(0)}% GDP)</span>}
                 </span>
               </div>
@@ -138,18 +147,18 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
                   <button
                     onClick={() => payDownDebt(monthlyTotal)}
                     disabled={monthlyTotal <= 0 || gdp < monthlyTotal}
-                    title={`Pay 1 month of income (${formatMoney(monthlyTotal)})`}
+                    title={`Pay 1 month of income (${fmt(monthlyTotal)})`}
                     className="flex-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.05] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-600/50 text-gray-300 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Pay {formatMoney(monthlyTotal)} (1mo)
+                    Pay {fmt(monthlyTotal)} (1mo)
                   </button>
                   <button
                     onClick={() => payDownDebt(monthlyTotal * 12)}
                     disabled={monthlyTotal <= 0 || gdp < monthlyTotal * 12}
-                    title={`Pay 12 months of income (${formatMoney(monthlyTotal * 12)})`}
+                    title={`Pay 12 months of income (${fmt(monthlyTotal * 12)})`}
                     className="flex-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.05] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-600/50 text-gray-300 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Pay {formatMoney(monthlyTotal * 12)} (1yr)
+                    Pay {fmt(monthlyTotal * 12)} (1yr)
                   </button>
                 </div>
               )}
@@ -170,7 +179,7 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest">Trade Balance</p>
               <span className={`text-[10px] font-mono font-semibold ${economy.tradeBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {economy.tradeBalance >= 0 ? '+' : ''}{formatMoney(economy.tradeBalance)}/yr
+                {economy.tradeBalance >= 0 ? '+' : ''}{fmt(economy.tradeBalance)}/yr
               </span>
             </div>
 
