@@ -2,7 +2,7 @@ import type { Era, TechId } from './types.js'
 
 // Techs that are pre-unlocked for ALL countries in a given era
 // (universal baseline — every country has this foundation)
-const ERA_UNIVERSAL_UNLOCKS: Record<Era, TechId[]> = {
+const ERA_UNIVERSAL_UNLOCKS: Partial<Record<Era, TechId[]>> = {
   greek:   [],
   roman:   ['bronze_working', 'iron_working'],
   ottoman: ['bronze_working', 'iron_working', 'steel_forging', 'hoplite_warfare', 'cavalry', 'naval_warfare', 'siege_weapons', 'fortifications'],

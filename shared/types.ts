@@ -1,4 +1,13 @@
-export type Era = '1945' | '1960s' | '1990s' | '2010s' | 'modern' | 'greek' | 'roman' | 'ottoman' | 'abbasid' | 'tang' | 'aztec' | 'songhai' | 'sengoku'
+export type Era =
+  // Historical
+  | 'bronze_age' | 'classical_greek' | 'alexander' | 'qin_expansion'
+  | 'punic_wars' | 'roman_peak' | 'late_antiquity' | 'tang_abbasid'
+  | 'high_medieval' | 'age_of_exploration' | 'ottoman_classical'
+  | 'enlightenment' | 'industrial_dawn' | 'great_war' | 'interwar'
+  // Modern
+  | '1945' | '1960s' | '1990s' | '2010s' | 'modern'
+  // Legacy (kept for save-game compatibility — will be migrated to historical IDs)
+  | 'greek' | 'roman' | 'ottoman' | 'abbasid' | 'tang' | 'aztec' | 'songhai' | 'sengoku'
 export type EraPhase = 'ancient' | 'industrial' | 'modern'
 export type PlanetBody = 'earth' | 'moon' | 'mars'
 export type GovernmentType = 'tribal' | 'monarchy' | 'republic' | 'democracy' | 'autocracy' | 'theocracy' | 'military_junta' | 'federal_republic' | 'communist' | 'shogunate'
@@ -647,6 +656,8 @@ export interface NationPersonalityModifiers {
 
 export interface GameState {
   era: Era
+  /** Currency display mode — coin (ancient), paper (post-banking), or fiat (industrial+) */
+  currencyMode?: 'coin' | 'paper' | 'fiat'
   currentDate: string
   playerCountryId: string
   saveSlot?: string            // unique save filename for this playthrough — set at game creation

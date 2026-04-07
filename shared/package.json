@@ -16,7 +16,9 @@
     "./worldSimulation": "./dist/worldSimulation.js",
     "./newsGenerator": "./dist/newsGenerator.js",
     "./countryResources": "./dist/countryResources.js",
-    "./railDrawing": "./dist/railDrawing.js"
+    "./railDrawing": "./dist/railDrawing.js",
+    "./eraConfig": "./dist/eraConfig.js",
+    "./historicalPolities": "./dist/historicalPolities.js"
   },
   "scripts": {
     "build": "tsc",

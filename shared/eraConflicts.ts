@@ -3,7 +3,7 @@ import type { Dispute, NonStateActor, Era } from './types'
 // ── Pre-loaded historical conflicts per era ───────────────────────────────────
 // These seed the disputes and nonStateActors arrays when a new game starts.
 
-export const ERA_DISPUTES: Record<Era, Dispute[]> = {
+export const ERA_DISPUTES: Partial<Record<Era, Dispute[]>> = {
   '1945': [
     { id: 'ko-45', name: 'Korean Occupation Zones', parties: ['USA', 'USSR', 'KOR', 'PRK'], status: 'active', history: ['Japan surrendered Korea — US/USSR split at 38th parallel (Sep 1945)'] },
     { id: 'ic-45', name: 'First Indochina War', parties: ['FRA', 'VNM'], status: 'active', history: ['Ho Chi Minh declares independence; France seeks to reassert control (1945)'] },
@@ -126,7 +126,7 @@ export const ERA_DISPUTES: Record<Era, Dispute[]> = {
   ],
 }
 
-export const ERA_NON_STATE_ACTORS: Record<Era, NonStateActor[]> = {
+export const ERA_NON_STATE_ACTORS: Partial<Record<Era, NonStateActor[]>> = {
   '1945': [
     { id: 'viet-minh', name: 'Viet Minh', type: 'insurgency', regions: ['VNM'], strength: 60, sponsors: ['CHN', 'RUS'] },
     { id: 'irgun', name: 'Irgun', type: 'paramilitary', regions: ['PSE'], strength: 30, sponsors: ['ISR'] },
