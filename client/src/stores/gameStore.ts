@@ -7,7 +7,7 @@ import type {
   SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState, GovernmentType,
   WorldTickEvent,
 } from '@ad-astra/shared/types'
-import { BUILD_WEEKS, BUILD_COSTS, BUILD_GDP_BOOST } from '@ad-astra/shared/types'
+import { BUILD_WEEKS, BUILD_COSTS, BUILD_MONTHLY_INCOME, BUILD_MAX_LEVEL } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
@@ -19,6 +19,43 @@ import {
   newsFromWorldTickEvent,
 } from '@ad-astra/shared/newsGenerator'
 import { worldTick } from '@ad-astra/shared/worldSimulation'
+
+// ── Infrastructure level helpers ──────────────────────────────────────────────
+
+/**
+ * Cost to upgrade a single level. Uses an exponential curve so jumping directly
+ * to a high level is much more expensive than incrementing one at a time.
+ * Going from level (N-1) to level N costs BUILD_COSTS[type] * 1.25^(N-1).
+ */
+function costForLevelRange(type: InfrastructureType, fromLevel: number, toLevel: number): number {
+  const base = BUILD_COSTS[type] ?? 1_000_000_000
+  let total = 0
+  for (let lvl = fromLevel + 1; lvl <= toLevel; lvl++) {
+    total += base * Math.pow(1.25, lvl - 1)
+  }
+  return Math.round(total)
+}
+
+/** Weeks of construction for a level range — also scales up by level. */
+function weeksForLevelRange(type: InfrastructureType, fromLevel: number, toLevel: number): number {
+  const baseWeeks = BUILD_WEEKS[type] ?? 52
+  const levels = toLevel - fromLevel
+  // Each additional level adds 70% of the base time
+  return Math.round(baseWeeks * (0.5 + 0.7 * levels))
+}
+
+/** Clamp a target level to the max allowed for that infrastructure type. */
+function clampLevel(type: InfrastructureType, target: number): number {
+  const max = BUILD_MAX_LEVEL[type] ?? 5
+  return Math.max(1, Math.min(max, target))
+}
+
+/** Compute monthly income (USD) for an infrastructure at a given level. */
+function monthlyIncomeFor(type: InfrastructureType, level: number): number {
+  const base = BUILD_MONTHLY_INCOME[type] ?? 0
+  // Each additional level adds 60% of the base income
+  return Math.round(base * (1 + 0.6 * (level - 1)))
+}
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
 function countryGrowthRate(
@@ -403,8 +440,30 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
     // Tick build queue
     const completedBuilds: BuildProject[] = []
+    // Build delays — each project has a small chance per tick of getting
+    // delayed (supply chain, permits, labour disputes). Delays extend the
+    // weeksRemaining and generate a news item.
+    const delayNews: NewsItem[] = []
     const newBuildQueue = (s.buildQueue ?? [])
-      .map(p => ({ ...p, weeksRemaining: p.weeksRemaining - weeksElapsed }))
+      .map(p => {
+        // ~8% chance per month of elapsed time that a build hits a delay
+        const delayChance = 0.08 * (weeksElapsed / 4)
+        let extraDelay = 0
+        if (Math.random() < delayChance) {
+          // Delay adds 20-60% of original duration
+          extraDelay = Math.round(p.totalWeeks * (0.2 + Math.random() * 0.4))
+          delayNews.push({
+            id: `news-delay-${p.id}-${Date.now()}`,
+            date: s.currentDate,
+            headline: `${p.name} Delayed`,
+            body: `Construction setback adds ${extraDelay} weeks to the project. Cost overruns expected.`,
+            category: 'economy',
+            importance: 'minor',
+            country: p.countryId ?? s.playerCountryId,
+          })
+        }
+        return { ...p, weeksRemaining: p.weeksRemaining - weeksElapsed + extraDelay }
+      })
       .filter(p => { if (p.weeksRemaining <= 0) { completedBuilds.push(p); return false } return true })
 
     // Tick research queue
@@ -522,27 +581,40 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       }
     }
 
-    // Turn completed builds into Infrastructure entries on the map
-    // Rail types are linear features — they become RailLine entries, not dots
+    // Turn completed builds into Infrastructure entries on the map.
+    // Rail types are linear features — they become RailLine entries, not dots.
+    // Upgrades (existingInfraId set) update the existing infra level; only
+    // brand-new builds create new Infrastructure entries.
     const RAIL_INFRA_TYPES = new Set<string>(['rail_line', 'high_speed_rail'])
-    const newInfra: Infrastructure[] = completedBuilds.filter(b => !RAIL_INFRA_TYPES.has(b.type)).map(b => {
-      const cityCoords = b.lat != null && b.lng != null ? null : getCityCentre(b.name)
-      const centre = cityCoords
-                  ?? (b.countryId ? getCountryCentre(b.countryId) : null)
-                  ?? getCountryCentre(s.playerCountryId)
-                  ?? [0, 0]
-      // Slight random offset so stacked buildings are distinguishable
-      const jitter = () => (Math.random() - 0.5) * 0.15
-      return {
-        id: `infra-${b.id}`,
-        countryId: b.countryId ?? s.playerCountryId,
-        type: b.type,
-        name: b.name,
-        lat: (b.lat ?? centre[1]) + jitter(),
-        lng: (b.lng ?? centre[0]) + jitter(),
-        level: 1,
-      } satisfies Infrastructure
-    })
+    const upgradedInfraIds = new Set<string>()
+    const upgradedInfraNewLevels = new Map<string, number>()
+    for (const b of completedBuilds) {
+      if (RAIL_INFRA_TYPES.has(b.type)) continue
+      if (b.existingInfraId && b.targetLevel) {
+        upgradedInfraIds.add(b.existingInfraId)
+        upgradedInfraNewLevels.set(b.existingInfraId, b.targetLevel)
+      }
+    }
+    const newInfra: Infrastructure[] = completedBuilds
+      .filter(b => !RAIL_INFRA_TYPES.has(b.type) && !b.existingInfraId)
+      .map(b => {
+        const cityCoords = b.lat != null && b.lng != null ? null : getCityCentre(b.name)
+        const centre = cityCoords
+                    ?? (b.countryId ? getCountryCentre(b.countryId) : null)
+                    ?? getCountryCentre(s.playerCountryId)
+                    ?? [0, 0]
+        // Slight random offset so stacked buildings are distinguishable
+        const jitter = () => (Math.random() - 0.5) * 0.15
+        return {
+          id: `infra-${b.id}`,
+          countryId: b.countryId ?? s.playerCountryId,
+          type: b.type,
+          name: b.name,
+          lat: (b.lat ?? centre[1]) + jitter(),
+          lng: (b.lng ?? centre[0]) + jitter(),
+          level: b.targetLevel ?? 1,
+        } satisfies Infrastructure
+      })
 
     // Convert completed rail builds into RailLine map features
     const newRailLines: RailLine[] = completedBuilds
@@ -558,31 +630,49 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
-    // ── Build completion GDP boost ────────────────────────────────────────────
-    let buildGdpBoost = 0
-    for (const cb of completedBuilds) {
-      buildGdpBoost += BUILD_GDP_BOOST[cb.type] ?? 0
-    }
-    if (buildGdpBoost > 0) {
-      const player = newCountries[s.playerCountryId]
-      if (player) {
-        newCountries[s.playerCountryId] = {
-          ...player,
-          stats: { ...player.stats, gdp: player.stats.gdp + buildGdpBoost },
+    // ── Monthly infrastructure income (recurring stream) ─────────────────────
+    // Instead of a one-time boost on completion, every existing piece of
+    // player-owned infrastructure pays a monthly GDP income. Scaled by
+    // level. Applied per month of elapsed time.
+    const monthsElapsed = weeksElapsed / 4
+    if (monthsElapsed >= 1) {
+      let totalMonthly = 0
+      for (const inf of s.infrastructureMap) {
+        if (inf.countryId !== s.playerCountryId) continue
+        totalMonthly += monthlyIncomeFor(inf.type, inf.level ?? 1)
+      }
+      if (totalMonthly > 0) {
+        const player = newCountries[s.playerCountryId]
+        if (player) {
+          const incomeThisTick = Math.round(totalMonthly * monthsElapsed)
+          newCountries[s.playerCountryId] = {
+            ...player,
+            stats: { ...player.stats, gdp: player.stats.gdp + incomeThisTick },
+          }
         }
       }
     }
 
-    // News for completed builds
-    const buildCompletionNews: NewsItem[] = completedBuilds.map(cb => ({
-      id: `news-build-${cb.id}`,
-      date: newDate,
-      headline: `${cb.name} Completed`,
-      body: `New ${cb.type.replace(/_/g, ' ')} now operational. Economic boost: $${((BUILD_GDP_BOOST[cb.type] ?? 0) / 1e9).toFixed(1)}B`,
-      category: 'economy' as any,
-      importance: 'minor' as any,
-      country: s.playerCountryId,
-    }))
+    // News for completed builds — reports the NEW monthly income they'll add
+    const buildCompletionNews: NewsItem[] = completedBuilds.map(cb => {
+      const level = cb.targetLevel ?? 1
+      const monthly = monthlyIncomeFor(cb.type, level)
+      const isUpgrade = !!cb.existingInfraId
+      const incomeStr = monthly >= 1e9 ? `$${(monthly / 1e9).toFixed(2)}B` : `$${(monthly / 1e6).toFixed(0)}M`
+      return {
+        id: `news-build-${cb.id}`,
+        date: newDate,
+        headline: isUpgrade
+          ? `${cb.name} Operational`
+          : `${cb.name} Completed`,
+        body: isUpgrade
+          ? `Upgrade finished — now contributing ${incomeStr}/month to national GDP.`
+          : `New ${cb.type.replace(/_/g, ' ')} now operational. Contributing ${incomeStr}/month to national GDP.`,
+        category: 'economy' as any,
+        importance: 'minor' as any,
+        country: s.playerCountryId,
+      }
+    })
 
     // ── Era phase transition check ────────────────────────────────────────────
     const allUnlockedAfter = [...(s.unlockedTechs ?? []), ...completedTechs]
@@ -802,11 +892,18 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         countries: newCountries,
         buildQueue: newBuildQueue,
         researchQueue: newResearchQueue,
-        infrastructureMap: [...s.infrastructureMap, ...newInfra],
+        infrastructureMap: [
+          // Upgrade existing infra in-place where applicable
+          ...s.infrastructureMap.map(inf => {
+            const newLvl = upgradedInfraNewLevels.get(inf.id)
+            return newLvl != null ? { ...inf, level: newLvl } : inf
+          }),
+          ...newInfra,
+        ],
         railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
-        newsItems: [...buildCompletionNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
+        newsItems: [...buildCompletionNews, ...delayNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
         worldRelations,
         diplomaticInbox: [...(s.diplomaticInbox ?? []), ...(newProposals ?? [])].slice(-20),
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
@@ -899,7 +996,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     /** Push a build project, or queue a blocked-rail news item for rail types. */
-    function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string }, targetIso: string) {
+    function pushBuildProject(bp: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string; targetLevel?: number }, targetIso: string) {
       // Embassies are always built in a foreign host country, not the player's territory.
       // Use hostCountry if provided, else try to detect the host from the city name.
       if (bp.type === 'embassy') {
@@ -913,6 +1010,57 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           }
         }
       }
+
+      // ── Dedupe + upgrade: check if this building type already exists at this
+      // city/country. If so, upgrade the existing infrastructure instead of
+      // creating a duplicate. For rail, check by matching cities list instead.
+      const isRail = RAIL_INFRA.has(bp.type)
+      if (!isRail) {
+        // Try to match by type + city + country. Cities dedupe on name case-
+        // insensitively; types match exactly. Same for already-queued builds.
+        const cityKey = (bp.city ?? bp.name).toLowerCase().trim()
+        const existing = s.infrastructureMap.find(inf =>
+          inf.countryId === targetIso
+          && inf.type === bp.type
+          && (inf.name.toLowerCase().includes(cityKey) || cityKey.includes(inf.name.toLowerCase().split(' ')[0] ?? ''))
+        )
+        // Also skip if a build project of the same type + city is already queued
+        const alreadyQueued = (s.buildQueue ?? []).concat(newBuilds).find(q =>
+          q.countryId === targetIso
+          && q.type === bp.type
+          && (q.name.toLowerCase().includes(cityKey) || cityKey.includes(q.name.toLowerCase().split(' ')[0] ?? ''))
+        )
+        if (alreadyQueued) {
+          // Silently skip — can't double-build the same thing while already building
+          return
+        }
+        if (existing) {
+          // Upgrade path
+          const maxLvl = BUILD_MAX_LEVEL[bp.type] ?? 5
+          if (existing.level >= maxLvl) return // already maxed
+          const targetLvl = clampLevel(bp.type, bp.targetLevel ?? existing.level + 1)
+          if (targetLvl <= existing.level) return
+          const weeks = weeksForLevelRange(bp.type, existing.level, targetLvl)
+          const cost = costForLevelRange(bp.type, existing.level, targetLvl)
+          newBuilds.push({
+            id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: bp.type,
+            name: `${existing.name} — Level ${targetLvl} Upgrade`,
+            weeksRemaining: weeks,
+            totalWeeks: weeks,
+            startDate: s.currentDate,
+            countryId: targetIso,
+            lat: existing.lat,
+            lng: existing.lng,
+            startLevel: existing.level,
+            targetLevel: targetLvl,
+            existingInfraId: existing.id,
+          })
+          totalBuildCost += cost
+          return
+        }
+      }
+
       const weeks = BUILD_WEEKS[bp.type] ?? 52
       if (RAIL_INFRA.has(bp.type) && (bp.fromCity || bp.cities?.length)) {
         const citiesList: string[] = bp.cities?.length
@@ -946,12 +1094,15 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         )
         const fromCoords = waypoints[0] ?? (fallback as [number, number])
         const toCoords = waypoints[waypoints.length - 1] ?? (fallback as [number, number])
+        const railTargetLvl = clampLevel(bp.type, bp.targetLevel ?? 1)
+        const scaledCost = costForLevelRange(bp.type, 0, railTargetLvl)
+        const scaledWeeks = railTargetLvl > 1 ? weeksForLevelRange(bp.type, 0, railTargetLvl) : weeks
         newBuilds.push({
           id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           type: bp.type,
-          name: bp.name,
-          weeksRemaining: weeks,
-          totalWeeks: weeks,
+          name: railTargetLvl > 1 ? `${bp.name} (Level ${railTargetLvl})` : bp.name,
+          weeksRemaining: scaledWeeks,
+          totalWeeks: scaledWeeks,
           startDate: s.currentDate,
           countryId: targetIso,
           fromCity: citiesList[0],
@@ -960,23 +1111,33 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           toCoords,
           cities: citiesList,
           waypoints,
+          startLevel: 0,
+          targetLevel: railTargetLvl,
         })
-        totalBuildCost += BUILD_COSTS[bp.type] ?? 0
+        totalBuildCost += scaledCost
       } else {
+        // Brand-new build (not an upgrade). Start at level 0, target = AI choice (default 1).
+        const targetLvl = clampLevel(bp.type, bp.targetLevel ?? 1)
+        const scaledCost = costForLevelRange(bp.type, 0, targetLvl)
+        const scaledWeeks = targetLvl > 1
+          ? weeksForLevelRange(bp.type, 0, targetLvl)
+          : weeks
         const cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
         const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
         newBuilds.push({
           id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           type: bp.type,
-          name: bp.name,
-          weeksRemaining: weeks,
-          totalWeeks: weeks,
+          name: targetLvl > 1 ? `${bp.name} (Level ${targetLvl})` : bp.name,
+          weeksRemaining: scaledWeeks,
+          totalWeeks: scaledWeeks,
           startDate: s.currentDate,
           countryId: targetIso,
           lat: centre ? centre[1] : undefined,
           lng: centre ? centre[0] : undefined,
+          startLevel: 0,
+          targetLevel: targetLvl,
         })
-        totalBuildCost += BUILD_COSTS[bp.type] ?? 0
+        totalBuildCost += scaledCost
       }
     }
 
