@@ -242,6 +242,21 @@ export type TechId =
   | 'autonomous_vehicles'
   // Infrastructure advanced
   | 'smart_grid' | 'hydrogen_economy' | 'battery_storage'
+  // ── Expansion: new modern nodes ───────────────────────────────────────────
+  // Military
+  | 'aircraft_carriers' | 'special_forces' | 'chemical_weapons' | 'autonomous_weapons'
+  // Science
+  | 'gene_editing' | 'neural_interfaces' | 'asteroid_mining' | 'fusion_power'
+  | 'quantum_internet' | 'synthetic_biology' | 'brain_computer'
+  // Economy
+  | 'global_supply_chains' | 'free_trade_zones' | 'green_economy' | 'space_commerce'
+  // Government
+  | 'propaganda_network' | 'digital_id' | 'federal_devolution'
+  | 'international_courts' | 'cyber_defence_agency'
+  // Society
+  | 'universal_basic_income' | 'cultural_exports' | 'immigration_policy'
+  // Infrastructure
+  | 'desalination' | 'space_elevator' | 'hyperloop' | 'vertical_farming'
   // ── Ancient / Medieval ────────────────────────────────────────────────────
   // Metallurgy / Infrastructure
   | 'bronze_working' | 'iron_working' | 'steel_forging'
