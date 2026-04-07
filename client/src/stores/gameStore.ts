@@ -13,6 +13,8 @@ import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
 import { TECH_TREE, ANCIENT_TECH_TREE, INDUSTRIAL_TECH_TREE, ANCIENT_ERAS, checkEraPhaseTransition } from '@ad-astra/shared/techTree'
+import { HISTORICAL_ERAS, getNextEra, type AnyEraId } from '@ad-astra/shared/eraConfig'
+import { HISTORICAL_POLITIES, TIER_DEFAULTS } from '@ad-astra/shared/historicalPolities'
 import { MODERN_COUNTRY_DATA } from '@ad-astra/shared/countryData'
 import {
   newsFromDisaster, newsFromTechUnlock, newsFromGdpGrowth,
@@ -263,6 +265,8 @@ interface GameStoreState {
   commitDrawnRail: (rail: Omit<import('@ad-astra/shared/types').RailLine, 'id' | 'countryId'>, totalCost: number) => void
   /** Pay down debt from GDP. Returns silently if funds insufficient. */
   payDownDebt: (amount: number) => void
+  /** Advance to the next era. Carries over conquered territory + stats; renames empire if provided. */
+  advanceEra: (newEmpireName?: string) => void
   setMilitaryState: (patch: Partial<MilitaryState>) => void
   setPolitics: (patch: Partial<PoliticsState>) => void
   setSociety: (patch: Partial<SocietyState>) => void
@@ -293,6 +297,30 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const ts = Date.now().toString(36)
     const saveSlot = `${countryName}-${eraName}-${ts}`
 
+    const HISTORICAL_ERA_IDS = new Set([
+      'bronze_age', 'classical_greek', 'alexander', 'qin_expansion',
+      'punic_wars', 'roman_peak', 'late_antiquity', 'tang_abbasid',
+      'high_medieval', 'age_of_exploration', 'ottoman_classical',
+      'enlightenment', 'industrial_dawn', 'great_war', 'interwar',
+    ])
+    const isHistorical = HISTORICAL_ERA_IDS.has(conditions.era)
+
+    let historicalUnlockedTechs: string[] = []
+    if (isHistorical) {
+      const polityKey = `${conditions.era}:${playerCountryId.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+      const polityData = (HISTORICAL_POLITIES as any)[polityKey]
+      if (polityData) {
+        const defaults = (TIER_DEFAULTS as any)[polityData.tier] as string[]
+        const unlockSet = new Set<string>(defaults)
+        for (const t of polityData.bonusTechs) unlockSet.add(t)
+        for (const t of polityData.missingTechs) unlockSet.delete(t)
+        historicalUnlockedTechs = Array.from(unlockSet)
+      } else {
+        const tier = conditions.era === 'bronze_age' ? 2 : 3
+        historicalUnlockedTechs = (TIER_DEFAULTS as any)[tier] as string[]
+      }
+    }
+
     const newState: GameState = {
       saveSlot,
       era: conditions.era,
@@ -314,7 +342,9 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       strategicPassages: conditions.strategicPassages,
       buildQueue: [],
       researchQueue: [],
-      unlockedTechs: getEraStartUnlocks(conditions.era, playerCountryId),
+      unlockedTechs: isHistorical
+        ? (historicalUnlockedTechs as TechId[])
+        : getEraStartUnlocks(conditions.era, playerCountryId),
       recentDisasters: [],
       warDamage: {},
       lore: [],
@@ -1736,6 +1766,52 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   setEconomy: (patch) => set(s => {
     if (!s.state?.economy) return {}
     return { state: { ...s.state, economy: { ...s.state.economy, ...patch } } }
+  }),
+
+  advanceEra: (newEmpireName) => set(s => {
+    if (!s.state) return {}
+    const st = s.state
+    const nextEra = getNextEra(st.era as AnyEraId)
+    if (!nextEra) return {}
+    const player = st.countries[st.playerCountryId]
+    if (!player) return {}
+
+    const newEraConfig = HISTORICAL_ERAS.find(e => e.id === nextEra)
+    const newYear = newEraConfig?.year ?? new Date(st.currentDate).getFullYear()
+    const newDate = `${newYear < 0 ? '-' : ''}${Math.abs(newYear).toString().padStart(4, '0')}-01-01`
+
+    const renamedPlayer = {
+      ...player,
+      name: newEmpireName ?? player.name,
+      stats: {
+        ...player.stats,
+        gdp: Math.round(player.stats.gdp * 1.10),
+        stability: Math.min(100, (player.stats.stability ?? 70) + 5),
+      },
+    }
+    const newCountries = { ...st.countries, [st.playerCountryId]: renamedPlayer }
+
+    const newsItem: NewsItem = {
+      id: `news-era-${Date.now()}`,
+      date: newDate,
+      headline: `The dawn of a new age — ${renamedPlayer.name} enters ${newEraConfig?.name ?? nextEra}`,
+      body: `A new chapter begins. The world map redraws as empires rise and fall.`,
+      category: 'world' as any,
+      importance: 'breaking' as any,
+      country: st.playerCountryId,
+    }
+
+    return {
+      state: {
+        ...st,
+        era: nextEra as any,
+        currentDate: newDate,
+        empireName: newEmpireName ?? st.empireName,
+        countries: newCountries,
+        worldRelations: {},
+        newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
+      },
+    }
   }),
 
   payDownDebt: (amount) => set(s => {
