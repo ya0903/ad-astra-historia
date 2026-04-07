@@ -472,6 +472,8 @@ export interface GameState {
   lore: LoreEntry[]
   // News feed
   newsItems?: NewsItem[]       // recent world headlines
+  // ── World simulation ──────────────────────────────────────────────────────
+  worldRelations?: Record<string, number>  // "ISO-ISO" → opinion (-100 to +100)
   // Diplomacy
   allies?: string[]            // ISO_A3 of allied nations
   atWarWith?: string[]         // ISO_A3 of nations at war with player

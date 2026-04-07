@@ -5,6 +5,7 @@ import type {
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
   RailLine, RailType, NewsItem, EraPhase, EconomyState, MilitaryState, PoliticsState,
   SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState, GovernmentType,
+  WorldTickEvent,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
@@ -15,7 +16,9 @@ import { MODERN_COUNTRY_DATA } from '@ad-astra/shared/countryData'
 import {
   newsFromDisaster, newsFromTechUnlock, newsFromGdpGrowth,
   newsFromStabilityEvent, newsFromActionResult, newsFromWorldEvent, newsFromAnnex,
+  newsFromWorldTickEvent,
 } from '@ad-astra/shared/newsGenerator'
+import { worldTick } from '@ad-astra/shared/worldSimulation'
 
 // ── GDP growth rates (annual) by rough tier ───────────────────────────────────
 function countryGrowthRate(
@@ -608,6 +611,65 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       }
     }
 
+    // ── World tick simulation (every week) ────────────────────────────────
+    const worldRelations = { ...(s.worldRelations ?? {}) }
+
+    // Initialise world relations from country diplomacy if first tick
+    if (Object.keys(worldRelations).length === 0) {
+      for (const [iso, country] of Object.entries(newCountries)) {
+        if (country.relations) {
+          for (const [otherIso, relType] of Object.entries(country.relations)) {
+            const key = [iso, otherIso].sort().join('-')
+            if (worldRelations[key] == null) {
+              const relValue = relType === 'allied' ? 60
+                : relType === 'friendly' ? 30
+                : relType === 'neutral' ? 0
+                : relType === 'tense' ? -30
+                : relType === 'hostile' ? -60
+                : relType === 'at_war' ? -90
+                : 0
+              worldRelations[key] = relValue
+            }
+          }
+        }
+      }
+    }
+
+    // Run world tick for each week in the period
+    const allWorldEvents: WorldTickEvent[] = []
+    for (let w = 0; w < weeksElapsed; w++) {
+      const result = worldTick(newCountries, worldRelations, newDate, s.allies ?? [])
+
+      for (const event of result.events) {
+        allWorldEvents.push(event)
+
+        // Apply relation deltas
+        if (event.relationsDelta) {
+          for (const [key, delta] of Object.entries(event.relationsDelta)) {
+            worldRelations[key] = Math.max(-100, Math.min(100, (worldRelations[key] ?? 0) + delta))
+          }
+        }
+
+        // Apply stat changes to countries
+        if (event.statChanges) {
+          for (const change of event.statChanges) {
+            const country = newCountries[change.country]
+            if (!country) continue
+            const stats = { ...country.stats }
+            if (change.field === 'stability') {
+              stats.stability = Math.max(0, Math.min(100, (stats.stability ?? 70) + change.delta))
+            } else if (change.field === 'approval') {
+              stats.approval = Math.max(0, Math.min(100, stats.approval + change.delta))
+            }
+            newCountries[change.country] = { ...country, stats }
+          }
+        }
+      }
+    }
+
+    // Convert world events to news items
+    const worldNews = allWorldEvents.map(e => newsFromWorldTickEvent(e))
+
     // ── Generate news for this tick ───────────────────────────────────────────
     const newNewsItems: NewsItem[] = []
     // Era phase transition news
@@ -658,7 +720,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
-        newsItems: [...newNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
+        newsItems: [...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
+        worldRelations,
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
         ...(newPhase ? { eraPhase: newPhase } : {}),
         ...(newEconomy ? { economy: newEconomy } : {}),

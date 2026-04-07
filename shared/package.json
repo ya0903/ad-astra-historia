@@ -13,7 +13,8 @@
     "./techTree": "./techTree.ts",
     "./countryData": "./dist/countryData.js",
     "./countryPersonalities": "./dist/countryPersonalities.js",
-    "./worldSimulation": "./dist/worldSimulation.js"
+    "./worldSimulation": "./dist/worldSimulation.js",
+    "./newsGenerator": "./dist/newsGenerator.js"
   },
   "scripts": {
     "build": "tsc",

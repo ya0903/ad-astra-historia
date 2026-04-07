@@ -1,4 +1,4 @@
-import type { DisasterEvent, NewsItem, NewsCategory, NewsImportance, TechId, WorldEvent } from './types.js'
+import type { DisasterEvent, NewsItem, NewsCategory, NewsImportance, TechId, WorldEvent, WorldTickEvent } from './types.js'
 
 // ── Country name lookup ───────────────────────────────────────────────────────
 const COUNTRY_NAMES: Record<string, string> = {
@@ -163,6 +163,19 @@ export function newsFromWorldEvent(event: WorldEvent, date: string): NewsItem {
     category: 'world',
     importance: 'major',
     country: event.affectedCountry,
+  }
+}
+
+// ── World tick event news ─────────────────────────────────────────────────
+export function newsFromWorldTickEvent(event: WorldTickEvent): NewsItem {
+  return {
+    id: event.id.replace('wt', 'news-wt'),
+    date: event.date,
+    headline: event.headline,
+    body: event.body,
+    category: event.category,
+    importance: event.importance,
+    country: event.primaryCountry,
   }
 }
 
