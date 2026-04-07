@@ -2,68 +2,169 @@ import type { Era } from './types.js'
 
 export const COUNTRY_COLOURS: Record<string, string> = {
   // ── Americas ───────────────────────────────────────────────────────────────
-  USA: '#3C3B6E', CAN: '#FF0000', MEX: '#006847', BRA: '#009C3B',
-  ARG: '#74ACDF', CHL: '#D52B1E', COL: '#FCD116', VEN: '#CF142B',
-  PER: '#D91023', BOL: '#D52B1E', URY: '#0038A8', PRY: '#D52B1E',
-  ECU: '#003893', GUY: '#009E60', SUR: '#377E3F', TTO: '#CE1126',
-  BLZ: '#003F87', GTM: '#4997D0', HND: '#0073CF', SLV: '#0F47AF',
-  NIC: '#3A75C4', CRI: '#002B7F', PAN: '#0038A8', CUB: '#002A8F',
-  DOM: '#002D62', HTI: '#00209F', JAM: '#009B3A',
+  // USA: deep navy (flag blue), CAN: red (maple leaf), MEX: dark green (flag stripe)
+  USA: '#3C3B6E', CAN: '#D52B1E', MEX: '#006847',
+  // BRA: rich green (flag), ARG: sky blue (flag), CHL: deep red, COL: golden yellow
+  BRA: '#009C3B', ARG: '#74ACDF', CHL: '#C8102E', COL: '#FCD116',
+  // VEN: crimson, PER: warm red, BOL: deep forest green (tricolour centre), URY: royal blue
+  VEN: '#CF142B', PER: '#D91023', BOL: '#2D6A27', URY: '#0038A8',
+  // PRY: deep red (flag), ECU: navy (flag blue stripe), GUY: deep green, SUR: dark forest
+  PRY: '#B8001F', ECU: '#003893', GUY: '#009E60', SUR: '#377E3F',
+  // TTO: black and red — use dark charcoal, BLZ: blue, GTM: sky blue, HND: mid blue
+  TTO: '#CE1126', BLZ: '#003F87', GTM: '#4997D0', HND: '#0073CF',
+  // SLV: deep cobalt, NIC: teal-blue, CRI: deep navy, PAN: royal blue
+  SLV: '#0F47AF', NIC: '#3A75C4', CRI: '#002B7F', PAN: '#005EB8',
+  // CUB: deep blue, DOM: dark navy, HTI: deep blue (darker shade), JAM: green
+  CUB: '#002A8F', DOM: '#002D62', HTI: '#00209F', JAM: '#009B3A',
+
   // ── Western Europe ────────────────────────────────────────────────────────
-  GBR: '#012169', FRA: '#0055A4', DEU: '#DD0000', ITA: '#009246',
-  ESP: '#AA151B', PRT: '#006600', NLD: '#AE1C28', BEL: '#EF3340',
-  CHE: '#FF0000', AUT: '#ED2939', POL: '#DC143C', CZE: '#D7141A',
-  HUN: '#CE2939', ROU: '#002B7F', BGR: '#009B74', GRC: '#0D5EAF',
-  SWE: '#006AA7', NOR: '#EF2B2D', DNK: '#C60C30', FIN: '#003580',
-  IRL: '#169B62', LUX: '#EF3340', ISL: '#003897', MLT: '#CF142B',
-  CYP: '#4A90D9', AND: '#003DA5', MCO: '#CE1126', LIE: '#002B7F',
-  SMR: '#5EB6E4',
+  // GBR: navy blue, FRA: French blue (distinct from GBR), DEU: red (flag red)
+  GBR: '#012169', FRA: '#0055A4', DEU: '#DD0000',
+  // ITA: deep green (flag green stripe), ESP: Spanish red, PRT: dark olive green
+  ITA: '#009246', ESP: '#AA151B', PRT: '#006400',
+  // NLD: Dutch orange (better distinguishes from BEL), BEL: Belgian yellow
+  NLD: '#FF6600', BEL: '#FDDA24',
+  // CHE: bright red (distinct from AUT), AUT: dark crimson
+  CHE: '#FF0000', AUT: '#C8102E',
+  // POL: crimson, CZE: slate blue (uses the blue wedge), HUN: Hungarian green
+  POL: '#DC143C', CZE: '#11457E', HUN: '#477050',
+  // ROU: deep navy blue (flag blue), BGR: warm green (flag green)
+  ROU: '#002B7F', BGR: '#009B74',
+  // GRC: Greek blue, SWE: Swedish blue (different tone from GRC)
+  GRC: '#0D5EAF', SWE: '#006AA7',
+  // NOR: deep red, DNK: Danish red (slightly different), FIN: deep navy
+  NOR: '#EF2B2D', DNK: '#C60C30', FIN: '#003580',
+  // IRL: Irish green, LUX: light red (flag tricolour), ISL: Icelandic blue
+  IRL: '#169B62', LUX: '#EF3340', ISL: '#003897',
+  // MLT: Maltese red, CYP: sky blue (UN map colour), AND: deep blue
+  MLT: '#CF142B', CYP: '#4A90D9', AND: '#003DA5',
+  // MCO: Monaco red, LIE: Liechtenstein blue, SMR: San Marino blue
+  MCO: '#CE1126', LIE: '#002B7F', SMR: '#5EB6E4',
+
   // ── Eastern Europe / Balkans ──────────────────────────────────────────────
-  UKR: '#005BBB', BLR: '#CF101A', MDA: '#003DA5', LTU: '#FDB913',
-  LVA: '#9E3039', EST: '#0072CE', RUS: '#0039A6',
-  SVK: '#EE1C25', SVN: '#003DA5', HRV: '#FF0000', BIH: '#002395',
-  SRB: '#C6363C', MKD: '#CE2028', MNE: '#D4AF37', ALB: '#E41E20',
+  // UKR: Ukrainian blue, BLR: deep red (flag), MDA: Moldova blue (darker shade)
+  UKR: '#005BBB', BLR: '#CF101A', MDA: '#003DA5',
+  // LTU: amber yellow (flag), LVA: dark carmine (flag), EST: blue (flag)
+  LTU: '#FDB913', LVA: '#9E3039', EST: '#0072CE',
+  // RUS: deep blue (tricolour), SVK: deep red, SVN: dark blue (tricolour)
+  RUS: '#0039A6', SVK: '#EE1C25', SVN: '#1A5276',
+  // HRV: Croatian red (chequered), BIH: Bosnia dark blue, SRB: Serbian red
+  HRV: '#FF0000', BIH: '#1B3F7A', SRB: '#C6363C',
+  // MKD: Macedonian red, MNE: gold (flag colour), ALB: Albanian red
+  MKD: '#CE2028', MNE: '#D4AF37', ALB: '#E41E20',
+  // XKX/KOS: Kosovo blue (same entity)
   XKX: '#244AA5', KOS: '#244AA5',
+
   // ── Central Asia ─────────────────────────────────────────────────────────
-  KAZ: '#00AFCA', UZB: '#1EB53A', TKM: '#1B9B4F', KGZ: '#E8112D',
-  TJK: '#CC0000',
+  // KAZ: cyan-blue (flag), UZB: green (flag), TKM: deep forest green
+  KAZ: '#00AFCA', UZB: '#1EB53A', TKM: '#1B7A3E',
+  // KGZ: bright red (flag), TJK: dark crimson
+  KGZ: '#E8112D', TJK: '#8B0000',
+
   // ── East Asia ─────────────────────────────────────────────────────────────
-  CHN: '#DE2910', JPN: '#BC002D', KOR: '#CD2E3A', PRK: '#024FA2',
-  MNG: '#C4272F', TWN: '#FE0000', HKG: '#DE2110',
+  // CHN: Communist red, JPN: crimson, KOR: Korean red (taegeuk)
+  CHN: '#DE2910', JPN: '#BC002D', KOR: '#CD2E3A',
+  // PRK: deep blue (flag), MNG: Mongolian red, TWN: flag red (lighter)
+  PRK: '#024FA2', MNG: '#C4272F', TWN: '#FE0000',
+  // HKG: Hong Kong red (same as China but lighter treatment)
+  HKG: '#DE2110',
+
   // ── South / SE Asia ───────────────────────────────────────────────────────
-  IND: '#FF9933', PAK: '#01411C', BGD: '#006A4E', LKA: '#8D153A',
-  NPL: '#CA0000', BTN: '#FF8000', MDV: '#D21034', AFG: '#009A44',
-  VNM: '#DA251D', THA: '#A51931', MMR: '#FECB00', KHM: '#032EA1',
-  LAO: '#CE1126', MYS: '#CC0001', SGP: '#EF3340', IDN: '#CE1126',
+  // IND: saffron orange (Ashoka chakra hue), PAK: deep green (crescent), BGD: bottle green
+  IND: '#FF9933', PAK: '#01411C', BGD: '#006A4E',
+  // LKA: deep maroon (lion flag), NPL: crimson (distinct), BTN: deep orange (Bhutan dragon)
+  LKA: '#8D153A', NPL: '#CA0000', BTN: '#E07000',
+  // MDV: Maldives red, AFG: deep black-green (Islamic Emirate flag)
+  MDV: '#D21034', AFG: '#1A3A1A',
+  // VNM: Vietnamese red, THA: Thai deep blue (flag blue band - distinct from red neighbours)
+  VNM: '#DA251D', THA: '#2D4596',
+  // MMR: golden yellow (flag), KHM: dark indigo (Angkor), LAO: Lao deep red
+  MMR: '#FECB00', KHM: '#032EA1', LAO: '#8B0028',
+  // MYS: deep red (flag), SGP: Singapore crimson, IDN: Indonesian red
+  MYS: '#CC0001', SGP: '#EF3340', IDN: '#CE1126',
+  // PHL: Philippine blue, BRN: Brunei gold, TLS: East Timor black-red
   PHL: '#0038A8', BRN: '#F7E017', TLS: '#DC241F',
+
   // ── Middle East ───────────────────────────────────────────────────────────
-  IRN: '#239F40', IRQ: '#CE1126', SAU: '#006C35', ARE: '#00732F',
-  KWT: '#007A3D', QAT: '#8D1B3D', BHR: '#CE1126', OMN: '#DB161B',
-  YEM: '#CE1126', JOR: '#007A3D', ISR: '#0038B8', LBN: '#00A651',
-  SYR: '#007A3D', TUR: '#E30A17', GEO: '#FF0000', ARM: '#D90012',
+  // IRN: Persian green (flag), IRQ: Iraqi red, SAU: deep Saudi green
+  IRN: '#239F40', IRQ: '#CE1126', SAU: '#006C35',
+  // ARE: UAE green (lighter), KWT: Kuwaiti deep green, QAT: maroon
+  ARE: '#00732F', KWT: '#007A3D', QAT: '#8D1B3D',
+  // BHR: Bahrain red (distinct from IRQ), OMN: Omani dark red, YEM: Yemeni red (lighter)
+  BHR: '#A4161A', OMN: '#DB161B', YEM: '#CE1126',
+  // JOR: Jordan black (flag — use deep charcoal/green), ISR: Israeli blue
+  JOR: '#1A1A1A', ISR: '#0038B8',
+  // LBN: Lebanese cedar green, SYR: Syrian green (different from LBN)
+  LBN: '#00A651', SYR: '#2E7D32',
+  // TUR: Turkish red (distinctive), GEO: Georgian red cross, ARM: Armenian deep red
+  TUR: '#E30A17', GEO: '#DA291C', ARM: '#D90012',
+  // AZE: Azerbaijani blue, PSE: Palestinian green
   AZE: '#0092BC', PSE: '#007A3D',
+
   // ── North Africa ──────────────────────────────────────────────────────────
+  // EGY: Egyptian red, LBY: Libyan green, TUN: Tunisian red (distinct shade)
   EGY: '#CE1126', LBY: '#239E46', TUN: '#E70013',
+  // DZA: Algerian green (deep), MAR: Moroccan red (distinct from TUN)
   DZA: '#006233', MAR: '#C1272D',
+
   // ── West Africa ───────────────────────────────────────────────────────────
-  MRT: '#006233', MLI: '#009A00', NER: '#0DB02B', NGA: '#008751',
-  GHA: '#006B3F', CIV: '#F77F00', SEN: '#00853F',
-  GMB: '#3A7728', GNB: '#CE1126', GIN: '#CE1126', SLE: '#1EB53A',
-  LBR: '#BF0A30', BFA: '#EF2B2D', BEN: '#008751', TGO: '#006A4E',
-  GNQ: '#3E9A00', CMR: '#007A5E', GAB: '#009E60',
+  // MRT: Mauritania green (deep), MLI: Mali green → now deep emerald
+  MRT: '#006233', MLI: '#0E7838',
+  // NER: Niger orange (flag orange band — very distinct from neighbours)
+  NER: '#E67E22',
+  // NGA: Nigeria green, GHA: Ghana green (different shade)
+  NGA: '#008751', GHA: '#006B3F',
+  // CIV: Ivory Coast orange, SEN: Senegal green (different from NGA)
+  CIV: '#F77F00', SEN: '#00853F',
+  // GMB: Gambia red (flag), GNB: Guinea-Bissau dark red, GIN: Guinea red
+  GMB: '#3A7728', GNB: '#CE1126', GIN: '#CE1126',
+  // SLE: Sierra Leone green, LBR: Liberian red, BFA: Burkina red
+  SLE: '#1EB53A', LBR: '#BF0A30', BFA: '#EF2B2D',
+  // BEN: Benin green, TGO: Togo green (lighter), GNQ: Equatorial Guinea green
+  BEN: '#008751', TGO: '#006A4E', GNQ: '#3E9A00',
+  // CMR: Cameroon deep green, GAB: Gabon green
+  CMR: '#007A5E', GAB: '#009E60',
+
   // ── Central & East Africa ────────────────────────────────────────────────
-  COD: '#007FFF', COG: '#009A44', CAF: '#003082', TCD: '#002664',
-  SDN: '#007229', SSD: '#078930', ETH: '#078930', ERI: '#4189DD',
-  DJI: '#6AB2E7', SOM: '#4189DD', UGA: '#CE1126', KEN: '#006600',
-  TZA: '#1EB53A', RWA: '#20603D', BDI: '#CE1126',
+  // COD: DRC blue, COG: Congo Republic green, CAF: Central African blue
+  COD: '#007FFF', COG: '#009A44', CAF: '#003082',
+  // TCD: Chad blue — use deep indigo to distinguish from CAF
+  TCD: '#1F4287',
+  // SDN: Sudan sandy gold (distinct), SSD: South Sudan green (distinct)
+  SDN: '#E0AA3E', SSD: '#078930',
+  // ETH: Ethiopian green, ERI: Eritrean blue (flag)
+  ETH: '#078930', ERI: '#4189DD',
+  // DJI: Djibouti sky blue, SOM: Somali blue (different shade)
+  DJI: '#6AB2E7', SOM: '#4189DD',
+  // UGA: Ugandan red/black — use deep crimson, KEN: Kenyan dark green
+  UGA: '#CE1126', KEN: '#006600',
+  // TZA: Tanzania green (lighter), RWA: Rwanda blue, BDI: Burundi red
+  TZA: '#1EB53A', RWA: '#20A0C0', BDI: '#CE1126',
+  // AGO: Angola red
   AGO: '#CC0000',
+
   // ── Southern Africa ───────────────────────────────────────────────────────
-  ZAF: '#007A4D', ZWE: '#006400', ZMB: '#198A00', MOZ: '#009A44',
-  MWI: '#CE1126', NAM: '#003580', BWA: '#75AADB', LSO: '#009A44',
+  // ZAF: South Africa green, ZWE: Zimbabwe deep green, ZMB: Zambia green
+  ZAF: '#007A4D', ZWE: '#006400', ZMB: '#198A00',
+  // MOZ: Mozambique gold-yellow (flag AK-47 / star colour — distinct!)
+  MOZ: '#F5A623',
+  // MWI: Malawi red, NAM: Namibia blue, BWA: Botswana blue (lighter)
+  MWI: '#CE1126', NAM: '#003580', BWA: '#75AADB',
+  // LSO: Lesotho deep blue (flag — distinct from MOZ yellow)
+  LSO: '#1A3A6E',
+  // SWZ: Eswatini blue, MDG: Madagascar red
   SWZ: '#3E5EB9', MDG: '#FC3D32',
+
   // ── Pacific / Oceania ─────────────────────────────────────────────────────
-  AUS: '#012169', NZL: '#012169', PNG: '#CE1126', FJI: '#68BFE5',
-  SLB: '#0120B8', VUT: '#009A44', WSM: '#CE1126', TON: '#C10000',
+  // AUS: deep navy (flag), NZL: royal blue (distinct shade from AUS)
+  AUS: '#012169', NZL: '#00247D',
+  // PNG: Papua New Guinea red, FJI: Fijian sky blue
+  PNG: '#CE1126', FJI: '#68BFE5',
+  // SLB: Solomon Islands blue, VUT: Vanuatu green, WSM: Samoa red
+  SLB: '#0120B8', VUT: '#009A44', WSM: '#CE1126',
+  // TON: Tonga crimson
+  TON: '#C10000',
+
   // ── Historical ────────────────────────────────────────────────────────────
   SUN: '#CC0000',   // USSR
   DDR: '#CC0000',   // East Germany
