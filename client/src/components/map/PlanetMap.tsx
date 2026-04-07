@@ -221,10 +221,25 @@ export default function PlanetMap({ planet, colonies, onColonyClick }: Props) {
 
   useEffect(() => { draw() }, [draw])
 
+  // Attach native wheel listener with { passive: false } so preventDefault works
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const newScale = Math.max(0.5, Math.min(5, scaleRef.current * (e.deltaY > 0 ? 0.9 : 1.1)))
+      scaleRef.current = newScale
+      forceRender(n => n + 1)
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', onWheel)
+  }, [imgLoaded])
+
   // Mouse handlers
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
-    const newScale = Math.max(0.5, Math.min(5, scaleRef.current - e.deltaY * 0.001))
+    e.stopPropagation()
+    const newScale = Math.max(0.5, Math.min(5, scaleRef.current * (e.deltaY > 0 ? 0.9 : 1.1)))
     scaleRef.current = newScale
     forceRender(n => n + 1)
   }, [])
