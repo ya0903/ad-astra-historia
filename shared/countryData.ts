@@ -736,8 +736,8 @@ export const MODERN_COUNTRY_DATA: Record<string, CountryBaseData> = {
     activePersonnel: 8000, defenceSpendingPct: 1.2, nuclearCapable: false,
     governmentType: 'republic', corruptionIndex: 64, areaKm2: 28748, landlocked: false, strategicPassages: [],
   },
-  XKO: {
-    iso3: 'XKO', name: 'Kosovo', continent: 'Europe', subregion: 'Southern Europe',
+  XKX: {
+    iso3: 'XKX', name: 'Kosovo', continent: 'Europe', subregion: 'Southern Europe',
     population: 1780000, populationGrowthRate: 0.0, urbanisationRate: 42, medianAge: 30.5,
     gdp: 9400000000, gdpPerCapita: 5280, gdpGrowthRate: 3.2,
     sectorAgriculture: 10.0, sectorIndustry: 22.0, sectorServices: 68.0,
