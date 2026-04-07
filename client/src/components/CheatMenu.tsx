@@ -28,6 +28,7 @@ import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
 //   war <iso>                     declare war on a country
 //   peace <iso>                   make peace with a country
 //   addmoney <amount>             add to GDP (e.g. addmoney 10b)
+//   rp <amount>                  add research points
 //   spawnnews <text…>             add a custom news headline
 //   revealmap                     toggle reveal map mode
 
@@ -57,6 +58,7 @@ const HELP = `Available commands:
   war <iso>                       declare war on a country
   peace <iso>                     end war with a country
   addmoney <amount>               add to GDP (e.g. addmoney 10b)
+  rp <amount>                     add research points (e.g. rp 500)
   spawnnews <text…>               inject a custom news headline
   revealmap                       toggle map reveal mode
   clear                           clear console`
@@ -303,6 +305,18 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
       cheatPatch({ stats: { gdp: newGdp } })
       const display = amount >= 1e12 ? `${(amount/1e12).toFixed(2)}T` : amount >= 1e9 ? `${(amount/1e9).toFixed(2)}B` : amount >= 1e6 ? `${(amount/1e6).toFixed(2)}M` : String(amount)
       push(`Added ${display} to GDP. New GDP: ${newGdp >= 1e12 ? `${(newGdp/1e12).toFixed(2)}T` : newGdp >= 1e9 ? `${(newGdp/1e9).toFixed(2)}B` : `${(newGdp/1e6).toFixed(2)}M`}.`, 'ok')
+      return
+    }
+
+    // rp <amount> — add research points
+    if (parts[0] === 'rp') {
+      const val = parseValue(parts[1] ?? '')
+      if (val === null) { push('Usage: rp <amount>  e.g. rp 500', 'err'); return }
+      const country = gameState.countries[gameState.playerCountryId]
+      if (!country) return
+      const current = country.stats.researchPoints ?? 0
+      cheatPatch({ stats: { researchPoints: current + val } })
+      push(`Added ${val.toLocaleString()} RP. Balance: ${(current + val).toLocaleString()}`, 'ok')
       return
     }
 
