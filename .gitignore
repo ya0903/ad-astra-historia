@@ -9,3 +9,5 @@ saves/
 # These are large files fetched from github.com/nvkelso/natural-earth-vector
 # Do NOT ignore them — they must be committed so deploys work without outbound internet
 Screenshots/
+
+shared/eras/raw/

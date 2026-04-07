@@ -1296,7 +1296,7 @@ gameRouter.get('/era/:era', (req, res) => {
 
   const response: EraStartConditions = {
     era,
-    startDate: ERA_START_DATES[era],
+    startDate: ERA_START_DATES[era] ?? '2025-01-01',
     countries: buildCountriesFromGeoJSON(geojsonData, era),
     organisations: [],
     disputes: ERA_DISPUTES[era] ?? [],

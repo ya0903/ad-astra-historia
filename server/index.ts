@@ -74,6 +74,17 @@ function ensureGeoData() {
     }
   }
 
+  // Process historical eras (downloads aourednik files + normalises)
+  try {
+    console.log('[startup] Running processHistorical.mjs...')
+    execSync('node shared/eras/processHistorical.mjs', {
+      cwd: join(__dirname, '..'),
+      stdio: 'inherit',
+      timeout: 600_000,
+    })
+  } catch (err) {
+    console.warn('[startup] Historical era processing failed.', (err as Error).message)
+  }
 }
 
 // Only start server when run directly (not during tests)
