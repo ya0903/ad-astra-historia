@@ -333,7 +333,7 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
                     nameColorClass = 'text-gray-600'
                     break
                   case 'available':
-                    circleClasses = `bg-white/[0.08] ${meta.borderColor} shadow-[0_0_8px_0px_${meta.color}40]`
+                    circleClasses = `bg-white/[0.08] ${meta.borderColor}`
                     nameColorClass = 'text-gray-300'
                     cursor = 'cursor-pointer'
                     break
