@@ -1079,30 +1079,51 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const key = [s.playerCountryId, proposal.fromCountry].sort().join('-')
     const newAllies = [...(s.allies ?? [])]
     const player = s.countries[s.playerCountryId]
+    const fromName = s.countries[proposal.fromCountry]?.name ?? proposal.fromCountry
+    const playerName = player?.name ?? s.playerCountryId
     let newPlayer = player
+    let headline = ''
+    let body = ''
     switch (proposal.type) {
       case 'trade_deal':
         newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 15)
         if (player) {
           newPlayer = { ...player, stats: { ...player.stats, gdp: player.stats.gdp + Math.round(player.stats.gdp * 0.005) } }
         }
+        headline = `${playerName} and ${fromName} Sign Trade Agreement`
+        body = `The two nations have ratified a major bilateral trade deal, lifting tariffs and opening markets. Both economies expected to benefit.`
         break
       case 'alliance':
         newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 30)
         if (!newAllies.includes(proposal.fromCountry)) newAllies.push(proposal.fromCountry)
+        headline = `${playerName} and ${fromName} Form Military Alliance`
+        body = `The two nations have signed a mutual defence pact, pledging to support each other in time of war. A significant geopolitical realignment.`
         break
       case 'arms_deal':
         newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 10)
         if (player) {
           newPlayer = { ...player, stats: { ...player.stats, military: Math.min(100, player.stats.military + 5) } }
         }
+        headline = `${playerName} Acquires Weapons Systems from ${fromName}`
+        body = `A major arms deal has been finalised. ${playerName}'s military strength is expected to grow as new equipment is delivered.`
         break
       case 'summit':
         newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 20)
         if (player) {
           newPlayer = { ...player, stats: { ...player.stats, softPower: Math.min(100, player.stats.softPower + 3) } }
         }
+        headline = `${playerName} and ${fromName} Hold Diplomatic Summit`
+        body = `Leaders of both nations met to discuss bilateral relations and shared interests. The summit was widely seen as a success.`
         break
+    }
+    const newsItem = {
+      id: `news-accept-${proposal.id}`,
+      date: s.currentDate,
+      headline,
+      body,
+      category: 'diplomacy' as const,
+      importance: (proposal.type === 'alliance' ? 'breaking' : 'major') as 'breaking' | 'major',
+      country: s.playerCountryId,
     }
     const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'accepted' as const } : p)
     return {
@@ -1112,6 +1133,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         worldRelations: newRelations,
         allies: newAllies,
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
+        newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
       },
     }
   }),
@@ -1126,9 +1148,30 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const newRelations = { ...(s.worldRelations ?? {}) }
     const key = [s.playerCountryId, proposal.fromCountry].sort().join('-')
     newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - 5)
+    const fromName = s.countries[proposal.fromCountry]?.name ?? proposal.fromCountry
+    const playerName = s.countries[s.playerCountryId]?.name ?? s.playerCountryId
+    const typeLabel =
+      proposal.type === 'trade_deal' ? 'Trade Deal' :
+      proposal.type === 'alliance'   ? 'Alliance Offer' :
+      proposal.type === 'arms_deal'  ? 'Arms Deal' :
+      proposal.type === 'summit'     ? 'Summit Request' : 'Proposal'
+    const newsItem = {
+      id: `news-decline-${proposal.id}`,
+      date: s.currentDate,
+      headline: `${playerName} Rejects ${fromName} ${typeLabel}`,
+      body: `${playerName} has formally declined the proposal from ${fromName}. Diplomatic relations cool slightly as a result.`,
+      category: 'diplomacy' as const,
+      importance: 'minor' as const,
+      country: s.playerCountryId,
+    }
     const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'declined' as const } : p)
     return {
-      state: { ...s, diplomaticInbox: newInbox, worldRelations: newRelations },
+      state: {
+        ...s,
+        diplomaticInbox: newInbox,
+        worldRelations: newRelations,
+        newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+      },
     }
   }),
 
