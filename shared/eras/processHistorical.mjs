@@ -124,11 +124,10 @@ function normaliseEra(eraId, geojson) {
   for (const f of geojson.features) {
     const props = f.properties || {}
     const rawName = props.NAME || props.SUBJECTO
-    // Skip features with no meaningful name — these are unidentified territories
-    // (uninhabited frontier, polar ice caps, etc.) that shouldn't be playable.
-    if (!rawName || rawName === 'Unknown' || rawName === 'unknown' || rawName.trim() === '') continue
-
-    const name = rawName
+    const isUnknown = !rawName || rawName === 'Unknown' || rawName === 'unknown' || rawName.trim() === ''
+    // Keep Unknown territories in the map (so gaps are filled), but mark them
+    // non-playable. The country picker filters on `playable: true`.
+    const name = isUnknown ? 'Uncharted Territory' : rawName
     const id = polityIdFor(eraId, name)
     const slug = id.split(':')[1] || name
     const iso = buildCode(slug)
@@ -142,6 +141,7 @@ function normaliseEra(eraId, geojson) {
         ADM0_A3: iso,
         ADMIN: name,
         NAME: name,
+        playable: !isUnknown,
         fill_colour: generatePolityColour(name, eraId),
         border_precision: typeof props.BORDERPRECISION === 'number' ? props.BORDERPRECISION : 2,
       },

@@ -9,8 +9,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
+import { HISTORICAL_ERAS as HISTORICAL_ERA_DEFS } from '@ad-astra/shared/eraConfig'
 
-const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
+const ANCIENT_ERAS = new Set<string>([
+  'greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku',
+  ...HISTORICAL_ERA_DEFS.map(e => e.id),
+])
 
 type Ring = [number, number][]
 
@@ -201,6 +205,7 @@ export default function CountryLabelOverlay() {
           const props = feature.properties as Record<string, unknown>
           const rawName = (props?.ADMIN ?? props?.NAME ?? '') as string
           if (SKIP_NAMES.has(rawName)) continue
+          if (props?.playable === false) continue
 
           let iso = (props?.ISO_A3 ?? props?.ADM0_A3 ?? '') as string
           if (!iso || iso === '-99') iso = rawName

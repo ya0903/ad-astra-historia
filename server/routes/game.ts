@@ -220,6 +220,7 @@ interface GeoJSONProperties {
   modernName?: string
   ancientName?: string
   polityId?: string
+  playable?: boolean
   adminType?: string
   [key: string]: unknown  // allow arbitrary extra properties
 }
@@ -240,6 +241,9 @@ function buildCountriesFromGeoJSON(geojson: GeoJSONFeatureCollection, era?: Era)
     const isoA3 = props.ISO_A3 ?? props.ADM0_A3 ?? '-99'
 
     if (isoA3 === '-99' || !isoA3) continue
+    // Skip non-playable "Uncharted Territory" features — they exist in the
+    // GeoJSON to fill map gaps but shouldn't appear in the country picker.
+    if (props.playable === false) continue
 
     const name = props.ADMIN ?? props.NAME ?? isoA3
 
