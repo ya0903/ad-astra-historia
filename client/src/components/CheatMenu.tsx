@@ -398,17 +398,21 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
       {/* Quick action buttons */}
       <div className="flex flex-wrap gap-1.5 px-3 py-2 border-t border-green-900/40 shrink-0">
         {[
-          { label: '+50B GDP',     cmd: 'addmoney 50b' },
-          { label: '+500 RP',      cmd: 'rp 500' },
-          { label: 'Insta Build',  cmd: 'instabuild' },
-          { label: 'Insta Research',cmd: 'instaresearch' },
-          { label: 'Yesman',       cmd: 'yesman' },
-          { label: 'God',          cmd: 'god' },
+          { label: '+50B GDP',     cmd: 'addmoney 50b', toggled: false },
+          { label: '+500 RP',      cmd: 'rp 500', toggled: false },
+          { label: 'Insta Build',  cmd: 'instabuild', toggled: false },
+          { label: 'Insta Research',cmd: 'instaresearch', toggled: false },
+          { label: gameState?.yesman ? 'Yesman: ON' : 'Yesman: OFF', cmd: 'yesman', toggled: !!gameState?.yesman },
+          { label: 'God',          cmd: 'god', toggled: false },
         ].map(btn => (
           <button
             key={btn.label}
             onClick={() => run(btn.cmd)}
-            className="text-[10px] font-mono px-2 py-1 rounded border border-green-900/60 bg-green-950/40 text-green-300 hover:bg-green-900/60 hover:text-green-200 transition-colors"
+            className={`text-[10px] font-mono px-2 py-1 rounded border transition-colors ${
+              btn.toggled
+                ? 'border-amber-500/70 bg-amber-900/50 text-amber-200 hover:bg-amber-800/60'
+                : 'border-green-900/60 bg-green-950/40 text-green-300 hover:bg-green-900/60 hover:text-green-200'
+            }`}
           >
             {btn.label}
           </button>

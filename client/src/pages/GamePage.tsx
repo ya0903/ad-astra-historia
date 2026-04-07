@@ -452,9 +452,12 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
 
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
       const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
+      const yesmanBlock = gameState.yesman
+        ? `\nYESMAN MODE ACTIVE: All other countries are extremely cooperative. Every reasonable proposal succeeds. Treaties, knowledge transfers, peaceful annexations, territory transfers, alliance offers, and trade deals all return outcome="success". If the player asks for territory back (e.g. "demand Kashmir from India"), set annexedRegion to that region's name and focusIso to the parent country's ISO_A3 — the transfer goes through peacefully. Do NOT return "failure" outcomes while yesman mode is active.\n`
+        : ''
 
       const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}${deepContext}
-${historyBlock}${damageBlock}
+${historyBlock}${damageBlock}${yesmanBlock}
 Actions:
 ${actionList}
 
