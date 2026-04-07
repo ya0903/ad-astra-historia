@@ -139,6 +139,23 @@ function abbreviate(name: string): string {
 const SKIP_NAMES = new Set(['Northern Cyprus', 'Abkhazia', 'South Ossetia',
   'Transnistria', 'Nagorno-Karabakh'])
 
+// Countries that should always render horizontal regardless of polygon shape
+const FORCE_HORIZONTAL = new Set([
+  'Indonesia', 'Philippines', 'Greece', 'Mali', 'Niger', 'Chad',
+  'Egypt', 'Ethiopia', 'Nigeria', 'South Africa', 'Botswana',
+  'Brazil', 'Bolivia', 'Peru', 'Colombia', 'Venezuela', 'South Korea',
+  'Republic of Korea',
+])
+
+// Manual overrides for label position (in lng/lat) and rotation angle (deg).
+// Use null to inherit from polygon centroid.
+const LABEL_OVERRIDES: Record<string, { lng?: number; lat?: number; angle?: number }> = {
+  // Israel — move slightly left and up, just to the right of Tel Aviv
+  'Israel': { lng: 35.0, lat: 32.4, angle: 0 },
+  // Norway — angled and to the left of Oslo
+  'Norway': { lng: 9.5, lat: 61.0, angle: -55 },
+}
+
 interface LabelDatum {
   iso: string
   name: string
@@ -204,13 +221,25 @@ export default function CountryLabelOverlay() {
 
           const existing = best.get(iso)
           if (!existing || bestArea > existing.area) {
-            const [lng, lat] = ringCentroid(bestRing)
-            const { angle, bboxW, bboxH } = computeAngleAndBbox(bestRing)
+            let [lng, lat] = ringCentroid(bestRing)
+            let { angle, bboxW, bboxH } = computeAngleAndBbox(bestRing)
+            const displayName = abbreviate(rawName)
+            // Force horizontal for specific countries (treats bbox as horizontal)
+            if (FORCE_HORIZONTAL.has(rawName) || FORCE_HORIZONTAL.has(displayName)) {
+              angle = 0
+            }
+            // Apply manual overrides (position and/or angle)
+            const override = LABEL_OVERRIDES[rawName] ?? LABEL_OVERRIDES[displayName]
+            if (override) {
+              if (override.lng !== undefined) lng = override.lng
+              if (override.lat !== undefined) lat = override.lat
+              if (override.angle !== undefined) angle = override.angle
+            }
             best.set(iso, {
               lng, lat, angle, bboxW, bboxH,
               tier: sizeTier(bestArea),
               area: bestArea,
-              name: abbreviate(rawName),
+              name: displayName,
             })
           }
         }
@@ -267,10 +296,10 @@ export default function CountryLabelOverlay() {
         // fitFrac: 0 = text is tiny compared to country, 1 = text fills country edge-to-edge
         // Allow up to 0.95 — labels can slightly overflow the polygon boundary (CK-style)
         const fitFrac = textPx / Math.max(1, countrySpanPx)
-        if (fitFrac > 0.95) { el.style.display = 'none'; continue }
+        if (fitFrac > 1.15) { el.style.display = 'none'; continue }
 
-        // Smooth fade: fully visible when fitFrac ≤ 0.75, fades 0.75→0.95
-        const fitOpacity  = Math.max(0, Math.min(1, (0.95 - fitFrac) / 0.20))
+        // Smooth fade: fully visible when fitFrac ≤ 0.85, fades 0.85→1.15
+        const fitOpacity  = Math.max(0, Math.min(1, (1.15 - fitFrac) / 0.30))
         const zoomOpacity = Math.min(1, (zoom - TIER_ZOOM_MIN[d.tier] + 0.5) * 2)
         const opacity     = fitOpacity * zoomOpacity
 
