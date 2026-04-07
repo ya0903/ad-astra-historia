@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import type { AIProvider, AIConfig, Era, Difficulty, EraStartConditions } from '@ad-astra/shared/types'
 import { useConfigStore, useGameStore } from '../stores'
 import { fetchEraConditions, listSaves, loadSave, deleteSave, renameSave } from '../lib/api'
+import EraTilePicker from '../components/setup/EraTilePicker'
+import type { AnyEraId } from '@ad-astra/shared/eraConfig'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -388,25 +390,10 @@ export default function SetupPage() {
         {/* ── Step 2: Era Selection ── */}
         <Panel>
           <SectionTitle>Step 2 — Select Era</SectionTitle>
-          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Ancient &amp; Medieval</p>
-          <div className="flex flex-col gap-1.5 mb-4">
-            {ERAS.filter(e => e.group === 'ancient').map(({ label, value, desc }) => (
-              <button key={value} onClick={() => handleEraSelect(value)} title={desc}
-                className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors text-left ${selectedEra === value ? 'bg-amber-700 border-amber-600 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-amber-900/30 hover:border-amber-700/40'}`}>
-                <span className="font-semibold">{label}</span>
-                <span className="text-xs text-gray-400 ml-2">{desc}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">Modern</p>
-          <div className="flex flex-wrap gap-2">
-            {ERAS.filter(e => e.group === 'modern').map(({ label, value, desc }) => (
-              <button key={value} onClick={() => handleEraSelect(value)} title={desc}
-                className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors ${selectedEra === value ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <EraTilePicker
+            selected={selectedEra as AnyEraId | null}
+            onSelect={(era) => handleEraSelect(era as Era)}
+          />
           {eraLoading && <p className="text-blue-400 text-sm mt-3 animate-pulse">Loading era conditions…</p>}
           {eraError && <ErrorMsg msg={eraError} />}
           {eraConditions && !eraLoading && (
