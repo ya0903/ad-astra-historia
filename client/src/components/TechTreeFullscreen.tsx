@@ -94,9 +94,9 @@ function computeCategoryDepths(nodes: TechNode[]): Map<string, number> {
 
 // ── Node positions within column ─────────────────────────────────────────────
 
-const NODE_SIZE = 40
-const NODE_SLOT_W = 80
-const NODE_SLOT_H = 80
+const NODE_SIZE = 56
+const NODE_SLOT_W = 100
+const NODE_SLOT_H = 110
 const COLUMN_HEADER_H = 48
 
 interface NodePosition {
@@ -305,9 +305,10 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
                       if (!fromPos) return null
                       const cx = columnWidth / 2
                       const x1 = cx + fromPos.x
-                      const y1 = fromPos.y + NODE_SIZE / 2
+                      const y1 = fromPos.y + NODE_SIZE / 2 + 6
                       const x2 = cx + toPos.x
-                      const y2 = toPos.y - NODE_SIZE / 2
+                      const y2 = toPos.y - NODE_SIZE / 2 - 6
+                      if (y2 <= y1) return null
                       const cpY = (y2 - y1) * 0.4
                       return (
                         <path
@@ -367,7 +368,7 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
                     }}
                   >
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-200 ${circleClasses} ${cursor}`}
+                      className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 transition-all duration-200 ${circleClasses} ${cursor}`}
                       onMouseEnter={() => setHovered(tech.id)}
                       onMouseLeave={() => setHovered(null)}
                       onClick={() => nodeState === 'available' && currentRP >= tech.cost && startResearch(tech.id, tech.researchWeeks)}
@@ -375,7 +376,7 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
                     >
                       {icon}
                     </div>
-                    <span className={`text-[10px] text-center leading-tight mt-1 max-w-[72px] line-clamp-2 ${nameColorClass}`}>
+                    <span className={`text-[11px] text-center leading-tight mt-1.5 max-w-[92px] line-clamp-2 ${nameColorClass}`}>
                       {tech.name}
                     </span>
                     {nodeState === 'researching' && (
