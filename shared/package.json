@@ -11,7 +11,8 @@
     "./infraColours": "./dist/infraColours.js",
     "./eraConflicts": "./eraConflicts.ts",
     "./techTree": "./techTree.ts",
-    "./countryData": "./dist/countryData.js"
+    "./countryData": "./dist/countryData.js",
+    "./countryPersonalities": "./dist/countryPersonalities.js"
   },
   "scripts": {
     "build": "tsc",

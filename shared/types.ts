@@ -329,6 +329,54 @@ export interface WorldEvent {
   annexedRegion?: string        // province/region name that gains independence
 }
 
+// ── World Tick Simulation Types ─────────────────────────────────────────────
+
+export interface CountryPersonality {
+  aggression: number       // 0-100
+  diplomacy: number        // 0-100
+  economicFocus: number    // 0-100
+  stability: number        // 0-100
+  unpredictability: number // 0-20
+}
+
+export type WorldTickEventType =
+  | 'alliance_proposed' | 'alliance_formed' | 'alliance_dissolved'
+  | 'trade_deal_proposed' | 'trade_deal_signed' | 'trade_deal_collapsed'
+  | 'peace_talks_initiated' | 'peace_treaty_signed'
+  | 'diplomatic_incident' | 'embassy_recalled' | 'sanctions_imposed' | 'sanctions_lifted'
+  | 'territorial_claim' | 'military_mobilisation' | 'border_skirmish'
+  | 'war_declared' | 'ceasefire' | 'arms_deal'
+  | 'military_exercise' | 'naval_standoff'
+  | 'coup_attempt' | 'coup_success' | 'election_held'
+  | 'protests_erupt' | 'reform_passed' | 'crackdown'
+  | 'economic_crisis' | 'economic_boom'
+  | 'separatist_movement' | 'leadership_change'
+  | 'unexpected_ultimatum' | 'surprise_summit' | 'defection'
+  | 'intelligence_leak' | 'humanitarian_crisis'
+
+export interface WorldTickEvent {
+  id: string
+  type: WorldTickEventType
+  date: string
+  primaryCountry: string
+  targetCountry?: string
+  headline: string
+  body?: string
+  category: NewsCategory
+  importance: NewsImportance
+  relationsDelta?: Record<string, number>
+  statChanges?: Array<{
+    country: string
+    field: string
+    delta: number
+  }>
+  chainProbabilities?: Array<{
+    eventType: WorldTickEventType
+    probability: number
+    targetCountry?: string
+  }>
+}
+
 export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world'
 export type NewsImportance = 'breaking' | 'major' | 'minor'
 
