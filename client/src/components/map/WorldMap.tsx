@@ -49,13 +49,6 @@ const BIOME_COLOURS: Record<string, string> = {
   'Depression':              'rgba(175,145,55,0.45)',
   // Gorge — rocky grey
   'Gorge':                   'rgba(120,130,150,0.45)',
-  // Geographic areas — subtle neutral
-  'Geoarea':                 'rgba(110,130,100,0.30)',
-  // Coast / peninsula — subtle blue-grey
-  'Coast':                   'rgba(80,120,150,0.30)',
-  'Pen/cape':                'rgba(90,130,145,0.28)',
-  'Peninsula':               'rgba(90,130,145,0.28)',
-  'Isthmus':                 'rgba(85,125,140,0.30)',
 }
 
 function buildBiomeColour(): ExpressionSpecification {
@@ -146,9 +139,9 @@ export default function WorldMap({ children, era }: Props) {
               'fill-color': buildBiomeColour(),
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
                 3, 0,
-                4, 0.20,
-                5, 0.40,
-                7, 0.35,
+                4, 0.25,
+                5, 0.45,
+                7, 0.40,
               ] as ExpressionSpecification,
               'fill-antialias': true,
             },
@@ -164,19 +157,19 @@ export default function WorldMap({ children, era }: Props) {
             paint: {
               'line-color': buildBiomeColour(),
               'line-width': ['interpolate', ['linear'], ['zoom'],
-                4, 20,
-                6, 40,
-                8, 55,
+                4, 32,
+                6, 55,
+                8, 75,
               ] as ExpressionSpecification,
               'line-blur': ['interpolate', ['linear'], ['zoom'],
-                4, 16,
-                6, 30,
-                8, 40,
+                4, 24,
+                6, 42,
+                8, 56,
               ] as ExpressionSpecification,
               'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                4, 0.15,
-                6, 0.22,
-                8, 0.18,
+                4, 0.22,
+                6, 0.30,
+                8, 0.25,
               ] as ExpressionSpecification,
             },
           })
