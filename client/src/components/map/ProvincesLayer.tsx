@@ -37,10 +37,10 @@ export default function ProvincesLayer() {
           },
         })
 
-        // Controlled region fills — uses the SAME lightened player country
-        // colour and SAME opacity steps as country-fills, so the territory
-        // visually matches the player's own land. Cities/rivers/infrastructure
-        // render above this so they remain fully visible.
+        // Controlled region fills — paints over the parent country's fill
+        // with the player country's colour. Since the country fill underneath
+        // is still rendering, we use a slightly higher opacity to dominate
+        // the additive blend and make the region clearly belong to the player.
         map.addLayer({
           id: 'province-controlled',
           type: 'fill',
@@ -49,12 +49,12 @@ export default function ProvincesLayer() {
           paint: {
             'fill-color': '#1a4a7a',
             'fill-opacity': ['step', ['zoom'],
-              0.35, // z<3
-              3, 0.30,
-              4, 0.25,
-              5, 0.22,
-              6, 0.18,
-              8, 0.12,
+              0.50, // z<3
+              3, 0.45,
+              4, 0.40,
+              5, 0.35,
+              6, 0.30,
+              8, 0.22,
             ],
           },
         })
