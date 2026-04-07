@@ -20,7 +20,6 @@ export default function RiversLayer() {
           id: 'rivers-line',
           type: 'line',
           source: 'rivers',
-          minzoom: 3,
           paint: {
             'line-color': '#2563eb',
             'line-width': ['interpolate', ['linear'], ['zoom'],
@@ -41,6 +40,7 @@ export default function RiversLayer() {
               ],
             ] as never,
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
+              2, 0,
               3, 0.45,
               5, 0.65,
               8, 0.75,

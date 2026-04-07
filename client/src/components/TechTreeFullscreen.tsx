@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { useGameStore } from '../stores'
 import { getEraGroup, getEraGroupTechs } from '@ad-astra/shared/techTree'
 import type { TechNode, TechCategory, TechId } from '@ad-astra/shared/types'
@@ -149,7 +149,6 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
   const [hovered, setHovered] = useState<TechId | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [activeCategory, setActiveCategory] = useState<TechCategory>('infrastructure')
-  const containerRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape
   useEffect(() => {
@@ -222,15 +221,6 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
     return layouts
   }, [categoryGroups])
 
-  // Determine the max column height for uniform scrolling
-  const maxColumnHeight = useMemo(() => {
-    let maxH = 400
-    for (const layout of categoryLayouts.values()) {
-      maxH = Math.max(maxH, layout.totalHeight)
-    }
-    return maxH
-  }, [categoryLayouts])
-
   const hoveredTech = hovered ? allTechs.find(t => t.id === hovered) ?? null : null
 
   return (
@@ -271,7 +261,7 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
       </div>
 
       {/* ── Active category content (vertical scroll) ────────────────────── */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {(() => {
           const cat = activeCategory
           const meta = CATEGORY_META[cat]

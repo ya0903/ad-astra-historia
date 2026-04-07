@@ -130,14 +130,16 @@ export default function WorldMap({ children, era }: Props) {
           map.addSource('biomes', { type: 'geojson', data: biomesRes.value as never })
 
           // Core biome fills
+          // No minzoom — load tiles upfront to avoid lag spike at zoom threshold.
+          // Visibility controlled purely by opacity interpolation.
           map.addLayer({
             id: 'biomes-fill',
             type: 'fill',
             source: 'biomes',
-            minzoom: 3,
             paint: {
               'fill-color': buildBiomeColour(),
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, 0,
                 3, 0,
                 4, 0.25,
                 5, 0.45,
@@ -153,7 +155,6 @@ export default function WorldMap({ children, era }: Props) {
             id: 'biomes-edge-blur',
             type: 'line',
             source: 'biomes',
-            minzoom: 4,
             paint: {
               'line-color': buildBiomeColour(),
               'line-width': ['interpolate', ['linear'], ['zoom'],
@@ -167,6 +168,8 @@ export default function WorldMap({ children, era }: Props) {
                 8, 56,
               ] as ExpressionSpecification,
               'line-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, 0,
+                3, 0,
                 4, 0.22,
                 6, 0.30,
                 8, 0.25,

@@ -20,10 +20,10 @@ export default function LakesLayer() {
           id: 'lakes-fill',
           type: 'fill',
           source: 'lakes',
-          minzoom: 3,
           paint: {
             'fill-color': '#0c2240',
             'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+              2, 0,
               3, 0.5,
               6, 0.7,
             ] as never,
@@ -33,14 +33,16 @@ export default function LakesLayer() {
           id: 'lakes-outline',
           type: 'line',
           source: 'lakes',
-          minzoom: 4,
           paint: {
             'line-color': '#1e4a7a',
             'line-width': ['interpolate', ['linear'], ['zoom'],
               4, 0.3,
               7, 0.8,
             ] as never,
-            'line-opacity': 0.5,
+            'line-opacity': ['interpolate', ['linear'], ['zoom'],
+              2, 0,
+              4, 0.5,
+            ] as never,
           },
         })
       })
