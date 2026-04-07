@@ -2,6 +2,23 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { useGameStore } from '../stores'
 import { getEraGroup, getEraGroupTechs } from '@ad-astra/shared/techTree'
 import type { TechNode, TechCategory, TechId } from '@ad-astra/shared/types'
+import { ALL_ERAS_IN_ORDER, HISTORICAL_ERAS, MODERN_ERAS, type AnyEraId } from '@ad-astra/shared/eraConfig'
+import { HISTORICAL_TECH_TREES, type HistoricalTechNode } from '@ad-astra/shared/historicalEraTechTrees'
+import EmpireRenameDialog from './EmpireRenameDialog'
+
+function adaptHistoricalNode(n: HistoricalTechNode): TechNode {
+  const cat = (n.category === 'culture' ? 'society' : n.category) as TechCategory
+  return {
+    id: n.id as TechId,
+    name: n.name,
+    description: n.description,
+    category: cat,
+    researchWeeks: n.weeks,
+    cost: n.cost,
+    prerequisites: n.prerequisites as TechId[],
+    unlocksEra: [],
+  }
+}
 
 // ── Constants (preserved) ────────────────────────────────────────────────────
 
@@ -145,10 +162,13 @@ interface TechTreeFullscreenProps {
 export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps) {
   const gameState = useGameStore(s => s.state)
   const startResearch = useGameStore(s => s.startResearch)
+  const advanceEra = useGameStore(s => s.advanceEra)
 
   const [hovered, setHovered] = useState<TechId | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [activeCategory, setActiveCategory] = useState<TechCategory>('infrastructure')
+  const [viewingEra, setViewingEra] = useState<AnyEraId>((gameState?.era as AnyEraId) ?? 'modern')
+  const [showRename, setShowRename] = useState(false)
 
   // Close on Escape
   useEffect(() => {
@@ -166,8 +186,10 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
 
   const currentEra = gameState.era
   const eraPhase = gameState.eraPhase
-  const eraGroupTechs = getEraGroupTechs(currentEra, eraPhase)
-  const allTechs = eraGroupTechs
+  const historicalTreeForViewing = HISTORICAL_TECH_TREES[viewingEra as keyof typeof HISTORICAL_TECH_TREES]
+  const allTechs: TechNode[] = historicalTreeForViewing
+    ? historicalTreeForViewing.map(adaptHistoricalNode)
+    : getEraGroupTechs(currentEra, eraPhase)
 
   const unlockedTechs = gameState.unlockedTechs ?? []
   const researchQueue = gameState.researchQueue ?? []
@@ -236,6 +258,35 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
           <span className="text-xs text-gray-500">+{weeklyRP}/week</span>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-white text-lg">✕</button>
+      </div>
+
+      {/* ── Era tabs ────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 overflow-x-auto px-3 py-2 border-b border-white/10 bg-[#080f1e] shrink-0">
+        {ALL_ERAS_IN_ORDER.map((era) => {
+          const cur = gameState?.era ?? 'modern'
+          const isCurrent = era === cur
+          const idx = ALL_ERAS_IN_ORDER.indexOf(era as AnyEraId)
+          const currentIdx = ALL_ERAS_IN_ORDER.indexOf(cur as AnyEraId)
+          const isPast = idx < currentIdx
+          const isSelected = viewingEra === era
+          return (
+            <button
+              key={era}
+              onClick={() => setViewingEra(era as AnyEraId)}
+              className={`text-[10px] font-mono px-2.5 py-1 rounded-md whitespace-nowrap transition-colors ${
+                isSelected
+                  ? 'bg-purple-700 text-white border border-purple-400'
+                  : isPast
+                    ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/40'
+                    : isCurrent
+                      ? 'bg-purple-950/40 text-purple-300 border border-purple-500/40'
+                      : 'bg-white/[0.03] text-gray-500 border border-white/5 hover:bg-white/[0.06]'
+              }`}
+            >
+              {isPast ? '✅ ' : isCurrent ? '🔵 ' : '🔒 '}{era}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Category tabs ───────────────────────────────────────────────── */}
@@ -385,6 +436,45 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
           )
         })()}
       </div>
+
+      {/* ── Next Era button ─────────────────────────────────────────────── */}
+      {(() => {
+        const cur = gameState?.era ?? 'modern'
+        const tree = HISTORICAL_TECH_TREES[cur as keyof typeof HISTORICAL_TECH_TREES]
+        if (!tree) return null
+        const allUnlocked = tree.every(node => (gameState?.unlockedTechs ?? []).includes(node.id as any))
+        if (!allUnlocked) return null
+        const nextEraIdx = ALL_ERAS_IN_ORDER.indexOf(cur as AnyEraId) + 1
+        const nextEraId = ALL_ERAS_IN_ORDER[nextEraIdx]
+        if (!nextEraId) return null
+        const nextEraDef = HISTORICAL_ERAS.find(e => e.id === nextEraId) ?? MODERN_ERAS.find(e => e.id === nextEraId as any)
+        return (
+          <div className="px-4 py-3 border-t border-purple-500/30 bg-purple-950/20 shrink-0">
+            <button
+              onClick={() => setShowRename(true)}
+              className="w-full py-2 rounded-lg bg-purple-700 hover:bg-purple-600 text-white text-sm font-bold"
+            >
+              Next Era → ({nextEraDef?.name ?? nextEraId})
+            </button>
+          </div>
+        )
+      })()}
+
+      {showRename && (() => {
+        const cur = gameState?.era ?? 'modern'
+        const nextEraIdx = ALL_ERAS_IN_ORDER.indexOf(cur as AnyEraId) + 1
+        const nextEraId = ALL_ERAS_IN_ORDER[nextEraIdx]
+        const nextEraDef = HISTORICAL_ERAS.find(e => e.id === nextEraId) ?? MODERN_ERAS.find(e => e.id === nextEraId as any)
+        const player = gameState?.countries[gameState?.playerCountryId ?? '']
+        return (
+          <EmpireRenameDialog
+            currentName={gameState?.empireName ?? player?.name ?? 'Empire'}
+            nextEraName={nextEraDef?.name ?? String(nextEraId)}
+            onConfirm={(name) => { advanceEra(name); setShowRename(false) }}
+            onCancel={() => setShowRename(false)}
+          />
+        )
+      })()}
 
       {/* ── Hover tooltip ────────────────────────────────────────────────── */}
       {hovered && hoveredTech && (
