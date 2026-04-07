@@ -11,7 +11,14 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const ERAS_DIR = join(__dirname, '../../shared/eras')
 
-const VALID_ERAS: Era[] = ['1945', '1960s', '1990s', '2010s', 'modern', 'greek', 'roman', 'ottoman']
+const VALID_ERAS: Era[] = [
+  '1945', '1960s', '1990s', '2010s', 'modern',
+  'greek', 'roman', 'ottoman',
+  'bronze_age', 'classical_greek', 'alexander', 'qin_expansion',
+  'punic_wars', 'roman_peak', 'late_antiquity', 'tang_abbasid',
+  'high_medieval', 'age_of_exploration', 'ottoman_classical',
+  'enlightenment', 'industrial_dawn', 'great_war', 'interwar',
+]
 
 function isValidEra(era: string): era is Era {
   return VALID_ERAS.includes(era as Era)

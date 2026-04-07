@@ -20,6 +20,20 @@ describe('GET /api/game/geojson/:era', () => {
   })
 })
 
+describe('GET /api/game/borders/classical_greek', () => {
+  it('returns 200 with normalised polity properties', async () => {
+    const app = createApp()
+    const res = await request(app).get('/api/game/borders/classical_greek')
+    expect(res.status).toBe(200)
+    expect(res.body.type).toBe('FeatureCollection')
+    expect(res.body.features.length).toBeGreaterThan(0)
+    const props = res.body.features[0].properties
+    expect(props.polity_id).toMatch(/classical_greek:/)
+    expect(props.name).toBeDefined()
+    expect(props.fill_colour).toMatch(/^#/)
+  })
+})
+
 describe('GET /api/game/era/:era', () => {
   it('returns 200 with countries record containing at least 100 countries for modern', async () => {
     const app = createApp()
