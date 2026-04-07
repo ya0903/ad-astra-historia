@@ -1,0 +1,503 @@
+import type { CountryPersonality, Country, WorldTickEvent, WorldTickEventType, NewsCategory, NewsImportance } from './types.js'
+import { COUNTRY_PERSONALITIES } from './countryPersonalities.js'
+import { countryName } from './newsGenerator.js'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function uid(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function roll(probability: number): boolean {
+  return Math.random() < probability
+}
+
+function weightedPick<T>(options: Array<{ value: T; weight: number }>): T {
+  const total = options.reduce((s, o) => s + o.weight, 0)
+  let r = Math.random() * total
+  for (const o of options) {
+    r -= o.weight
+    if (r <= 0) return o.value
+  }
+  return options[options.length - 1].value
+}
+
+function relationKey(a: string, b: string): string {
+  return [a, b].sort().join('-')
+}
+
+function getRelation(relations: Record<string, number>, a: string, b: string): number {
+  return relations[relationKey(a, b)] ?? 0
+}
+
+function getPersonality(iso: string): CountryPersonality {
+  return COUNTRY_PERSONALITIES[iso] ?? { aggression: 30, diplomacy: 50, economicFocus: 50, stability: 50, unpredictability: 10 }
+}
+
+// ── Headline Templates ───────────────────────────────────────────────────────
+
+const HEADLINES: Record<WorldTickEventType, string[]> = {
+  alliance_proposed:      ['{primary} Proposes Military Alliance with {target}', '{primary} Extends Alliance Offer to {target}'],
+  alliance_formed:        ['{primary} and {target} Sign Alliance Pact', 'New Alliance Formed Between {primary} and {target}'],
+  alliance_dissolved:     ['{primary} Dissolves Alliance with {target}', 'Alliance Between {primary} and {target} Collapses'],
+  trade_deal_proposed:    ['{primary} Proposes Trade Agreement with {target}', '{primary} Seeks Trade Deal with {target}'],
+  trade_deal_signed:      ['{primary} and {target} Sign Major Trade Deal', 'Historic Trade Agreement Between {primary} and {target}'],
+  trade_deal_collapsed:   ['Trade Deal Between {primary} and {target} Collapses', '{primary}-{target} Trade Agreement Falls Apart'],
+  peace_talks_initiated:  ['{primary} and {target} Begin Peace Negotiations', 'Peace Talks Open Between {primary} and {target}'],
+  peace_treaty_signed:    ['{primary} and {target} Sign Peace Treaty', 'Historic Peace Deal Reached Between {primary} and {target}'],
+  diplomatic_incident:    ['Diplomatic Row Erupts Between {primary} and {target}', '{primary} Accuses {target} of Diplomatic Provocation'],
+  embassy_recalled:       ['{primary} Recalls Ambassador from {target}', '{primary} Withdraws Diplomatic Staff from {target}'],
+  sanctions_imposed:      ['{primary} Imposes Sanctions on {target}', '{primary} Announces Economic Sanctions Against {target}'],
+  sanctions_lifted:       ['{primary} Lifts Sanctions on {target}', '{primary} Eases Restrictions on {target}'],
+  territorial_claim:      ['{primary} Asserts Territorial Claim Against {target}', '{primary} Lays Claim to Disputed {target} Territory'],
+  military_mobilisation:  ['{primary} Mobilises Forces Near {target} Border', '{primary} Deploys Troops Along {target} Frontier'],
+  border_skirmish:        ['Border Clash Reported Between {primary} and {target}', '{primary} and {target} Forces Exchange Fire at Border'],
+  war_declared:           ['{primary} Declares War on {target}', 'War Erupts: {primary} Launches Offensive Against {target}'],
+  ceasefire:              ['{primary} and {target} Agree to Ceasefire', 'Guns Fall Silent as {primary} and {target} Halt Hostilities'],
+  arms_deal:              ['{primary} Agrees Major Arms Deal with {target}', '{primary} Sells Weapons Systems to {target}'],
+  military_exercise:      ['{primary} Conducts Military Exercise Near {target}', '{primary} Holds War Games Close to {target} Waters'],
+  naval_standoff:         ['Naval Standoff Between {primary} and {target} in Disputed Waters', '{primary} and {target} Warships in Tense Confrontation'],
+  coup_attempt:           ['Attempted Coup in {primary} Fails', 'Military Officers Stage Failed Coup in {primary}'],
+  coup_success:           ['Military Seizes Power in {primary}', 'Government of {primary} Overthrown in Military Coup'],
+  election_held:          ['{primary} Holds National Elections', 'Voters Go to the Polls in {primary}'],
+  protests_erupt:         ['Mass Protests Erupt Across {primary}', 'Thousands Take to the Streets in {primary}'],
+  reform_passed:          ['{primary} Passes Sweeping Reforms', '{primary} Government Enacts Major Policy Changes'],
+  crackdown:              ['{primary} Launches Crackdown on Dissent', 'Authorities in {primary} Arrest Opposition Figures'],
+  economic_crisis:        ['Economic Crisis Grips {primary}', '{primary} Economy in Freefall as Markets Crash'],
+  economic_boom:          ['{primary} Experiences Economic Boom', 'Record Growth Reported in {primary} Economy'],
+  separatist_movement:    ['Separatist Movement Grows in {primary}', 'Breakaway Region Declares Autonomy in {primary}'],
+  leadership_change:      ['New Leader Takes Power in {primary}', 'Leadership Transition in {primary}'],
+  unexpected_ultimatum:   ['{primary} Issues Ultimatum to {target}', '{primary} Demands Immediate Concessions from {target}'],
+  surprise_summit:        ['{primary} and {target} Announce Surprise Summit', 'Unexpected Meeting Between {primary} and {target} Leaders'],
+  defection:              ['Senior {primary} Official Defects to {target}', 'High-Ranking {primary} Diplomat Seeks Asylum in {target}'],
+  intelligence_leak:      ['{primary} Intelligence Secrets Leaked by {target} Operatives', 'Spy Scandal: {target} Accused of Espionage Against {primary}'],
+  humanitarian_crisis:    ['Humanitarian Crisis Deepens in {primary}', 'Aid Agencies Warn of Catastrophe in {primary}'],
+}
+
+function makeHeadline(type: WorldTickEventType, primary: string, target?: string): string {
+  const templates = HEADLINES[type]
+  const template = templates[Math.floor(Math.random() * templates.length)]
+  return template
+    .replace(/\{primary\}/g, countryName(primary))
+    .replace(/\{target\}/g, target ? countryName(target) : '')
+}
+
+// ── Event category / importance mapping ──────────────────────────────────────
+
+function eventCategory(type: WorldTickEventType): NewsCategory {
+  switch (type) {
+    case 'alliance_proposed': case 'alliance_formed': case 'alliance_dissolved':
+    case 'trade_deal_proposed': case 'trade_deal_signed': case 'trade_deal_collapsed':
+    case 'peace_talks_initiated': case 'peace_treaty_signed':
+    case 'diplomatic_incident': case 'embassy_recalled':
+    case 'sanctions_imposed': case 'sanctions_lifted':
+    case 'surprise_summit': case 'defection':
+      return 'diplomacy'
+    case 'territorial_claim': case 'military_mobilisation': case 'border_skirmish':
+    case 'war_declared': case 'ceasefire': case 'arms_deal':
+    case 'military_exercise': case 'naval_standoff':
+      return 'military'
+    case 'economic_crisis': case 'economic_boom':
+      return 'economy'
+    case 'coup_attempt': case 'coup_success': case 'election_held':
+    case 'protests_erupt': case 'reform_passed': case 'crackdown':
+    case 'separatist_movement': case 'leadership_change':
+    case 'unexpected_ultimatum':
+      return 'politics'
+    case 'intelligence_leak':
+      return 'politics'
+    case 'humanitarian_crisis':
+      return 'world'
+    default:
+      return 'world'
+  }
+}
+
+function eventImportance(type: WorldTickEventType): NewsImportance {
+  switch (type) {
+    case 'war_declared': case 'coup_success': case 'humanitarian_crisis':
+    case 'peace_treaty_signed':
+      return 'breaking'
+    case 'border_skirmish': case 'naval_standoff': case 'military_mobilisation':
+    case 'sanctions_imposed': case 'alliance_formed': case 'coup_attempt':
+    case 'economic_crisis': case 'territorial_claim': case 'unexpected_ultimatum':
+    case 'separatist_movement': case 'crackdown': case 'intelligence_leak':
+      return 'major'
+    default:
+      return 'minor'
+  }
+}
+
+// ── World Tick Result ────────────────────────────────────────────────────────
+
+export interface WorldTickResult {
+  events: WorldTickEvent[]
+  relationDeltas: Record<string, number>
+}
+
+// ── Core Simulation ──────────────────────────────────────────────────────────
+
+export function worldTick(
+  countries: Record<string, Country>,
+  relations: Record<string, number>,
+  date: string,
+  existingAlliances: string[],
+): WorldTickResult {
+  const events: WorldTickEvent[] = []
+  const relationDeltas: Record<string, number> = {}
+  const isos = Object.keys(countries)
+
+  // Step 1 — Bilateral tension evaluation
+  for (let i = 0; i < isos.length; i++) {
+    for (let j = i + 1; j < isos.length; j++) {
+      const a = isos[i]
+      const b = isos[j]
+      const rel = getRelation(relations, a, b)
+      if (rel >= -20) continue
+
+      const tensionScore = Math.abs(rel) / 100 // 0.2 to 1.0
+      const pA = getPersonality(a)
+      const pB = getPersonality(b)
+      const avgAggression = (pA.aggression + pB.aggression) / 200 // 0-1
+      const probability = tensionScore * avgAggression * 0.08
+
+      if (!roll(probability)) continue
+
+      // Determine stronger / weaker
+      const milA = countries[a].stats.military
+      const milB = countries[b].stats.military
+      const stronger = milA >= milB ? a : b
+      const weaker = milA >= milB ? b : a
+      const pStronger = getPersonality(stronger)
+      const pWeaker = getPersonality(weaker)
+      const avgDiplomacy = (pA.diplomacy + pB.diplomacy) / 200
+      const avgUnpredictability = (pA.unpredictability + pB.unpredictability) / 40 // 0-1
+
+      // Weighted pick of event type
+      const tensionOptions: Array<{ value: WorldTickEventType; weight: number }> = [
+        { value: 'diplomatic_incident',   weight: 30 },
+        { value: 'embassy_recalled',      weight: 15 },
+        { value: 'sanctions_imposed',     weight: 15 * (1 + avgDiplomacy) },
+        { value: 'military_mobilisation', weight: 20 * avgAggression },
+        { value: 'border_skirmish',       weight: 15 * avgAggression },
+        { value: 'territorial_claim',     weight: 10 * avgAggression },
+        { value: 'naval_standoff',        weight: 10 * avgAggression },
+        { value: 'military_exercise',     weight: 12 },
+        { value: 'war_declared',          weight: 5 * tensionScore * avgAggression },
+        { value: 'unexpected_ultimatum',  weight: 5 * avgUnpredictability },
+        { value: 'peace_talks_initiated', weight: 10 * avgDiplomacy },
+        { value: 'ceasefire',             weight: 5 * avgDiplomacy },
+      ]
+
+      const eventType = weightedPick(tensionOptions)
+      const relDelta = getRelationDelta(eventType)
+      const key = relationKey(a, b)
+      relationDeltas[key] = (relationDeltas[key] ?? 0) + relDelta
+
+      events.push(makeEvent(eventType, stronger, weaker, date, relDelta))
+    }
+  }
+
+  // Step 2 — Opportunity generation (positive relations)
+  for (let i = 0; i < isos.length; i++) {
+    for (let j = i + 1; j < isos.length; j++) {
+      const a = isos[i]
+      const b = isos[j]
+      const rel = getRelation(relations, a, b)
+      if (rel < 0) continue
+
+      const pA = getPersonality(a)
+      const pB = getPersonality(b)
+      const avgDiplomacy = (pA.diplomacy + pB.diplomacy) / 200
+      const friendliness = (rel + 50) / 150 // normalize 0-100 to ~0.33-1.0
+      const probability = avgDiplomacy * friendliness * 0.005
+
+      if (!roll(probability)) continue
+
+      const oppOptions: Array<{ value: WorldTickEventType; weight: number }> = [
+        { value: 'trade_deal_proposed', weight: 40 },
+        { value: 'alliance_proposed',   weight: 20 },
+        { value: 'arms_deal',           weight: 15 },
+        { value: 'surprise_summit',     weight: 10 },
+        { value: 'reform_passed',       weight: 8 },
+      ]
+
+      const eventType = weightedPick(oppOptions)
+      const relDelta = getPositiveRelationDelta(eventType)
+      const key = relationKey(a, b)
+      relationDeltas[key] = (relationDeltas[key] ?? 0) + relDelta
+
+      events.push(makeEvent(eventType, a, b, date, relDelta))
+    }
+  }
+
+  // Step 3 — Internal events
+  for (const iso of isos) {
+    const c = countries[iso]
+    const p = getPersonality(iso)
+    const { stability, approval, gdp } = c.stats
+
+    // Coup attempt: stability < 25, base 2% + modifier
+    if (stability < 25) {
+      const coupChance = 0.02 + (25 - stability) / 500 + p.unpredictability / 400
+      if (roll(coupChance)) {
+        // 30% chance coup succeeds
+        const eventType: WorldTickEventType = roll(0.3) ? 'coup_success' : 'coup_attempt'
+        events.push(makeInternalEvent(eventType, iso, date))
+      }
+    }
+
+    // Protests: approval < 35, base 3% + modifier
+    if (approval < 35) {
+      const protestChance = 0.03 + (35 - approval) / 500
+      if (roll(protestChance)) {
+        // Sometimes leads to crackdown
+        const eventType: WorldTickEventType = roll(0.35) ? 'crackdown' : 'protests_erupt'
+        events.push(makeInternalEvent(eventType, iso, date))
+      }
+    }
+
+    // Economic boom: stability > 75, large GDP, 0.8%
+    if (stability > 75 && gdp > 500_000_000_000) {
+      if (roll(0.008)) {
+        events.push(makeInternalEvent('economic_boom', iso, date))
+      }
+    }
+
+    // Economic crisis: stability < 40, 1% + unpredictability modifier
+    if (stability < 40) {
+      const crisisChance = 0.01 + p.unpredictability / 1000
+      if (roll(crisisChance)) {
+        events.push(makeInternalEvent('economic_crisis', iso, date))
+      }
+    }
+
+    // Separatist movement: stability < 20, 1.5%
+    if (stability < 20) {
+      if (roll(0.015)) {
+        events.push(makeInternalEvent('separatist_movement', iso, date))
+      }
+    }
+
+    // Election: democracies ~0.5%
+    if (stability > 50 && approval > 30) {
+      if (roll(0.005)) {
+        events.push(makeInternalEvent('election_held', iso, date))
+      }
+    }
+
+    // Humanitarian crisis: stability < 30, 0.8%
+    if (stability < 30) {
+      if (roll(0.008)) {
+        events.push(makeInternalEvent('humanitarian_crisis', iso, date))
+      }
+    }
+  }
+
+  // Step 4 — Chain reactions
+  const chainEvents: WorldTickEvent[] = []
+  for (const evt of events) {
+    if (evt.type === 'war_declared' && evt.targetCountry) {
+      // Neighbors may condemn or sanction
+      for (const iso of isos) {
+        if (iso === evt.primaryCountry || iso === evt.targetCountry) continue
+        const p = getPersonality(iso)
+        // Condemn (diplomatic_incident against aggressor) — 40% * diplomacy
+        if (roll(0.4 * p.diplomacy / 100)) {
+          chainEvents.push(makeEvent('diplomatic_incident', iso, evt.primaryCountry, date, -5))
+          const key = relationKey(iso, evt.primaryCountry)
+          relationDeltas[key] = (relationDeltas[key] ?? 0) - 5
+        }
+        // Sanction — 15% * economicFocus
+        if (roll(0.15 * p.economicFocus / 100)) {
+          chainEvents.push(makeEvent('sanctions_imposed', iso, evt.primaryCountry, date, -10))
+          const key = relationKey(iso, evt.primaryCountry)
+          relationDeltas[key] = (relationDeltas[key] ?? 0) - 10
+        }
+      }
+    }
+
+    if (evt.type === 'territorial_claim' && evt.targetCountry) {
+      // Target's friends may show force — 25% roll
+      for (const iso of isos) {
+        if (iso === evt.primaryCountry || iso === evt.targetCountry) continue
+        const relToTarget = getRelation(relations, iso, evt.targetCountry)
+        if (relToTarget > 20 && roll(0.25)) {
+          chainEvents.push(makeEvent('military_exercise', iso, evt.primaryCountry, date, -3))
+          const key = relationKey(iso, evt.primaryCountry)
+          relationDeltas[key] = (relationDeltas[key] ?? 0) - 3
+        }
+      }
+    }
+  }
+
+  events.push(...chainEvents)
+
+  // Step 5 — Cap at 8 events, sorted by importance (breaking first)
+  const importanceOrder: Record<NewsImportance, number> = { breaking: 0, major: 1, minor: 2 }
+  events.sort((a, b) => importanceOrder[a.importance] - importanceOrder[b.importance])
+  const capped = events.slice(0, 8)
+
+  return { events: capped, relationDeltas }
+}
+
+// ── Event construction helpers ───────────────────────────────────────────────
+
+function getRelationDelta(type: WorldTickEventType): number {
+  switch (type) {
+    case 'war_declared':          return -30
+    case 'border_skirmish':       return -15
+    case 'naval_standoff':        return -10
+    case 'military_mobilisation': return -8
+    case 'territorial_claim':     return -12
+    case 'sanctions_imposed':     return -10
+    case 'embassy_recalled':      return -8
+    case 'diplomatic_incident':   return -5
+    case 'unexpected_ultimatum':  return -10
+    case 'military_exercise':     return -3
+    case 'peace_talks_initiated': return 5
+    case 'ceasefire':             return 10
+    default:                      return -5
+  }
+}
+
+function getPositiveRelationDelta(type: WorldTickEventType): number {
+  switch (type) {
+    case 'trade_deal_proposed': return 5
+    case 'alliance_proposed':   return 8
+    case 'arms_deal':           return 5
+    case 'surprise_summit':     return 10
+    case 'reform_passed':       return 2
+    default:                    return 3
+  }
+}
+
+function makeEvent(
+  type: WorldTickEventType,
+  primary: string,
+  target: string,
+  date: string,
+  relDelta: number,
+): WorldTickEvent {
+  return {
+    id: uid('wt'),
+    type,
+    date,
+    primaryCountry: primary,
+    targetCountry: target,
+    headline: makeHeadline(type, primary, target),
+    category: eventCategory(type),
+    importance: eventImportance(type),
+    relationsDelta: { [relationKey(primary, target)]: relDelta },
+    statChanges: getStatChanges(type, primary, target),
+  }
+}
+
+function makeInternalEvent(
+  type: WorldTickEventType,
+  country: string,
+  date: string,
+): WorldTickEvent {
+  return {
+    id: uid('wt'),
+    type,
+    date,
+    primaryCountry: country,
+    headline: makeHeadline(type, country),
+    category: eventCategory(type),
+    importance: eventImportance(type),
+    statChanges: getInternalStatChanges(type, country),
+  }
+}
+
+function getStatChanges(type: WorldTickEventType, primary: string, target: string): WorldTickEvent['statChanges'] {
+  switch (type) {
+    case 'war_declared':
+      return [
+        { country: primary, field: 'stability', delta: -10 },
+        { country: target, field: 'stability', delta: -15 },
+        { country: primary, field: 'approval', delta: -5 },
+        { country: target, field: 'approval', delta: 5 },
+      ]
+    case 'border_skirmish':
+      return [
+        { country: primary, field: 'stability', delta: -3 },
+        { country: target, field: 'stability', delta: -3 },
+      ]
+    case 'sanctions_imposed':
+      return [
+        { country: target, field: 'gdp', delta: -50_000_000_000 },
+        { country: target, field: 'approval', delta: -3 },
+      ]
+    case 'trade_deal_proposed':
+    case 'trade_deal_signed':
+      return [
+        { country: primary, field: 'gdp', delta: 20_000_000_000 },
+        { country: target, field: 'gdp', delta: 20_000_000_000 },
+      ]
+    case 'alliance_proposed':
+    case 'alliance_formed':
+      return [
+        { country: primary, field: 'softPower', delta: 3 },
+        { country: target, field: 'softPower', delta: 3 },
+      ]
+    default:
+      return []
+  }
+}
+
+function getInternalStatChanges(type: WorldTickEventType, country: string): WorldTickEvent['statChanges'] {
+  switch (type) {
+    case 'coup_attempt':
+      return [
+        { country, field: 'stability', delta: -15 },
+        { country, field: 'approval', delta: -10 },
+      ]
+    case 'coup_success':
+      return [
+        { country, field: 'stability', delta: -25 },
+        { country, field: 'approval', delta: -20 },
+        { country, field: 'military', delta: 10 },
+      ]
+    case 'protests_erupt':
+      return [
+        { country, field: 'stability', delta: -5 },
+        { country, field: 'approval', delta: -5 },
+      ]
+    case 'crackdown':
+      return [
+        { country, field: 'stability', delta: 5 },
+        { country, field: 'approval', delta: -10 },
+        { country, field: 'softPower', delta: -5 },
+      ]
+    case 'economic_boom':
+      return [
+        { country, field: 'gdp', delta: 100_000_000_000 },
+        { country, field: 'approval', delta: 5 },
+      ]
+    case 'economic_crisis':
+      return [
+        { country, field: 'gdp', delta: -200_000_000_000 },
+        { country, field: 'approval', delta: -10 },
+        { country, field: 'stability', delta: -5 },
+      ]
+    case 'separatist_movement':
+      return [
+        { country, field: 'stability', delta: -10 },
+        { country, field: 'approval', delta: -5 },
+      ]
+    case 'election_held':
+      return [
+        { country, field: 'approval', delta: 5 },
+        { country, field: 'softPower', delta: 2 },
+      ]
+    case 'humanitarian_crisis':
+      return [
+        { country, field: 'stability', delta: -8 },
+        { country, field: 'approval', delta: -8 },
+        { country, field: 'softPower', delta: -5 },
+      ]
+    default:
+      return []
+  }
+}

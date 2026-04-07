@@ -12,7 +12,8 @@
     "./eraConflicts": "./eraConflicts.ts",
     "./techTree": "./techTree.ts",
     "./countryData": "./dist/countryData.js",
-    "./countryPersonalities": "./dist/countryPersonalities.js"
+    "./countryPersonalities": "./dist/countryPersonalities.js",
+    "./worldSimulation": "./dist/worldSimulation.js"
   },
   "scripts": {
     "build": "tsc",
