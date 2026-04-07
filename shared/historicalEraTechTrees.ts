@@ -61,8 +61,17 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'macedonian_phalanx', name: 'Macedonian Phalanx', description: 'Sarissa pikes and combined arms.', category: 'military', cost: 60, weeks: 24, prerequisites: [] },
     { id: 'companion_cavalry', name: 'Companion Cavalry', description: 'Heavy shock cavalry wielding kontos lances.', category: 'military', cost: 70, weeks: 28, prerequisites: ['macedonian_phalanx'] },
     { id: 'logistics_corps', name: 'Logistics Corps', description: 'Engineers and supply trains follow the army.', category: 'military', cost: 50, weeks: 22, prerequisites: [] },
-    { id: 'hellenistic_culture', name: 'Hellenistic Synthesis', description: 'Greek language and ideas spread from Egypt to India.', category: 'culture', cost: 80, weeks: 32, prerequisites: ['logistics_corps', 'companion_cavalry'], isCapstone: true },
-    // expand with 11 more nodes
+    { id: 'siege_towers', name: 'Mobile Siege Towers', description: 'Helepolis-class towers for assaulting fortified cities.', category: 'military', cost: 65, weeks: 28, prerequisites: ['logistics_corps'] },
+    { id: 'royal_road_extension', name: 'Royal Road Network', description: 'Persian post-roads extended across the empire.', category: 'infrastructure', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'satrapy_system', name: 'Satrapy Administration', description: 'Local governors with military and tax authority.', category: 'government', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'koine_greek', name: 'Koine Greek', description: 'A common Greek dialect becomes the empire-wide lingua franca.', category: 'culture', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'alexandria_library', name: 'Library of Alexandria', description: 'A great repository of knowledge in the new capital.', category: 'science', cost: 80, weeks: 32, prerequisites: ['koine_greek'] },
+    { id: 'museion_research', name: 'The Museion', description: 'State-funded scholars in Alexandria — proto-academy.', category: 'science', cost: 70, weeks: 28, prerequisites: ['alexandria_library'] },
+    { id: 'hellenistic_astronomy', name: 'Hellenistic Astronomy', description: 'Eratosthenes measures the Earth; Aristarchus proposes heliocentrism.', category: 'science', cost: 70, weeks: 30, prerequisites: ['museion_research'] },
+    { id: 'mounted_archery', name: 'Steppe Mounted Archery', description: 'Adopted from Scythian and Bactrian auxiliaries.', category: 'military', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'east_west_trade', name: 'East-West Trade Routes', description: 'Direct caravan links between Greek and Indian markets.', category: 'economy', cost: 65, weeks: 28, prerequisites: ['royal_road_extension'] },
+    { id: 'syncretic_religion', name: 'Syncretic Religion', description: 'Greek, Egyptian, and Persian gods blend into new cults.', category: 'culture', cost: 50, weeks: 22, prerequisites: ['koine_greek'] },
+    { id: 'hellenistic_culture', name: 'Hellenistic Synthesis', description: 'Greek language and ideas spread from Egypt to India.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['logistics_corps', 'companion_cavalry', 'museion_research', 'satrapy_system'], isCapstone: true },
   ],
 
   qin_expansion: [
@@ -70,16 +79,33 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'standardised_writing', name: 'Standardised Script', description: 'Unified seal script across the realm.', category: 'culture', cost: 50, weeks: 20, prerequisites: [] },
     { id: 'great_wall_engineering', name: 'Wall Engineering', description: 'Long-distance defensive wall systems.', category: 'infrastructure', cost: 70, weeks: 32, prerequisites: [] },
     { id: 'legalism', name: 'Legalist Administration', description: 'Strict law and centralised bureaucracy.', category: 'government', cost: 60, weeks: 26, prerequisites: ['standardised_writing'] },
-    { id: 'qin_unification', name: 'Imperial Unification', description: 'Six warring states forged into one empire.', category: 'government', cost: 100, weeks: 40, prerequisites: ['legalism', 'crossbow_mass', 'great_wall_engineering'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'iron_ploughshare', name: 'Iron Ploughshare', description: 'Iron-tipped ox-drawn ploughs triple farm yields.', category: 'economy', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'state_granaries', name: 'State Granaries', description: 'Public granaries buffer against famine.', category: 'economy', cost: 55, weeks: 24, prerequisites: ['iron_ploughshare'] },
+    { id: 'standardised_axles', name: 'Standardised Cart Axles', description: 'Identical wheel widths across imperial roads.', category: 'infrastructure', cost: 45, weeks: 20, prerequisites: [] },
+    { id: 'imperial_post', name: 'Imperial Postal System', description: 'Couriers and signal towers connect provinces.', category: 'government', cost: 60, weeks: 26, prerequisites: ['standardised_axles'] },
+    { id: 'mauryan_dharma', name: 'Mauryan Dharma Edicts', description: 'Ashokan moral law spread on stone pillars.', category: 'government', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'mauryan_spy_network', name: 'Arthashastra Spies', description: 'Kautilya systematises espionage and statecraft.', category: 'government', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'silk_textile_industry', name: 'Silk Textile Industry', description: 'State-controlled silkworm cultivation and weaving.', category: 'economy', cost: 55, weeks: 26, prerequisites: [] },
+    { id: 'standardised_weights', name: 'Standardised Weights & Measures', description: 'Unified market regulation across the empire.', category: 'economy', cost: 45, weeks: 20, prerequisites: ['standardised_writing'] },
+    { id: 'crossbow_repeating', name: 'Repeating Crossbow', description: 'The chu-ko-nu fires bolts in rapid succession.', category: 'military', cost: 70, weeks: 30, prerequisites: ['crossbow_mass'] },
+    { id: 'qin_unification', name: 'Imperial Unification', description: 'Six warring states forged into one empire.', category: 'government', cost: 100, weeks: 40, prerequisites: ['legalism', 'crossbow_mass', 'great_wall_engineering', 'state_granaries'], isCapstone: true },
   ],
 
   punic_wars: [
     { id: 'roman_legion', name: 'Roman Legion', description: 'Manipular tactics and centurion command.', category: 'military', cost: 60, weeks: 24, prerequisites: [] },
     { id: 'naval_corvus', name: 'Corvus Boarding Bridge', description: 'Romans turn naval battles into land battles.', category: 'military', cost: 50, weeks: 22, prerequisites: [] },
     { id: 'punic_naval', name: 'Punic Naval Warfare', description: 'Carthaginian quinqueremes and harbour engineering.', category: 'military', cost: 60, weeks: 26, prerequisites: [] },
-    { id: 'mediterranean_dominance', name: 'Mediterranean Dominance', description: 'Mare Nostrum.', category: 'military', cost: 100, weeks: 40, prerequisites: ['roman_legion', 'naval_corvus'], isCapstone: true },
-    // expand with 11 more nodes
+    { id: 'war_elephants', name: 'War Elephants', description: 'Hannibal crosses the Alps with North African elephants.', category: 'military', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'roman_road', name: 'Roman Roads', description: 'Stone-paved military highways across Italy.', category: 'infrastructure', cost: 60, weeks: 28, prerequisites: [] },
+    { id: 'land_distribution', name: 'Land Distribution Reform', description: 'Veterans receive plots of conquered land.', category: 'government', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'tribunate', name: 'Plebeian Tribunate', description: 'Office shielding common citizens from patrician abuse.', category: 'government', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'punic_silver_mines', name: 'Iberian Silver Mines', description: 'Carthaginian mines in southern Spain bankroll the war.', category: 'economy', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'roman_grain_dole', name: 'Roman Grain Dole', description: 'State-subsidised grain for the urban poor.', category: 'economy', cost: 55, weeks: 24, prerequisites: ['land_distribution'] },
+    { id: 'fabian_strategy', name: 'Fabian Strategy', description: 'Delay, harass, and avoid pitched battle.', category: 'military', cost: 50, weeks: 22, prerequisites: ['roman_legion'] },
+    { id: 'siege_techniques', name: 'Mediterranean Siegecraft', description: 'Towers, rams, and undermining for stone-walled cities.', category: 'military', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'aqueduct_basic', name: 'Early Aqueducts', description: 'The Aqua Appia delivers water to Rome.', category: 'infrastructure', cost: 55, weeks: 26, prerequisites: ['roman_road'] },
+    { id: 'naval_yards', name: 'Imperial Naval Yards', description: 'Mass-production of warships in Ostia and Carthage.', category: 'infrastructure', cost: 65, weeks: 28, prerequisites: ['naval_corvus'] },
+    { id: 'mediterranean_dominance', name: 'Mediterranean Dominance', description: 'Mare Nostrum.', category: 'military', cost: 100, weeks: 40, prerequisites: ['roman_legion', 'naval_corvus', 'naval_yards', 'aqueduct_basic'], isCapstone: true },
   ],
 
   roman_peak: [
@@ -87,16 +113,33 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'aqueducts', name: 'Aqueducts', description: 'Stone channels deliver water to cities over distance.', category: 'infrastructure', cost: 60, weeks: 26, prerequisites: [] },
     { id: 'roman_concrete', name: 'Roman Concrete', description: 'Pozzolana concrete enables domes and harbours.', category: 'infrastructure', cost: 70, weeks: 30, prerequisites: ['aqueducts'] },
     { id: 'imperial_law', name: 'Imperial Law', description: 'Codified civil and criminal codes.', category: 'government', cost: 60, weeks: 28, prerequisites: [] },
-    { id: 'pax_romana', name: 'Pax Romana', description: 'Two centuries of peace across the Mediterranean.', category: 'government', cost: 100, weeks: 40, prerequisites: ['imperial_law', 'professional_legions', 'roman_concrete'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'roman_arch', name: 'The Roman Arch', description: 'Stone arches enable bridges and aqueduct spans.', category: 'science', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'amphitheatres', name: 'Amphitheatres', description: 'Mass entertainment binds urban populations to the state.', category: 'culture', cost: 55, weeks: 24, prerequisites: ['roman_concrete'] },
+    { id: 'public_baths', name: 'Public Baths', description: 'Heated thermae across every Roman city.', category: 'infrastructure', cost: 50, weeks: 22, prerequisites: ['aqueducts'] },
+    { id: 'imperial_bureaucracy', name: 'Imperial Bureaucracy', description: 'Salaried provincial governors and tax collectors.', category: 'government', cost: 65, weeks: 28, prerequisites: ['imperial_law'] },
+    { id: 'denarius_currency', name: 'Denarius Currency', description: 'Empire-wide silver coinage.', category: 'economy', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'roman_engineering', name: 'Roman Engineering Corps', description: 'Legionaries double as bridge and road builders.', category: 'infrastructure', cost: 60, weeks: 26, prerequisites: ['roman_concrete'] },
+    { id: 'limes_fortifications', name: 'Limes Fortifications', description: 'Frontier walls and watchtowers along the Rhine and Danube.', category: 'military', cost: 65, weeks: 28, prerequisites: ['professional_legions'] },
+    { id: 'sea_trade_routes', name: 'Maritime Trade Routes', description: 'Grain ships from Egypt, spices from India.', category: 'economy', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'glassblowing', name: 'Roman Glassblowing', description: 'Mass-produced glass vessels enter every household.', category: 'science', cost: 45, weeks: 20, prerequisites: [] },
+    { id: 'pax_romana', name: 'Pax Romana', description: 'Two centuries of peace across the Mediterranean.', category: 'government', cost: 100, weeks: 40, prerequisites: ['imperial_law', 'professional_legions', 'roman_concrete', 'imperial_bureaucracy'], isCapstone: true },
   ],
 
   late_antiquity: [
     { id: 'cataphract_armour', name: 'Cataphract Armour', description: 'Fully armoured horse and rider.', category: 'military', cost: 60, weeks: 26, prerequisites: [] },
     { id: 'monasticism', name: 'Christian Monasticism', description: 'Monastic communities preserve learning.', category: 'culture', cost: 50, weeks: 22, prerequisites: [] },
     { id: 'silk_road_trade', name: 'Silk Road Trade', description: 'Caravan routes connect east and west.', category: 'economy', cost: 60, weeks: 28, prerequisites: [] },
-    { id: 'late_antique_synthesis', name: 'Late Antique Synthesis', description: 'A new world emerging from the ashes of Rome.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['monasticism', 'cataphract_armour'], isCapstone: true },
-    // expand with 11 more nodes
+    { id: 'corpus_juris', name: 'Corpus Juris Civilis', description: 'Justinian codifies Roman law for posterity.', category: 'government', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'sassanid_admin', name: 'Sassanid Administration', description: 'Persian Diwan-style provincial government.', category: 'government', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'gupta_mathematics', name: 'Gupta Mathematics', description: 'Decimal place-value and the concept of zero.', category: 'science', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'astrolabe_early', name: 'Early Astrolabe', description: 'Brass disc instruments for star observation.', category: 'science', cost: 60, weeks: 26, prerequisites: ['gupta_mathematics'] },
+    { id: 'horseshoe', name: 'Iron Horseshoe', description: 'Nailed iron shoes vastly extend cavalry range.', category: 'military', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'stirrup', name: 'The Stirrup', description: 'Steppe innovation that transforms mounted combat.', category: 'military', cost: 60, weeks: 26, prerequisites: ['cataphract_armour'] },
+    { id: 'three_field_system', name: 'Three-Field Crop Rotation', description: 'Winter, spring, and fallow rotation lifts yields.', category: 'economy', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'water_mill', name: 'Water Mill', description: 'Vertical wheel mills automate grinding.', category: 'infrastructure', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'theodosian_walls', name: 'Theodosian Walls', description: 'Constantinople\'s triple-walled fortifications.', category: 'infrastructure', cost: 80, weeks: 34, prerequisites: [] },
+    { id: 'icon_veneration', name: 'Icon Veneration', description: 'Religious art becomes a tool of imperial legitimacy.', category: 'culture', cost: 45, weeks: 20, prerequisites: ['monasticism'] },
+    { id: 'late_antique_synthesis', name: 'Late Antique Synthesis', description: 'A new world emerging from the ashes of Rome.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['monasticism', 'cataphract_armour', 'corpus_juris', 'gupta_mathematics'], isCapstone: true },
   ],
 
   tang_abbasid: [
@@ -104,8 +147,16 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'gunpowder', name: 'Gunpowder', description: 'Saltpetre, sulphur, charcoal — first explosives.', category: 'science', cost: 80, weeks: 32, prerequisites: [] },
     { id: 'house_of_wisdom', name: 'House of Wisdom', description: 'Translation of Greek and Indian texts in Baghdad.', category: 'science', cost: 70, weeks: 28, prerequisites: ['paper_making'] },
     { id: 'algebra', name: 'Algebra', description: 'Al-Khwarizmi systematises algebraic thought.', category: 'science', cost: 60, weeks: 26, prerequisites: ['house_of_wisdom'] },
-    { id: 'islamic_golden_age', name: 'Golden Age', description: 'A flowering of science, philosophy, medicine, and art.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['algebra', 'gunpowder'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'tang_civil_service', name: 'Imperial Examinations', description: 'Civil service entry by merit-based exam.', category: 'government', cost: 70, weeks: 30, prerequisites: ['paper_making'] },
+    { id: 'block_printing', name: 'Woodblock Printing', description: 'First mass-produced books in China.', category: 'science', cost: 65, weeks: 28, prerequisites: ['paper_making'] },
+    { id: 'magnetic_compass', name: 'Magnetic Compass', description: 'Lodestone-based directional navigation.', category: 'science', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'porcelain', name: 'Porcelain Manufacturing', description: 'White-glazed Chinese porcelain becomes a major export.', category: 'economy', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'caliphal_admin', name: 'Caliphal Administration', description: 'Persian-style diwans and salaried officials.', category: 'government', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'damascus_steel', name: 'Damascus Steel', description: 'Pattern-welded crucible steel for matchless blades.', category: 'military', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'medical_hospital', name: 'Bimaristan Hospitals', description: 'State-run public hospitals across the caliphate.', category: 'science', cost: 65, weeks: 28, prerequisites: ['house_of_wisdom'] },
+    { id: 'qanat_irrigation', name: 'Qanat Irrigation', description: 'Underground tunnels distribute water across arid land.', category: 'infrastructure', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'tang_silk_diplomacy', name: 'Silk Diplomacy', description: 'Tribute silk binds neighbouring kingdoms to the empire.', category: 'culture', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'islamic_golden_age', name: 'Golden Age', description: 'A flowering of science, philosophy, medicine, and art.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['algebra', 'gunpowder', 'house_of_wisdom', 'caliphal_admin'], isCapstone: true },
   ],
 
   high_medieval: [
@@ -118,8 +169,12 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'university', name: 'Universities', description: 'Bologna, Paris, Oxford — the medieval university is born.', category: 'science', cost: 70, weeks: 32, prerequisites: ['scholasticism'] },
     { id: 'mechanical_clock', name: 'Mechanical Clock', description: 'Verge-and-foliot escapement clocks chime in cathedral towers.', category: 'science', cost: 60, weeks: 28, prerequisites: ['scholasticism'] },
     { id: 'gunpowder_weapons', name: 'Gunpowder Weapons', description: 'Cannons and handgonnes enter European warfare.', category: 'military', cost: 80, weeks: 36, prerequisites: [] },
-    { id: 'high_medieval_synthesis', name: 'High Medieval Synthesis', description: 'A confident, expanding Europe on the eve of exploration.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['banking_paper_money', 'gunpowder_weapons', 'university'], isCapstone: true },
-    // expand with 5 more nodes
+    { id: 'three_field_north', name: 'Three-Field Rotation (North)', description: 'Heavy mouldboard ploughs unlock northern Europe.', category: 'economy', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'gothic_cathedral', name: 'Gothic Architecture', description: 'Pointed arches and flying buttresses reach for the sky.', category: 'culture', cost: 70, weeks: 30, prerequisites: ['castle_building'] },
+    { id: 'magna_carta', name: 'Charters of Liberty', description: 'Royal authority constrained by written charter.', category: 'government', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'mongol_admin', name: 'Mongol Administration', description: 'Yam postal system and religious tolerance across the steppe empire.', category: 'government', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'guild_system', name: 'Craft Guild System', description: 'Urban guilds regulate quality and apprenticeships.', category: 'economy', cost: 55, weeks: 24, prerequisites: ['double_entry_bookkeeping'] },
+    { id: 'high_medieval_synthesis', name: 'High Medieval Synthesis', description: 'A confident, expanding Europe on the eve of exploration.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['banking_paper_money', 'gunpowder_weapons', 'university', 'gothic_cathedral'], isCapstone: true },
   ],
 
   age_of_exploration: [
@@ -127,8 +182,16 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'astrolabe', name: "Mariner's Astrolabe", description: 'Latitude measurement at sea.', category: 'science', cost: 50, weeks: 22, prerequisites: [] },
     { id: 'cartography', name: 'Cartography', description: 'Mercator projection and accurate world maps.', category: 'science', cost: 60, weeks: 26, prerequisites: ['astrolabe'] },
     { id: 'colonial_administration', name: 'Colonial Administration', description: 'Viceroyalties and trading companies govern overseas territories.', category: 'government', cost: 80, weeks: 32, prerequisites: [] },
-    { id: 'global_trade_network', name: 'Global Trade Network', description: 'Silver from Potosí, spices from Maluku, slaves from Africa.', category: 'economy', cost: 100, weeks: 40, prerequisites: ['caravel', 'cartography', 'colonial_administration'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'arquebus', name: 'Arquebus', description: 'Matchlock firearms make pikes obsolete.', category: 'military', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'galleon', name: 'Galleon', description: 'Heavy ocean-going warship and trade carrier.', category: 'science', cost: 80, weeks: 32, prerequisites: ['caravel'] },
+    { id: 'printing_press', name: 'Movable Type Press', description: 'Gutenberg\'s press transforms literacy across Europe.', category: 'science', cost: 75, weeks: 30, prerequisites: [] },
+    { id: 'protestant_reformation', name: 'Protestant Reformation', description: 'Theological revolt fragments Christendom.', category: 'culture', cost: 70, weeks: 30, prerequisites: ['printing_press'] },
+    { id: 'joint_stock_company', name: 'Joint-Stock Company', description: 'Investors share risk and profit on overseas ventures.', category: 'economy', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'plantation_economy', name: 'Plantation Economy', description: 'Sugar, tobacco, and cotton driven by enslaved labour.', category: 'economy', cost: 60, weeks: 26, prerequisites: ['colonial_administration'] },
+    { id: 'mercantilism', name: 'Mercantilism', description: 'National wealth measured in bullion; protective tariffs grow strong.', category: 'economy', cost: 70, weeks: 28, prerequisites: ['joint_stock_company'] },
+    { id: 'columbian_exchange', name: 'Columbian Exchange', description: 'New crops, livestock, and diseases reshape every continent.', category: 'science', cost: 60, weeks: 26, prerequisites: ['caravel'] },
+    { id: 'ming_treasure_fleet', name: 'Treasure Fleet Diplomacy', description: 'Massive Chinese junks project soft power across the Indian Ocean.', category: 'culture', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'global_trade_network', name: 'Global Trade Network', description: 'Silver from Potosí, spices from Maluku, slaves from Africa.', category: 'economy', cost: 100, weeks: 40, prerequisites: ['caravel', 'cartography', 'colonial_administration', 'joint_stock_company'], isCapstone: true },
   ],
 
   ottoman_classical: [
@@ -136,8 +199,16 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'siege_artillery', name: 'Siege Artillery', description: 'Massive bombards crack medieval walls.', category: 'military', cost: 80, weeks: 32, prerequisites: [] },
     { id: 'kanun_law', name: 'Kanun Law', description: 'Sultanic decree law alongside Islamic sharia.', category: 'government', cost: 60, weeks: 26, prerequisites: [] },
     { id: 'bazaar_economy', name: 'Bazaar Economy', description: 'Imperial bazaars channel Mediterranean trade.', category: 'economy', cost: 60, weeks: 28, prerequisites: [] },
-    { id: 'classical_ottoman_state', name: 'Classical Ottoman State', description: 'Suleiman the Magnificent rules from the Hungarian plains to Yemen.', category: 'government', cost: 100, weeks: 40, prerequisites: ['janissary_corps', 'siege_artillery', 'kanun_law'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'devshirme', name: 'Devshirme System', description: 'Christian boys recruited and trained for state service.', category: 'government', cost: 65, weeks: 28, prerequisites: ['kanun_law'] },
+    { id: 'tulip_horticulture', name: 'Imperial Horticulture', description: 'Tulip gardens become a status symbol of the elite.', category: 'culture', cost: 40, weeks: 18, prerequisites: [] },
+    { id: 'sinan_architecture', name: 'Sinan Architecture', description: 'Mimar Sinan designs the great imperial mosques.', category: 'culture', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'galley_warfare', name: 'Mediterranean Galley Warfare', description: 'Oared war galleys dominate the inland sea.', category: 'military', cost: 70, weeks: 28, prerequisites: [] },
+    { id: 'spice_route_control', name: 'Spice Route Control', description: 'Tax bottleneck on the Red Sea and Persian Gulf trade.', category: 'economy', cost: 70, weeks: 30, prerequisites: ['bazaar_economy'] },
+    { id: 'mughal_jagirdari', name: 'Jagirdari System', description: 'Mughal land-grant administration for cavalry maintenance.', category: 'government', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'tercio_formation', name: 'Spanish Tercio', description: 'Pike-and-shot formation dominates European battlefields.', category: 'military', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'ming_great_wall', name: 'Ming Great Wall', description: 'Brick-faced Great Wall completed under the Ming.', category: 'infrastructure', cost: 80, weeks: 34, prerequisites: [] },
+    { id: 'tobacco_coffee_trade', name: 'Coffee & Tobacco Trade', description: 'Coffeehouses and tobacco shops spread across the empire.', category: 'culture', cost: 50, weeks: 22, prerequisites: ['bazaar_economy'] },
+    { id: 'classical_ottoman_state', name: 'Classical Ottoman State', description: 'Suleiman the Magnificent rules from the Hungarian plains to Yemen.', category: 'government', cost: 100, weeks: 40, prerequisites: ['janissary_corps', 'siege_artillery', 'kanun_law', 'sinan_architecture'], isCapstone: true },
   ],
 
   enlightenment: [
@@ -145,8 +216,17 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'absolutism', name: 'Absolutism', description: 'Centralised monarchies control taxation and law directly.', category: 'government', cost: 70, weeks: 30, prerequisites: [] },
     { id: 'scientific_method', name: 'Scientific Method', description: 'Experiment-based natural philosophy.', category: 'science', cost: 80, weeks: 32, prerequisites: [] },
     { id: 'newtonian_physics', name: 'Newtonian Physics', description: 'Mathematical mechanics of motion.', category: 'science', cost: 80, weeks: 32, prerequisites: ['scientific_method'] },
-    { id: 'enlightenment_thought', name: 'Enlightenment Thought', description: 'Voltaire, Locke, Rousseau — reason challenges tradition.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['newtonian_physics', 'absolutism'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'flintlock_musket', name: 'Flintlock Musket', description: 'Reliable ignition triples infantry firepower.', category: 'military', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'bayonet_drill', name: 'Bayonet Drill', description: 'Pike and shot collapse into a single weapon.', category: 'military', cost: 50, weeks: 22, prerequisites: ['flintlock_musket'] },
+    { id: 'star_fortifications', name: 'Star Fortifications', description: 'Vauban-style trace italienne forts resist artillery.', category: 'infrastructure', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'naval_line_of_battle', name: 'Line of Battle', description: 'Ships of the line fight in disciplined columns.', category: 'military', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'central_bank', name: 'Central Bank', description: 'National bank issues notes and manages royal debt.', category: 'economy', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'physiocracy', name: 'Physiocratic Reform', description: 'Land-tax reform and free internal trade.', category: 'economy', cost: 60, weeks: 26, prerequisites: ['central_bank'] },
+    { id: 'salons_and_press', name: 'Salons & Public Sphere', description: 'Coffeehouses and pamphlet presses shape elite opinion.', category: 'culture', cost: 50, weeks: 22, prerequisites: [] },
+    { id: 'encyclopaedia', name: "Diderot's Encyclopaedia", description: 'A systematic compendium of human knowledge.', category: 'science', cost: 70, weeks: 30, prerequisites: ['scientific_method'] },
+    { id: 'inoculation', name: 'Smallpox Inoculation', description: 'Variolation and later Jenner\'s vaccination.', category: 'science', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'enclosure_acts', name: 'Enclosure Acts', description: 'Common land enclosed for commercial agriculture.', category: 'economy', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'enlightenment_thought', name: 'Enlightenment Thought', description: 'Voltaire, Locke, Rousseau — reason challenges tradition.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['newtonian_physics', 'absolutism', 'salons_and_press', 'encyclopaedia'], isCapstone: true },
   ],
 
   industrial_dawn: [
@@ -157,8 +237,14 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'steel_production', name: 'Bessemer Steel', description: 'Cheap mass-produced steel.', category: 'science', cost: 80, weeks: 32, prerequisites: [] },
     { id: 'factory_system', name: 'Factory System', description: 'Wage labour, hourly clocks, and division of labour.', category: 'economy', cost: 70, weeks: 30, prerequisites: ['spinning_jenny'] },
     { id: 'electricity', name: 'Electrical Generation', description: 'Generators and motors enter the workplace.', category: 'science', cost: 90, weeks: 36, prerequisites: ['telegraph'] },
-    { id: 'industrial_revolution', name: 'Industrial Revolution', description: 'Society transformed by steam and steel.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['railway', 'factory_system', 'electricity'], isCapstone: true },
-    // expand with 7 more nodes
+    { id: 'railroad', name: 'Steam Locomotive', description: 'Iron horses haul freight and passengers across continents — unlocks the Draw Rail tool.', category: 'infrastructure', cost: 80, weeks: 32, prerequisites: ['railway'] },
+    { id: 'germ_theory', name: 'Germ Theory of Disease', description: 'Pasteur and Koch identify microorganisms as the cause of illness.', category: 'science', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'public_health', name: 'Public Health Acts', description: 'Sewers, clean water, and sanitation across industrial cities.', category: 'infrastructure', cost: 70, weeks: 30, prerequisites: ['germ_theory'] },
+    { id: 'rifled_artillery', name: 'Rifled Artillery', description: 'Breech-loading rifled cannon with explosive shells.', category: 'military', cost: 80, weeks: 32, prerequisites: ['steel_production'] },
+    { id: 'ironclad_warship', name: 'Ironclad Warship', description: 'Steam-powered iron-armoured battleships.', category: 'military', cost: 85, weeks: 36, prerequisites: ['steel_production'] },
+    { id: 'internal_combustion', name: 'Internal Combustion Engine', description: 'Petrol engines power early automobiles.', category: 'science', cost: 90, weeks: 36, prerequisites: ['electricity'] },
+    { id: 'mass_education', name: 'Compulsory Education', description: 'State-funded schooling for all children.', category: 'government', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'industrial_revolution', name: 'Industrial Revolution', description: 'Society transformed by steam and steel.', category: 'culture', cost: 100, weeks: 40, prerequisites: ['railroad', 'factory_system', 'electricity', 'public_health'], isCapstone: true },
   ],
 
   great_war: [
@@ -166,8 +252,14 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'trench_warfare', name: 'Trench Warfare', description: 'Static front lines, artillery duels, and barbed wire.', category: 'military', cost: 60, weeks: 26, prerequisites: ['machine_gun'] },
     { id: 'tank', name: 'The Tank', description: 'Armoured tracked vehicle to break the trench deadlock.', category: 'military', cost: 90, weeks: 36, prerequisites: ['trench_warfare'] },
     { id: 'aviation', name: 'Military Aviation', description: 'Reconnaissance, fighters, and early bombers.', category: 'military', cost: 80, weeks: 32, prerequisites: [] },
-    { id: 'industrial_war', name: 'Total War Mobilisation', description: 'Civilian economy fully directed toward war production.', category: 'government', cost: 100, weeks: 40, prerequisites: ['tank', 'aviation'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'submarine_warfare', name: 'Submarine Warfare', description: 'U-boats wage commerce raiding beneath the waves.', category: 'military', cost: 75, weeks: 32, prerequisites: [] },
+    { id: 'chemical_weapons', name: 'Chemical Weapons', description: 'Chlorine, phosgene, and mustard gas haunt the trenches.', category: 'military', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'wireless_telegraphy', name: 'Wireless Telegraphy', description: 'Marconi\'s radio links ships and headquarters.', category: 'science', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'assembly_line', name: 'Assembly Line', description: 'Ford\'s moving production line transforms manufacturing.', category: 'economy', cost: 75, weeks: 30, prerequisites: [] },
+    { id: 'income_tax', name: 'Progressive Income Tax', description: 'Graduated taxation funds the war effort.', category: 'government', cost: 60, weeks: 26, prerequisites: [] },
+    { id: 'womens_suffrage', name: "Women's Suffrage", description: 'Voting rights extend to women in many belligerent states.', category: 'government', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'war_propaganda', name: 'War Propaganda', description: 'Ministry of Information shapes public morale.', category: 'culture', cost: 55, weeks: 24, prerequisites: [] },
+    { id: 'industrial_war', name: 'Total War Mobilisation', description: 'Civilian economy fully directed toward war production.', category: 'government', cost: 100, weeks: 40, prerequisites: ['tank', 'aviation', 'assembly_line', 'wireless_telegraphy'], isCapstone: true },
   ],
 
   interwar: [
@@ -175,8 +267,14 @@ export const HISTORICAL_TECH_TREES: Record<HistoricalEraId, HistoricalTechNode[]
     { id: 'mass_propaganda', name: 'Mass Propaganda', description: 'Cinema, posters, and newsreels shape public opinion.', category: 'government', cost: 60, weeks: 26, prerequisites: ['radio_broadcasting'] },
     { id: 'mechanised_warfare', name: 'Mechanised Warfare', description: 'Combined arms doctrine of tank and aircraft.', category: 'military', cost: 80, weeks: 32, prerequisites: [] },
     { id: 'modern_economics', name: 'Keynesian Economics', description: 'Government spending as a tool against depression.', category: 'economy', cost: 70, weeks: 28, prerequisites: [] },
-    { id: 'eve_of_total_war', name: 'Eve of Total War', description: 'The world spirals toward another global conflict.', category: 'government', cost: 100, weeks: 40, prerequisites: ['mass_propaganda', 'mechanised_warfare', 'modern_economics'], isCapstone: true },
-    // expand with 10 more nodes
+    { id: 'aircraft_carrier', name: 'Aircraft Carrier', description: 'Naval aviation supersedes the battleship.', category: 'military', cost: 90, weeks: 36, prerequisites: [] },
+    { id: 'radar', name: 'Early Radar', description: 'Radio wave detection of aircraft and ships.', category: 'science', cost: 85, weeks: 34, prerequisites: [] },
+    { id: 'antibiotics', name: 'Antibiotics', description: 'Penicillin and sulfa drugs revolutionise medicine.', category: 'science', cost: 80, weeks: 32, prerequisites: [] },
+    { id: 'autobahn', name: 'Motorway System', description: 'High-speed national highway networks.', category: 'infrastructure', cost: 65, weeks: 28, prerequisites: [] },
+    { id: 'mass_air_travel', name: 'Mass Air Travel', description: 'Commercial airliners cross continents.', category: 'infrastructure', cost: 70, weeks: 30, prerequisites: [] },
+    { id: 'television', name: 'Television Broadcasting', description: 'Live moving images enter middle-class homes.', category: 'culture', cost: 70, weeks: 30, prerequisites: ['radio_broadcasting'] },
+    { id: 'social_security', name: 'Social Security', description: 'State pensions and unemployment insurance.', category: 'government', cost: 65, weeks: 28, prerequisites: ['modern_economics'] },
+    { id: 'eve_of_total_war', name: 'Eve of Total War', description: 'The world spirals toward another global conflict.', category: 'government', cost: 100, weeks: 40, prerequisites: ['mass_propaganda', 'mechanised_warfare', 'modern_economics', 'radar'], isCapstone: true },
   ],
 }
 

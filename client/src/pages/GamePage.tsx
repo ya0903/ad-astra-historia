@@ -67,20 +67,17 @@ const ANCIENT_ERAS_SET = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang'
 // Format era dates: BCE for pre-CE years, show year + era suffix
 function formatGameDate(dateStr: string): string {
   if (!dateStr) return dateStr
-  // Dates like "0431-01-01" → "431 BCE"
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  // Game dates: optional leading "-" for BCE, then YYYY-MM-DD.
+  const match = dateStr.match(/^(-?)(\d{1,4})-(\d{2})-(\d{2})$/)
   if (!match) return dateStr
-  const year = parseInt(match[1], 10)
-  const month = parseInt(match[2], 10)
-  const day = parseInt(match[3], 10)
+  const sign = match[1] === '-' ? -1 : 1
+  const year = sign * parseInt(match[2], 10)
+  const month = parseInt(match[3], 10)
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  // Ancient eras use 4-digit year starting with 0 — treat as BCE if year < 500 CE
-  // Greek (0431), Roman (0117), Tang (0700), Abbasid (0800) are all pre-medieval
-  if (year < 1000) {
-    // Show as BCE/CE year
-    if (year < 500) return `${year} BCE`  // Greek 431, Roman 117
-    return `${year} CE`                   // Tang 700, Abbasid 800
-  }
+  if (year < 0) return `${monthNames[month - 1]} ${Math.abs(year)} BCE`
+  if (year < 1500) return `${monthNames[month - 1]} ${year} CE`
+  // Modern dates show full DD Month YYYY
+  const day = parseInt(match[4], 10)
   return `${day} ${monthNames[month - 1]} ${year}`
 }
 
@@ -376,7 +373,8 @@ export default function GamePage() {
     const text = actionText.trim()
     if (!text) return
     // Rail-line intent detection: offer draw-myself option instead of queuing as AI action
-    if (/\b(rail|railway|railroad|train\s*line|hsr|high[- ]speed)\b/i.test(text)) {
+    const railUnlocked = unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)
+    if (railUnlocked && /\b(rail|railway|railroad|train\s*line|hsr|high[- ]speed)\b/i.test(text)) {
       const draw = window.confirm(`It looks like you want to build a rail line. Draw it yourself on the map?\n\nOK = Draw it myself\nCancel = Let the AI decide`)
       if (draw) {
         const isHsr = /\b(hsr|high[- ]speed|bullet)\b/i.test(text)
@@ -965,15 +963,17 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
           </WorldMap>
         )}
 
-        {/* ── Rail draw panel + trigger ── */}
+        {/* ── Rail draw panel + trigger (only after rail tech unlocked) ── */}
         <RailDrawPanel />
-        <button
-          onClick={() => useRailDrawStore.getState().startDrawing('domestic_hsr')}
-          title="Draw Rail Line"
-          className="absolute bottom-4 left-16 z-20 h-9 px-3 flex items-center gap-1 rounded-xl backdrop-blur-md border border-purple-500/40 bg-[#0a1628]/80 text-purple-200 text-xs font-semibold hover:bg-purple-900/40 hover:border-purple-400 transition-colors shadow-xl"
-        >
-          🚆 Draw Rail
-        </button>
+        {(unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)) && (
+          <button
+            onClick={() => useRailDrawStore.getState().startDrawing('domestic_hsr')}
+            title="Draw Rail Line"
+            className="absolute bottom-4 left-16 z-20 h-9 px-3 flex items-center gap-1 rounded-xl backdrop-blur-md border border-purple-500/40 bg-[#0a1628]/80 text-purple-200 text-xs font-semibold hover:bg-purple-900/40 hover:border-purple-400 transition-colors shadow-xl"
+          >
+            🚆 Draw Rail
+          </button>
+        )}
 
         {/* ── Legend toggle button (bottom-left) ── */}
         <button

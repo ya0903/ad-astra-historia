@@ -198,11 +198,25 @@ function rollDisasters(countryId: string, gdp: number, date: string): DisasterEv
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function advanceDateStr(date: string, period: 'week' | 'month' | 'year'): string {
-  const d = new Date(date)
-  if (period === 'week') d.setDate(d.getDate() + 7)
-  else if (period === 'month') d.setMonth(d.getMonth() + 1)
-  else d.setFullYear(d.getFullYear() + 1)
-  return d.toISOString().slice(0, 10)
+  // Custom parser/formatter — JS Date can't represent BCE years (< 100 CE) reliably.
+  const m = date.match(/^(-?)(\d{1,4})-(\d{2})-(\d{2})$/)
+  if (!m) return date
+  const sign = m[1] === '-' ? -1 : 1
+  let year = sign * parseInt(m[2], 10)
+  let month = parseInt(m[3], 10)
+  let day = parseInt(m[4], 10)
+  if (period === 'year') {
+    year += 1
+  } else if (period === 'month') {
+    month += 1
+    if (month > 12) { month = 1; year += 1 }
+  } else {
+    // week — approximate with 30-day months for BCE-safe arithmetic
+    day += 7
+    while (day > 30) { day -= 30; month += 1; if (month > 12) { month = 1; year += 1 } }
+  }
+  const absY = Math.abs(year).toString().padStart(4, '0')
+  return `${year < 0 ? '-' : ''}${absY}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 function periodWeeks(period: 'week' | 'month' | 'year'): number {

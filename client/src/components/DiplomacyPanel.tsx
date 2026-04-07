@@ -1,6 +1,41 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useConfigStore, useGameStore } from '../stores'
 import { callAI } from '../lib/aiClient'
+import { getCountryCentre } from '../lib/mapFly'
+
+// Diplomatic reach in kilometres by era. Pre-modern civilisations couldn't
+// realistically negotiate across oceans they didn't know existed. Numbers are
+// max great-circle distance from the player's capital where talks make sense.
+const ERA_DIPLOMATIC_RANGE_KM: Record<string, number> = {
+  bronze_age:         4000,
+  classical_greek:    5000,
+  alexander:          5500,
+  qin_expansion:      5500,
+  punic_wars:         6000,
+  roman_peak:         7000,
+  late_antiquity:     7000,
+  tang_abbasid:       9000,
+  high_medieval:      11000,
+  age_of_exploration: 20000, // post-Columbus, Old World↔New World becomes possible
+  ottoman_classical:  20000,
+  enlightenment:      Infinity,
+  industrial_dawn:    Infinity,
+  great_war:          Infinity,
+  interwar:           Infinity,
+  // Legacy era ids
+  greek: 5000, roman: 7000, ottoman: 20000, abbasid: 9000, tang: 9000,
+  aztec: 6000, songhai: 8000, sengoku: 8000,
+}
+
+function haversineKm(a: [number, number], b: [number, number]): number {
+  const R = 6371
+  const toRad = (d: number) => d * Math.PI / 180
+  const dLat = toRad(b[1] - a[1])
+  const dLng = toRad(b[0] - a[0])
+  const lat1 = toRad(a[1]), lat2 = toRad(b[1])
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 interface GameContext {
   playerCountry: string
@@ -49,6 +84,23 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const clearDiplomaticChat = useGameStore(s => s.clearDiplomaticChat)
   const chatHistory = useGameStore(s => s.state?.diplomaticChats ?? {})
   const countries = useGameStore(s => s.state?.countries ?? {})
+  const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
+
+  // Compute reachable country names for the current era. Returns null when
+  // every country is reachable (modern eras), so the UI can skip the filter.
+  const reachableNames = useMemo(() => {
+    const range = ERA_DIPLOMATIC_RANGE_KM[gameContext.era] ?? Infinity
+    if (!isFinite(range)) return null
+    const playerCentre = getCountryCentre(playerCountryId)
+    if (!playerCentre) return null
+    const reachable = new Set<string>()
+    for (const [iso, c] of Object.entries(countries)) {
+      const centre = getCountryCentre(iso)
+      if (!centre) continue
+      if (haversineKm(playerCentre, centre) <= range) reachable.add(c.name)
+    }
+    return reachable
+  }, [gameContext.era, playerCountryId, countries])
   const pendingProposals = inbox.filter(p => p.status === 'pending')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -301,6 +353,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           <div className="space-y-0.5">
             {gameContext.countryNames
               .filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(name => reachableNames === null || reachableNames.has(name))
               .sort()
               .map(name => (
                 <button key={name} onClick={() => startTalks(name)}

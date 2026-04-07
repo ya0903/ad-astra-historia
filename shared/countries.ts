@@ -282,9 +282,51 @@ export const ERA_START_DATES: Partial<Record<Era, string>> = {
   'aztec':   '1500-01-01',
   'songhai': '1490-01-01',
   'sengoku': '1560-01-01',
+  // ── New historical eras (rework) ──
+  // BCE eras use a leading "-" to mark negative years.
+  'bronze_age':         '-1500-01-01',
+  'classical_greek':    '-0431-01-01',
+  'alexander':          '-0323-01-01',
+  'qin_expansion':      '-0300-01-01',
+  'punic_wars':         '-0200-01-01',
+  'roman_peak':         '0117-01-01',
+  'late_antiquity':     '0500-01-01',
+  'tang_abbasid':       '0800-01-01',
+  'high_medieval':      '1279-01-01',
+  'age_of_exploration': '1492-01-01',
+  'ottoman_classical':  '1530-01-01',
+  'enlightenment':      '1715-01-01',
+  'industrial_dawn':    '1880-01-01',
+  'great_war':          '1914-01-01',
+  'interwar':           '1938-01-01',
+}
+
+// Deterministic hash → HSL hex for fallback country colours so countries
+// without a hand-tuned entry still get a unique hue instead of all sharing
+// the same blue.
+function djb2(s: string): number {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h
+}
+function hslToHex(h: number, s: number, l: number): string {
+  l /= 100
+  const a = (s * Math.min(l, 1 - l)) / 100
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(255 * c).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+function generateCountryFallbackColour(isoA3: string): string {
+  const hash = djb2(isoA3)
+  const hue = hash % 360
+  const sat = 50 + ((hash >> 8) % 25)   // 50-74
+  const light = 38 + ((hash >> 16) % 14) // 38-51 — readable on dark base map
+  return hslToHex(hue, sat, light)
 }
 
 export function getCountryColour(isoA3: string): string {
-  // Fallback to a dark steel-blue — never grey
-  return COUNTRY_COLOURS[isoA3] ?? '#1a4a7a'
+  return COUNTRY_COLOURS[isoA3] ?? generateCountryFallbackColour(isoA3)
 }
