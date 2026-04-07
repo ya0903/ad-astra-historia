@@ -337,7 +337,10 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     },
     error: null,
   }),
-  clearGame: () => set({ state: null, error: null, isPaused: false, isJumping: false }),
+  clearGame: () => {
+    localStorage.removeItem('aah-game')
+    set({ state: null, error: null, isPaused: false, isJumping: false })
+  },
   setLoading: (v) => set({ isLoading: v }),
   setJumping: (v) => set({ isJumping: v }),
   setError: (msg) => set({ error: msg }),

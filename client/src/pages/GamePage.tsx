@@ -847,6 +847,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
       <div className="flex-1 relative overflow-hidden select-none">
         {activePlanet !== 'earth' ? (
           <PlanetMap
+            key={activePlanet}
             planet={activePlanet as 'moon' | 'mars'}
             colonies={colonies.filter(c => c.planet === activePlanet)}
           />
