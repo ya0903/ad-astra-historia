@@ -37,8 +37,21 @@ export default function ProvincesLayer() {
           },
         })
 
-        // Controlled region fills — full player country colour at the same
-        // opacity as country fills, so the territory looks properly absorbed
+        // Background mask: opaque dark fill that hides the underlying parent
+        // country's colour completely. Sits below the player tint.
+        map.addLayer({
+          id: 'province-controlled-mask',
+          type: 'fill',
+          source: 'provinces',
+          filter: ['in', ['get', 'name'], ['literal', [] as string[]]],
+          paint: {
+            'fill-color': '#0a1628', // matches map background
+            'fill-opacity': 1,
+          },
+        })
+
+        // Controlled region fills — full player country colour, opaque
+        // enough to look properly absorbed and hide the parent country fill
         map.addLayer({
           id: 'province-controlled',
           type: 'fill',
@@ -46,14 +59,7 @@ export default function ProvincesLayer() {
           filter: ['in', ['get', 'name'], ['literal', [] as string[]]],
           paint: {
             'fill-color': '#1a4a7a',
-            'fill-opacity': ['step', ['zoom'],
-              0.65, // z<3
-              3, 0.55,
-              4, 0.45,
-              5, 0.40,
-              6, 0.35,
-              8, 0.28,
-            ],
+            'fill-opacity': 0.55,
           },
         })
 
@@ -86,7 +92,7 @@ export default function ProvincesLayer() {
       .catch(() => { /* provinces.geojson not downloaded yet */ })
 
     return () => {
-      for (const id of ['province-controlled-border', 'province-controlled-border-glow', 'province-controlled', 'province-borders']) {
+      for (const id of ['province-controlled-border', 'province-controlled-border-glow', 'province-controlled', 'province-controlled-mask', 'province-borders']) {
         if (map.getLayer(id)) map.removeLayer(id)
       }
       if (map.getSource('provinces')) map.removeSource('provinces')
@@ -116,6 +122,9 @@ export default function ProvincesLayer() {
     }
 
     const filter = ['in', ['get', 'name'], ['literal', matchedNames]]
+    if (map.getLayer('province-controlled-mask')) {
+      map.setFilter('province-controlled-mask', filter as never)
+    }
     map.setFilter('province-controlled', filter as never)
     map.setFilter('province-controlled-border', filter as never)
     if (map.getLayer('province-controlled-border-glow')) {
@@ -123,6 +132,16 @@ export default function ProvincesLayer() {
     }
     // Use the FULL player country colour so annexed regions look properly absorbed
     map.setPaintProperty('province-controlled', 'fill-color', playerColour)
+
+    // Move province layers ABOVE country borders so they paint over the
+    // border line between the parent country and the player. Layer order
+    // (bottom to top): mask → tint → border glow → border
+    try {
+      if (map.getLayer('province-controlled-mask')) map.moveLayer('province-controlled-mask')
+      if (map.getLayer('province-controlled')) map.moveLayer('province-controlled')
+      if (map.getLayer('province-controlled-border-glow')) map.moveLayer('province-controlled-border-glow')
+      if (map.getLayer('province-controlled-border')) map.moveLayer('province-controlled-border')
+    } catch { /* layers may not all exist yet */ }
   }, [map, controlledRegions, playerCountryId, countries])
 
   return null
