@@ -45,6 +45,9 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const acceptProposal = useGameStore(s => s.acceptProposal)
   const declineProposal = useGameStore(s => s.declineProposal)
   const addNewsItem = useGameStore(s => s.addNewsItem)
+  const appendDiplomaticChat = useGameStore(s => s.appendDiplomaticChat)
+  const clearDiplomaticChat = useGameStore(s => s.clearDiplomaticChat)
+  const chatHistory = useGameStore(s => s.state?.diplomaticChats ?? {})
   const countries = useGameStore(s => s.state?.countries ?? {})
   const pendingProposals = inbox.filter(p => p.status === 'pending')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -68,21 +71,30 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
 
   const startTalks = (country: string) => {
     setTargetCountry(country)
-    setMessages([{
-      role: 'country',
-      country,
-      content: `Greetings from ${country}. What does ${gameContext.playerCountry} wish to discuss?`,
-    }])
     setError('')
-    // Add a news headline that the talks have begun
-    addNewsItem({
-      id: `news-talks-${Date.now()}`,
-      date: gameContext.currentDate,
-      headline: `${gameContext.playerCountry} Opens Diplomatic Talks with ${country}`,
-      body: `Officials from both nations have begun bilateral discussions. Topics on the agenda are not yet public.`,
-      category: 'diplomacy',
-      importance: 'minor',
-    })
+    const existing = chatHistory[country] ?? []
+    if (existing.length > 0) {
+      // Resume existing conversation
+      setMessages(existing.map(m => ({
+        role: m.role,
+        country: m.role === 'country' ? country : undefined,
+        content: m.content,
+      })))
+    } else {
+      // First contact — seed greeting and persist
+      const greeting = `Greetings from ${country}. What does ${gameContext.playerCountry} wish to discuss?`
+      setMessages([{ role: 'country', country, content: greeting }])
+      appendDiplomaticChat(country, { role: 'country', content: greeting, date: gameContext.currentDate })
+      // Post a news item only on first contact
+      addNewsItem({
+        id: `news-talks-${Date.now()}`,
+        date: gameContext.currentDate,
+        headline: `${gameContext.playerCountry} Opens Diplomatic Talks with ${country}`,
+        body: `Officials from both nations have begun bilateral discussions. Topics on the agenda are not yet public.`,
+        category: 'diplomacy',
+        importance: 'minor',
+      })
+    }
   }
 
   const sendMessage = async () => {
@@ -94,6 +106,7 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
     setError('')
     const newMsg: Message = { role: 'player', content: msg }
     setMessages(m => [...m, newMsg])
+    appendDiplomaticChat(targetCountry, { role: 'player', content: msg, date: gameContext.currentDate })
     setLoading(true)
 
     try {
@@ -123,6 +136,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
       const reply = await callAI(config, system, history)
       const trimmedReply = reply.trim()
       setMessages(m => [...m, { role: 'country', country: targetCountry, content: trimmedReply }])
+      appendDiplomaticChat(targetCountry, { role: 'country', content: trimmedReply, date: gameContext.currentDate })
       // Add a news headline summarising the latest exchange
       const shortMsg = msg.length > 80 ? msg.slice(0, 80) + '…' : msg
       addNewsItem({
@@ -142,18 +156,11 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
 
   const reset = () => { setTargetCountry(''); setMessages([]); setError('') }
 
-  // Always render the button. When open, also render the panel as an
-  // absolutely-positioned floater to the LEFT of the button so it doesn't
-  // displace the button column.
-  return (
-    <div className="relative">
+  if (!open) {
+    return (
       <button
-        onClick={open ? handleClose : handleOpen}
-        className={`relative w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-lg transition-all ${
-          open
-            ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
-            : 'bg-[#0d1f3c] border-white/20 hover:bg-blue-900 hover:border-blue-600'
-        }`}
+        onClick={handleOpen}
+        className="relative w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
         title={`Diplomatic Chats${pendingProposals.length > 0 ? ` (${pendingProposals.length} pending)` : ''}`}
       >
         🤝
@@ -163,10 +170,12 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           </span>
         )}
       </button>
+    )
+  }
 
-      {open && (
-    <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col z-50"
-      style={{ width: panelW, height: panelH, maxHeight: 'calc(100vh - 80px)' }}
+  return (
+    <div className="relative bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
+      style={{ width: panelW, height: Math.min(panelH, typeof window !== 'undefined' ? window.innerHeight - 120 : panelH) }}
     >
       {/* Resize handle — top-left corner drag */}
       <div
@@ -187,7 +196,22 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
         </div>
         <div className="flex gap-1">
           {targetCountry && (
-            <button onClick={reset} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-[10px] font-bold">←</button>
+            <>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Clear chat history with ${targetCountry}?`)) {
+                    clearDiplomaticChat(targetCountry)
+                    setMessages([])
+                    setTargetCountry('')
+                  }
+                }}
+                title="Clear history"
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-900/40 text-gray-500 hover:text-red-300 transition-colors text-[10px]"
+              >
+                🗑
+              </button>
+              <button onClick={reset} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors text-[10px] font-bold">←</button>
+            </>
           )}
           <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors text-sm leading-none">✕</button>
         </div>
@@ -232,6 +256,29 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                     </div>
                   )
                 })}
+              </div>
+              <div className="border-t border-white/8 my-3" />
+            </div>
+          )}
+
+          {/* Recent conversations */}
+          {Object.keys(chatHistory).length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wider">💬 Recent Chats</p>
+              <div className="space-y-0.5">
+                {Object.entries(chatHistory)
+                  .sort(([, a], [, b]) => (b[b.length - 1]?.date ?? '').localeCompare(a[a.length - 1]?.date ?? ''))
+                  .slice(0, 5)
+                  .map(([country, history]) => (
+                    <button
+                      key={country}
+                      onClick={() => startTalks(country)}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-gray-300 bg-blue-950/20 hover:bg-blue-900/40 hover:text-white transition-colors flex items-center justify-between"
+                    >
+                      <span>{country}</span>
+                      <span className="text-[9px] text-gray-500">{history.length} msg</span>
+                    </button>
+                  ))}
               </div>
               <div className="border-t border-white/8 my-3" />
             </div>
@@ -304,8 +351,6 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
             </button>
           </div>
         </>
-      )}
-    </div>
       )}
     </div>
   )

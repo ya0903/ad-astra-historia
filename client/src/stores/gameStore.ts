@@ -196,6 +196,9 @@ interface GameStoreState {
   declineProposal: (proposalId: string) => void
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
+  // Diplomatic chat history
+  appendDiplomaticChat: (country: string, message: import('@ad-astra/shared/types').DiplomaticChatMessage) => void
+  clearDiplomaticChat: (country: string) => void
   setEmpireName: (name: string) => void
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
@@ -1161,6 +1164,21 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         newsItems: [item, ...(store.state.newsItems ?? [])].slice(0, 200),
       },
     }
+  }),
+
+  appendDiplomaticChat: (country, message) => set(store => {
+    if (!store.state) return {}
+    const chats = { ...(store.state.diplomaticChats ?? {}) }
+    const existing = chats[country] ?? []
+    chats[country] = [...existing, message].slice(-100) // cap per-country history at 100 messages
+    return { state: { ...store.state, diplomaticChats: chats } }
+  }),
+
+  clearDiplomaticChat: (country) => set(store => {
+    if (!store.state) return {}
+    const chats = { ...(store.state.diplomaticChats ?? {}) }
+    delete chats[country]
+    return { state: { ...store.state, diplomaticChats: chats } }
   }),
 
   declineProposal: (proposalId) => set(store => {
