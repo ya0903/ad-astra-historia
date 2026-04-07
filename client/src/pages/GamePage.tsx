@@ -497,6 +497,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
       }
 
       applyResults(clampedResults, period, parsed.worldEvent)
+      advanceDate(period)
       if (clampedResults.length > 0) setTimelineIdx(0)
       const focusTarget = parsed.results?.find(r => r.focusIso)?.focusIso
       if (focusTarget && mapInstance) {

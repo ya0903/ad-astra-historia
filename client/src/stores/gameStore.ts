@@ -913,7 +913,6 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       isJumping: false,
       state: {
         ...s,
-        currentDate: advanceDateStr(s.currentDate, advancePeriod),
         countries: { ...s.countries, [pid]: { ...player, stats: newStats } },
         lastResults: results,
         lore: [...(s.lore ?? []), ...newLoreEntries],
