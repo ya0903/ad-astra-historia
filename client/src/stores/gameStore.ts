@@ -8,6 +8,7 @@ import type {
   WorldTickEvent,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS, BUILD_COSTS, BUILD_MONTHLY_INCOME, BUILD_MAX_LEVEL } from '@ad-astra/shared/types'
+import { resourceMonthlyIncome, getCountryResources, type ResourceType } from '@ad-astra/shared/countryResources'
 import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
@@ -630,17 +631,53 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
-    // ── Monthly infrastructure income (recurring stream) ─────────────────────
-    // Instead of a one-time boost on completion, every existing piece of
-    // player-owned infrastructure pays a monthly GDP income. Scaled by
-    // level. Applied per month of elapsed time.
+    // ── Monthly recurring income (infrastructure + resources + power) ────────
+    // Every month the player earns income from:
+    //   1. Infrastructure (ports, rails, universities, etc.) — tax + usage fees
+    //   2. Nationalised natural resources (oil, copper, etc.)
+    //   3. Surplus power generation (selling electricity abroad)
     const monthsElapsed = weeksElapsed / 4
     if (monthsElapsed >= 1) {
       let totalMonthly = 0
+
+      // 1. Infrastructure income
       for (const inf of s.infrastructureMap) {
         if (inf.countryId !== s.playerCountryId) continue
         totalMonthly += monthlyIncomeFor(inf.type, inf.level ?? 1)
       }
+
+      // 2. Nationalised resources income
+      const nationalised = s.nationalisedResources ?? []
+      for (const nr of nationalised) {
+        totalMonthly += resourceMonthlyIncome(
+          nr.type as ResourceType,
+          nr.abundance,
+          nr.extractionLevel,
+          nr.exportsAllowed,
+        )
+      }
+
+      // 3. Power surplus — sum generation from energy infra, compare to rough
+      //    national demand (1 unit per ~$100B GDP). Surplus sold at $2M/unit/month.
+      const POWER_OUTPUT: Record<string, number> = {
+        nuclear_plant: 10,
+        hydro_dam: 8,
+        fossil_fuel_plant: 6,
+        solar_farm: 3,
+        wind_farm: 3,
+      }
+      let powerGeneration = 0
+      for (const inf of s.infrastructureMap) {
+        if (inf.countryId !== s.playerCountryId) continue
+        const base = POWER_OUTPUT[inf.type] ?? 0
+        if (base > 0) powerGeneration += base * (1 + 0.5 * ((inf.level ?? 1) - 1))
+      }
+      const player0 = newCountries[s.playerCountryId]
+      const nationalDemand = Math.max(1, Math.round((player0?.stats.gdp ?? 0) / 100_000_000_000))
+      const powerSurplus = Math.max(0, powerGeneration - nationalDemand)
+      const powerIncome = powerSurplus * 2_000_000
+      totalMonthly += powerIncome
+
       if (totalMonthly > 0) {
         const player = newCountries[s.playerCountryId]
         if (player) {
@@ -1228,6 +1265,35 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           }
           return acc
         }, s.controlledRegions ?? []),
+        nationalisedResources: results.reduce((acc, r) => {
+          if (r.outcome === 'failure' || !r.nationaliseResource) return acc
+          const nr = r.nationaliseResource
+          const resourceType = nr.type.toLowerCase()
+          // Look up the player's actual deposit for this resource
+          const deposit = getCountryResources(pid).find(d => d.type === resourceType)
+          if (!deposit) return acc // player's country doesn't have this resource
+          const existingIdx = acc.findIndex(x => x.type === resourceType)
+          const newEntry = {
+            type: resourceType,
+            abundance: deposit.abundance,
+            extractionLevel: Math.max(1, Math.min(10, nr.extractionLevel ?? 3)),
+            exportsAllowed: nr.exportsAllowed ?? true,
+            nationalisedDate: existingIdx >= 0 ? acc[existingIdx].nationalisedDate : s.currentDate,
+          }
+          if (existingIdx >= 0) {
+            // Update existing — merge extraction level upward only, update exports flag
+            const existing = acc[existingIdx]
+            const updated = {
+              ...existing,
+              extractionLevel: Math.max(existing.extractionLevel, newEntry.extractionLevel),
+              exportsAllowed: newEntry.exportsAllowed,
+            }
+            const next = [...acc]
+            next[existingIdx] = updated
+            return next
+          }
+          return [...acc, newEntry]
+        }, s.nationalisedResources ?? []),
         worldEvents: worldEvent ? [...(s.worldEvents ?? []), worldEvent] : (s.worldEvents ?? []),
         colonies: results.reduce((acc, r) => {
           if (r.outcome === 'failure' || !r.foundColony) return acc

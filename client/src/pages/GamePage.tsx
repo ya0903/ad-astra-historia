@@ -21,6 +21,7 @@ import EspionagePanel from '../components/EspionagePanel'
 import PlanetSwitcher from '../components/PlanetSwitcher'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
+import { getCountryResources } from '@ad-astra/shared/countryResources'
 
 // ── Categories ───────────────────────────────────────────────────────────────
 
@@ -411,6 +412,16 @@ export default function GamePage() {
       if (colonies.length > 0) {
         deepContextParts.push(`Colonies: ${colonies.map(c => `${c.name} (${c.planet}, L${c.level})`).join(', ')}`)
       }
+      // Natural resources available in this country
+      const availableResources = getCountryResources(gameState.playerCountryId)
+      if (availableResources.length > 0) {
+        const nationalised = gameState.nationalisedResources ?? []
+        const lines = availableResources.map(d => {
+          const owned = nationalised.find(n => n.type === d.type)
+          return `${d.type}(abundance ${d.abundance}/5${owned ? `, NATIONALISED L${owned.extractionLevel}, exports=${owned.exportsAllowed}` : ', not nationalised'})`
+        }).join(', ')
+        deepContextParts.push(`Natural resources: ${lines}`)
+      }
       const deepContext = deepContextParts.length > 0 ? `\n${deepContextParts.join('\n')}` : ''
       const actionList = pendingActions.map((a, i) => `${i+1}.[${a.id}] ${a.text}`).join('\n')
 
@@ -465,7 +476,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.
@@ -482,6 +493,8 @@ DEDUPLICATION: Before adding a buildProject, CHECK the existing infrastructure l
 EXCEPTION FOR EMBASSIES: when the type is "embassy", the city must be in the FOREIGN HOST country (e.g. an embassy of Pakistan in Washington has city "Washington"); also include "hostCountry": "<ISO_A3 of the host country>" so the embassy is correctly placed. Only one embassy per country per city.
 
 GDP DELTAS: statDeltas.gdp represents the IMMEDIATE financial impact — usually NEGATIVE or ZERO for construction actions (you're spending money, not earning it). Do NOT give large positive gdp deltas for building things — the engine adds a recurring monthly income stream from completed infrastructure automatically. If a country signs a trade deal or receives foreign investment, positive gdp is appropriate (small: $500M-$5B).
+
+NATIONALISATION: When the player explicitly nationalises a natural resource (e.g. "nationalise the oil industry", "take state control of copper mines", "ban private lithium extraction"), set "nationaliseResource":{"type":"oil","extractionLevel":3,"exportsAllowed":true}. The type MUST be one of the resources listed in the player's "Natural resources:" context line — if the player's country has no significant deposit of that resource, the action should fail or only give a tiny benefit. extractionLevel 1-3 = small operation, 4-6 = major state industry, 7-10 = full national monopoly (costs more upfront in gdp deltas but generates huge recurring monthly income). exportsAllowed=true doubles the recurring income but may anger rivals. Once nationalised, the resource generates monthly GDP automatically — do NOT add fake gdp deltas for nationalisation. If the player asks to RAISE the extraction level of an already-nationalised resource, set extractionLevel to the NEW desired level and the engine will upgrade it.
 
 Omit buildProjects entirely for non-construction actions or failures.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).

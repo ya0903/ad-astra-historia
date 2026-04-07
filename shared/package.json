@@ -14,7 +14,8 @@
     "./countryData": "./dist/countryData.js",
     "./countryPersonalities": "./dist/countryPersonalities.js",
     "./worldSimulation": "./dist/worldSimulation.js",
-    "./newsGenerator": "./dist/newsGenerator.js"
+    "./newsGenerator": "./dist/newsGenerator.js",
+    "./countryResources": "./dist/countryResources.js"
   },
   "scripts": {
     "build": "tsc",

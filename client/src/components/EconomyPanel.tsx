@@ -1,4 +1,5 @@
 import { useGameStore } from '../stores'
+import { getCountryResources, resourceMonthlyIncome, type ResourceType } from '@ad-astra/shared/countryResources'
 
 function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; max?: number; colour?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
@@ -29,8 +30,20 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
   const setEconomy = useGameStore(s => s.setEconomy)
   const gdp = useGameStore(s => s.state?.countries[s.state?.playerCountryId ?? '']?.stats.gdp ?? 0)
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
+  const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
+  const nationalisedResources = useGameStore(s => s.state?.nationalisedResources ?? [])
 
   if (!economy) return null
+
+  // Resources: show ALL of the country's natural reserves, mark which are nationalised
+  const countryResources = getCountryResources(playerCountryId)
+  const RESOURCE_ICONS: Record<string, string> = {
+    oil: '🛢️', natural_gas: '🔥', coal: '⛏️',
+    copper: '🟠', iron: '⚙️', gold: '🪙', silver: '💿', lithium: '🔋', rare_earth: '⚛️', uranium: '☢️',
+    diamonds: '💎', cobalt: '🔵', nickel: '🔩', aluminium: '⚪', zinc: '⬜', tin: '🔲',
+    timber: '🪵', fisheries: '🐟', farmland: '🌾', coffee: '☕', cocoa: '🍫', rubber: '🧤',
+    phosphate: '🧪', potash: '🧂',
+  }
 
   const debtRatio = gdp > 0 ? economy.debt / gdp : 0
   const debtColour = debtRatio < 0.3 ? '#22c55e' : debtRatio < 0.6 ? '#f59e0b' : '#ef4444'
@@ -144,6 +157,40 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
                 ))}
               </div>
             </div>
+
+            {/* Natural resources */}
+            {countryResources.length > 0 && (
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Natural Resources</p>
+                <div className="space-y-1">
+                  {countryResources.map(dep => {
+                    const nat = nationalisedResources.find(n => n.type === dep.type)
+                    const income = nat ? resourceMonthlyIncome(dep.type, dep.abundance, nat.extractionLevel, nat.exportsAllowed) : 0
+                    const incomeStr = income >= 1e9 ? `$${(income / 1e9).toFixed(1)}B/mo` : income > 0 ? `$${(income / 1e6).toFixed(0)}M/mo` : '—'
+                    return (
+                      <div key={dep.type} className={`flex items-center justify-between rounded px-2 py-1 text-[11px] ${
+                        nat ? 'bg-emerald-900/30 border border-emerald-700/30' : 'bg-white/[0.03] border border-white/5'
+                      }`}>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span>{RESOURCE_ICONS[dep.type] ?? '📦'}</span>
+                          <span className={`capitalize truncate ${nat ? 'text-emerald-300' : 'text-gray-500'}`}>
+                            {dep.type.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[9px] text-gray-600">{'★'.repeat(dep.abundance)}</span>
+                        </div>
+                        {nat ? (
+                          <span className="text-[9px] font-mono text-emerald-400 shrink-0 ml-1">
+                            L{nat.extractionLevel} · {incomeStr}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-gray-600 shrink-0 ml-1">private</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -528,6 +528,20 @@ export interface WorldTickEvent {
 export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world'
 export type NewsImportance = 'breaking' | 'major' | 'minor'
 
+/** A natural resource that has been nationalised by the player country. */
+export interface NationalisedResource {
+  /** Resource type — e.g. 'oil', 'copper', 'lithium' */
+  type: string
+  /** Abundance score inherited from COUNTRY_RESOURCES at nationalisation time */
+  abundance: number
+  /** 1-10 — higher = bigger extraction operation + more cost */
+  extractionLevel: number
+  /** If true, surplus is sold internationally (doubles income but costs relations) */
+  exportsAllowed: boolean
+  /** ISO date when nationalised */
+  nationalisedDate: string
+}
+
 /** A single diplomatic chat message between the player and a foreign country. */
 export interface DiplomaticChatMessage {
   role: 'player' | 'country'
@@ -570,6 +584,11 @@ export interface ActionResult {
   annexedCountry?: string      // ISO_A3 of entire sovereign country brought under control
   annexedRegion?: string       // province/state name when taking sub-national territory (e.g. "Kashmir", "Crimea")
   focusIso?: string            // ISO_A3 to fly map camera to
+  nationaliseResource?: {      // when action nationalises a natural resource
+    type: string               // 'oil', 'copper', 'lithium', etc.
+    extractionLevel?: number   // 1-10 — default 3 if unset
+    exportsAllowed?: boolean   // default true
+  }
   buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string; targetLevel?: number }  // single build (legacy)
   buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string; targetLevel?: number }> // multiple builds from one action
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike
@@ -640,6 +659,8 @@ export interface GameState {
   newsItems?: NewsItem[]       // recent world headlines
   // ── World simulation ──────────────────────────────────────────────────────
   worldRelations?: Record<string, number>  // "ISO-ISO" → opinion (-100 to +100)
+  // Nationalised natural resources — each generates monthly income
+  nationalisedResources?: NationalisedResource[]
   // Diplomatic inbox — incoming proposals from other countries that the player can accept/decline
   diplomaticInbox?: DiplomaticProposal[]
   // Diplomatic chat history — keyed by foreign country name (matches what UI uses)
