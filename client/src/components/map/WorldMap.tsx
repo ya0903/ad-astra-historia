@@ -132,99 +132,51 @@ export default function WorldMap({ children, era }: Props) {
           })
         }
 
-        // Biome tint — desert, forest, grassland, wetland, tundra overlays
+        // Biome tint — desert, plains, wetland, tundra overlays
         if (biomesRes.status === 'fulfilled') {
           map.addSource('biomes', { type: 'geojson', data: biomesRes.value as never })
 
-          // Buffer ring layers — outermost first (level 3), lowest opacity
-          // Each ring uses the blendOpacity from the feature property, scaled by zoom
-          for (const level of [3, 2, 1] as const) {
-            map.addLayer({
-              id: `biomes-buffer-${level}`,
-              type: 'fill',
-              source: 'biomes',
-              minzoom: 3,
-              filter: ['==', ['get', 'bufferLevel'], level] as unknown as ExpressionSpecification,
-              paint: {
-                'fill-color': buildBiomeColour(),
-                'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                  3, 0,
-                  4, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.5],
-                  5, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.8],
-                  7, ['*', ['coalesce', ['get', 'blendOpacity'], 0.1], 0.7],
-                ] as unknown as ExpressionSpecification,
-                'fill-antialias': true,
-              },
-            })
-          }
-
-          // Core biome fills — bufferLevel 0 (highest opacity)
+          // Core biome fills
           map.addLayer({
             id: 'biomes-fill',
             type: 'fill',
             source: 'biomes',
             minzoom: 3,
-            filter: ['==', ['get', 'bufferLevel'], 0] as unknown as ExpressionSpecification,
             paint: {
               'fill-color': buildBiomeColour(),
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
                 3, 0,
-                4, 0.25,
-                5, 0.45,
-                7, 0.38,
+                4, 0.20,
+                5, 0.40,
+                7, 0.35,
               ] as ExpressionSpecification,
               'fill-antialias': true,
             },
           })
 
-          // Fallback layer for raw biomes.geojson (no bufferLevel property)
-          map.addLayer({
-            id: 'biomes-fill-fallback',
-            type: 'fill',
-            source: 'biomes',
-            minzoom: 3,
-            filter: ['!', ['has', 'bufferLevel']] as unknown as ExpressionSpecification,
-            paint: {
-              'fill-color': buildBiomeColour(),
-              'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                3, 0,
-                4, 0.25,
-                5, 0.45,
-                7, 0.38,
-              ] as ExpressionSpecification,
-              'fill-antialias': true,
-            },
-          })
-
-          // Soft blurred edge layer — wide blurry lines along biome boundaries
-          // give the appearance of gradual gradient transitions rather than hard
-          // polygon edges. Only applied to core polygons (bufferLevel 0) or
-          // features without bufferLevel (fallback path).
+          // Soft blurred edge — creates gradual gradient transitions between
+          // biome types rather than hard polygon edges
           map.addLayer({
             id: 'biomes-edge-blur',
             type: 'line',
             source: 'biomes',
             minzoom: 4,
-            filter: ['any',
-              ['==', ['get', 'bufferLevel'], 0],
-              ['!', ['has', 'bufferLevel']],
-            ] as unknown as ExpressionSpecification,
             paint: {
               'line-color': buildBiomeColour(),
               'line-width': ['interpolate', ['linear'], ['zoom'],
-                2, 18,
-                4, 35,
-                7, 55,
+                4, 20,
+                6, 40,
+                8, 55,
               ] as ExpressionSpecification,
               'line-blur': ['interpolate', ['linear'], ['zoom'],
-                2, 12,
-                4, 24,
-                7, 38,
+                4, 16,
+                6, 30,
+                8, 40,
               ] as ExpressionSpecification,
               'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, 0.20,
-                4, 0.30,
-                7, 0.22,
+                4, 0.15,
+                6, 0.22,
+                8, 0.18,
               ] as ExpressionSpecification,
             },
           })

@@ -74,21 +74,6 @@ function ensureGeoData() {
     }
   }
 
-  // Generate blended biome buffer zones if biomes exist but blended file doesn't
-  const biomesPath = join(erasDir, 'biomes.geojson')
-  const blendedPath = join(erasDir, 'biomes-blended.geojson')
-  if (existsSync(biomesPath) && !existsSync(blendedPath)) {
-    console.warn('[startup] biomes-blended.geojson not found — generating buffer zones (this may take a few minutes)...')
-    try {
-      execSync('node shared/eras/generateBiomeBuffers.mjs', {
-        cwd: join(__dirname, '..'),
-        stdio: 'inherit',
-        timeout: 300_000,
-      })
-    } catch (err) {
-      console.warn('[startup] Biome buffer generation failed — falling back to raw biomes.geojson.', err)
-    }
-  }
 }
 
 // Only start server when run directly (not during tests)

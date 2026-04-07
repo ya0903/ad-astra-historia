@@ -720,12 +720,9 @@ gameRouter.get('/ocean', (_req, res) => {
   res.json(result.data)
 })
 
-// GET /api/game/biomes — Natural Earth 10m geographic regions (deserts, forests, tundra…)
-// Prefers biomes-blended.geojson (with gradient buffer rings) if available, falls back to biomes.geojson
+// GET /api/game/biomes — Natural Earth 10m geographic regions (deserts, plains, tundra…)
 gameRouter.get('/biomes', (_req, res) => {
-  const blendedPath = join(ERAS_DIR, 'biomes-blended.geojson')
-  const rawPath = join(ERAS_DIR, 'biomes.geojson')
-  const biomesPath = existsSync(blendedPath) ? blendedPath : rawPath
+  const biomesPath = join(ERAS_DIR, 'biomes.geojson')
   const result = readEraFile(biomesPath)
   if ('notFound' in result) {
     res.status(404).json({ error: 'biomes.geojson not found. Run: node shared/eras/download.mjs' })
