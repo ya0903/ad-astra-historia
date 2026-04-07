@@ -36,8 +36,9 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [panelW, setPanelW] = useState(320)
-  const [panelH, setPanelH] = useState(420)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [panelW, setPanelW] = useState(340)
+  const [panelH, setPanelH] = useState(480)
   const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
   const config = useConfigStore(s => s.config)
   const inbox = useGameStore(s => s.state?.diplomaticInbox ?? [])
@@ -120,11 +121,18 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
 
   const reset = () => { setTargetCountry(''); setMessages([]); setError('') }
 
-  if (!open) {
-    return (
+  // Always render the button. When open, also render the panel as an
+  // absolutely-positioned floater to the LEFT of the button so it doesn't
+  // displace the button column.
+  return (
+    <div className="relative">
       <button
-        onClick={handleOpen}
-        className="relative w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
+        onClick={open ? handleClose : handleOpen}
+        className={`relative w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-lg transition-all ${
+          open
+            ? 'bg-blue-700/70 border-blue-500/60 text-blue-100'
+            : 'bg-[#0d1f3c] border-white/20 hover:bg-blue-900 hover:border-blue-600'
+        }`}
         title={`Diplomatic Chats${pendingProposals.length > 0 ? ` (${pendingProposals.length} pending)` : ''}`}
       >
         🤝
@@ -134,12 +142,10 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           </span>
         )}
       </button>
-    )
-  }
 
-  return (
-    <div className="relative bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
-      style={{ width: panelW, height: panelH }}
+      {open && (
+    <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col z-50"
+      style={{ width: panelW, height: panelH, maxHeight: 'calc(100vh - 80px)' }}
     >
       {/* Resize handle — top-left corner drag */}
       <div
@@ -214,19 +220,20 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           <input
             autoFocus
             placeholder="Search country…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
             className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-blue-500/50 mb-2"
-            onChange={e => {
-              const el = document.getElementById('diplo-list')
-              if (el) el.setAttribute('data-filter', e.target.value.toLowerCase())
-            }}
           />
-          <div id="diplo-list" className="space-y-0.5">
-            {gameContext.countryNames.sort().map(name => (
-              <button key={name} onClick={() => startTalks(name)}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-400 hover:bg-blue-900/30 hover:text-white transition-colors">
-                {name}
-              </button>
-            ))}
+          <div className="space-y-0.5">
+            {gameContext.countryNames
+              .filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .sort()
+              .map(name => (
+                <button key={name} onClick={() => startTalks(name)}
+                  className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-400 hover:bg-blue-900/30 hover:text-white transition-colors">
+                  {name}
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -276,6 +283,8 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
             </button>
           </div>
         </>
+      )}
+    </div>
       )}
     </div>
   )
