@@ -930,7 +930,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const allWorldEvents: WorldTickEvent[] = []
     const newProposals: typeof s.diplomaticInbox = []
     for (let w = 0; w < weeksElapsed; w++) {
-      const result = worldTick(newCountries, worldRelations, newDate, s.allies ?? [], s.playerCountryId)
+      const result = worldTick(newCountries, worldRelations, newDate, s.allies ?? [], s.playerCountryId, s.era)
 
       // Collect proposals directed at the player
       if (result.proposalsForPlayer && result.proposalsForPlayer.length > 0) {
@@ -971,7 +971,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     }
 
     // Convert world events to news items
-    const worldNews = allWorldEvents.map(e => newsFromWorldTickEvent(e))
+    const worldNews = allWorldEvents.map(e => newsFromWorldTickEvent(e, s.era))
 
     // ── Generate news for this tick ───────────────────────────────────────────
     const newNewsItems: NewsItem[] = []

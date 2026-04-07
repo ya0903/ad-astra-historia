@@ -1,5 +1,6 @@
 import type { DisasterEvent, NewsItem, NewsCategory, NewsImportance, TechId, WorldEvent, WorldTickEvent } from './types.js'
 import { MODERN_COUNTRY_DATA } from './countryData.js'
+import { getEraTemplate } from './newsTemplates.js'
 
 // ── Country name lookup ───────────────────────────────────────────────────────
 const COUNTRY_NAMES: Record<string, string> = {
@@ -168,11 +169,21 @@ export function newsFromWorldEvent(event: WorldEvent, date: string): NewsItem {
 }
 
 // ── World tick event news ─────────────────────────────────────────────────
-export function newsFromWorldTickEvent(event: WorldTickEvent): NewsItem {
+export function newsFromWorldTickEvent(event: WorldTickEvent, era?: string): NewsItem {
+  let headline = event.headline
+  if (era) {
+    const templates = getEraTemplate(era, event.type)
+    if (templates.length > 0) {
+      const tpl = templates[Math.floor(Math.random() * templates.length)]
+      headline = tpl
+        .replace('{primary}', countryName(event.primaryCountry ?? 'Unknown'))
+        .replace('{target}', countryName(event.targetCountry ?? 'Unknown'))
+    }
+  }
   return {
     id: event.id.replace('wt', 'news-wt'),
     date: event.date,
-    headline: event.headline,
+    headline,
     body: event.body,
     category: event.category,
     importance: event.importance,

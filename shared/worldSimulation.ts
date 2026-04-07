@@ -1,5 +1,6 @@
 import type { CountryPersonality, Country, WorldTickEvent, WorldTickEventType, NewsCategory, NewsImportance, DiplomaticProposal } from './types.js'
 import { COUNTRY_PERSONALITIES } from './countryPersonalities.js'
+import { HISTORICAL_POLITIES } from './historicalPolities.js'
 import { countryName } from './newsGenerator.js'
 import { MODERN_COUNTRY_DATA } from './countryData.js'
 
@@ -31,7 +32,13 @@ function getRelation(relations: Record<string, number>, a: string, b: string): n
   return relations[relationKey(a, b)] ?? 0
 }
 
-function getPersonality(iso: string): CountryPersonality {
+function getPersonality(iso: string, era?: string): CountryPersonality {
+  if (era) {
+    const slug = iso.toLowerCase().replace(/[^a-z0-9]+/g, '_')
+    const polityKey = `${era}:${slug}`
+    const polity = HISTORICAL_POLITIES[polityKey]
+    if (polity) return polity.personality
+  }
   return COUNTRY_PERSONALITIES[iso] ?? { aggression: 30, diplomacy: 50, economicFocus: 50, stability: 50, unpredictability: 10 }
 }
 
@@ -230,6 +237,7 @@ export function worldTick(
   date: string,
   existingAlliances: string[],
   playerCountryId?: string,
+  era?: string,
 ): WorldTickResult {
   const events: WorldTickEvent[] = []
   const relationDeltas: Record<string, number> = {}
@@ -245,8 +253,8 @@ export function worldTick(
       if (rel >= -20) continue
 
       const tensionScore = Math.abs(rel) / 100 // 0.2 to 1.0
-      const pA = getPersonality(a)
-      const pB = getPersonality(b)
+      const pA = getPersonality(a, era)
+      const pB = getPersonality(b, era)
       const avgAggression = (pA.aggression + pB.aggression) / 200 // 0-1
       // Apply geographic compatibility — distant minor powers don't have border skirmishes
       const compatibility = geoPoliticalCompatibility(a, b)
@@ -259,8 +267,8 @@ export function worldTick(
       const milB = countries[b].stats.military
       const stronger = milA >= milB ? a : b
       const weaker = milA >= milB ? b : a
-      const pStronger = getPersonality(stronger)
-      const pWeaker = getPersonality(weaker)
+      const pStronger = getPersonality(stronger, era)
+      const pWeaker = getPersonality(weaker, era)
       const avgDiplomacy = (pA.diplomacy + pB.diplomacy) / 200
       const avgUnpredictability = (pA.unpredictability + pB.unpredictability) / 40 // 0-1
 
@@ -297,8 +305,8 @@ export function worldTick(
       const rel = getRelation(relations, a, b)
       if (rel < 0) continue
 
-      const pA = getPersonality(a)
-      const pB = getPersonality(b)
+      const pA = getPersonality(a, era)
+      const pB = getPersonality(b, era)
       const avgDiplomacy = (pA.diplomacy + pB.diplomacy) / 200
       const friendliness = (rel + 50) / 150 // normalize 0-100 to ~0.33-1.0
       // Apply geographic + political realism filter — distant minor powers
@@ -377,7 +385,7 @@ export function worldTick(
   // Step 3 — Internal events
   for (const iso of isos) {
     const c = countries[iso]
-    const p = getPersonality(iso)
+    const p = getPersonality(iso, era)
     const { stability, approval, gdp } = c.stats
 
     // Coup attempt: stability < 25, base 2% + modifier
@@ -444,7 +452,7 @@ export function worldTick(
       // Neighbors may condemn or sanction
       for (const iso of isos) {
         if (iso === evt.primaryCountry || iso === evt.targetCountry) continue
-        const p = getPersonality(iso)
+        const p = getPersonality(iso, era)
         // Condemn (diplomatic_incident against aggressor) — 40% * diplomacy
         if (roll(0.4 * p.diplomacy / 100)) {
           chainEvents.push(makeEvent('diplomatic_incident', iso, evt.primaryCountry, date, -5, countries))
