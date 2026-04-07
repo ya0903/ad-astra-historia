@@ -344,7 +344,7 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed z-50 w-[480px] bg-[#050d1a]/95 border border-green-800/60 rounded-lg shadow-2xl backdrop-blur-sm flex flex-col"
-      style={{ bottom: '56px', left: '16px', maxHeight: 'min(320px, calc(100vh - 80px))' }}
+      style={{ bottom: '110px', left: '16px', maxHeight: 'min(360px, calc(100vh - 140px))' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-green-900/40 shrink-0">
@@ -393,6 +393,26 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
           spellCheck={false}
           autoComplete="off"
         />
+      </div>
+
+      {/* Quick action buttons */}
+      <div className="flex flex-wrap gap-1.5 px-3 py-2 border-t border-green-900/40 shrink-0">
+        {[
+          { label: '+50B GDP',     cmd: 'addmoney 50b' },
+          { label: '+500 RP',      cmd: 'rp 500' },
+          { label: 'Insta Build',  cmd: 'instabuild' },
+          { label: 'Insta Research',cmd: 'instaresearch' },
+          { label: 'Yesman',       cmd: 'yesman' },
+          { label: 'God',          cmd: 'god' },
+        ].map(btn => (
+          <button
+            key={btn.label}
+            onClick={() => run(btn.cmd)}
+            className="text-[10px] font-mono px-2 py-1 rounded border border-green-900/60 bg-green-950/40 text-green-300 hover:bg-green-900/60 hover:text-green-200 transition-colors"
+          >
+            {btn.label}
+          </button>
+        ))}
       </div>
     </div>
   )
