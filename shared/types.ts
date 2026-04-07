@@ -174,6 +174,89 @@ export const BUILD_WEEKS: Record<InfrastructureType, number> = {
   high_speed_rail: 260, // 5 years high-speed
 }
 
+/**
+ * Upfront cost (USD) to begin construction. Pulled from player debt when queued.
+ * Real-world reference values where available.
+ */
+export const BUILD_COSTS: Record<InfrastructureType, number> = {
+  // Cities / civic
+  city: 50_000_000_000,            // $50B — major new city
+  capital: 100_000_000_000,        // $100B — purpose-built capital
+  embassy: 200_000_000,            // $200M
+  stadium: 1_500_000_000,          // $1.5B
+  arts_centre: 500_000_000,        // $500M
+  film_studio: 200_000_000,        // $200M
+  emergency_services: 300_000_000, // $300M
+  // Transport
+  port: 5_000_000_000,             // $5B — major deepwater port
+  airport: 8_000_000_000,          // $8B — international airport
+  // Energy
+  solar_farm: 1_000_000_000,       // $1B — utility scale
+  wind_farm: 1_500_000_000,        // $1.5B — offshore wind
+  hydro_dam: 15_000_000_000,       // $15B — large hydro
+  fossil_fuel_plant: 3_000_000_000, // $3B — combined cycle gas
+  nuclear_plant: 25_000_000_000,   // $25B — modern reactor
+  // Military
+  military_base: 2_000_000_000,    // $2B
+  nuclear_silo: 5_000_000_000,     // $5B
+  defence_system: 4_000_000_000,   // $4B — missile defence
+  // Knowledge / tech
+  university: 2_500_000_000,       // $2.5B — research university
+  research_centre: 1_500_000_000,  // $1.5B
+  intelligence_agency: 1_000_000_000, // $1B
+  telecom_node: 500_000_000,       // $500M
+  data_centre: 1_500_000_000,      // $1.5B — hyperscale
+  // Economy
+  financial_institution: 800_000_000, // $800M
+  industrial_zone: 4_000_000_000,  // $4B
+  desalination_plant: 1_500_000_000, // $1.5B
+  // Rail
+  rail_line: 8_000_000_000,        // $8B — typical national rail
+  high_speed_rail: 25_000_000_000, // $25B — HSR like UK HS2
+}
+
+/**
+ * One-time GDP boost (USD) when construction completes.
+ * Represents the immediate economic value created by the new infrastructure.
+ * Generally 60-80% of build cost (positive ROI).
+ */
+export const BUILD_GDP_BOOST: Record<InfrastructureType, number> = {
+  // Cities / civic
+  city: 80_000_000_000,
+  capital: 150_000_000_000,
+  embassy: 100_000_000,
+  stadium: 1_000_000_000,
+  arts_centre: 300_000_000,
+  film_studio: 400_000_000,        // film studios are profitable
+  emergency_services: 200_000_000,
+  // Transport — high ROI infrastructure
+  port: 8_000_000_000,             // ports drive trade
+  airport: 12_000_000_000,         // airports drive tourism + trade
+  // Energy — long-term value
+  solar_farm: 800_000_000,
+  wind_farm: 1_200_000_000,
+  hydro_dam: 20_000_000_000,       // hydro is hugely productive
+  fossil_fuel_plant: 2_500_000_000,
+  nuclear_plant: 35_000_000_000,   // nuclear → energy independence, replaces imports
+  // Military — limited GDP value (defence spending)
+  military_base: 1_000_000_000,
+  nuclear_silo: 2_000_000_000,
+  defence_system: 2_000_000_000,
+  // Knowledge / tech — high long-term value
+  university: 4_000_000_000,       // R&D + skilled workforce
+  research_centre: 2_500_000_000,
+  intelligence_agency: 500_000_000,
+  telecom_node: 800_000_000,
+  data_centre: 3_000_000_000,
+  // Economy — direct GDP
+  financial_institution: 1_500_000_000,
+  industrial_zone: 6_000_000_000,
+  desalination_plant: 1_800_000_000,
+  // Rail — major economic multiplier
+  rail_line: 12_000_000_000,
+  high_speed_rail: 40_000_000_000, // HSR transforms economic geography
+}
+
 export interface BuildProject {
   id: string
   type: InfrastructureType

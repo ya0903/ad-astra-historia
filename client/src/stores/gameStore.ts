@@ -7,7 +7,7 @@ import type {
   SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState, GovernmentType,
   WorldTickEvent,
 } from '@ad-astra/shared/types'
-import { BUILD_WEEKS } from '@ad-astra/shared/types'
+import { BUILD_WEEKS, BUILD_COSTS, BUILD_GDP_BOOST } from '@ad-astra/shared/types'
 import type { Infrastructure } from '@ad-astra/shared/types'
 import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
@@ -543,6 +543,32 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
       }))
 
+    // ── Build completion GDP boost ────────────────────────────────────────────
+    let buildGdpBoost = 0
+    for (const cb of completedBuilds) {
+      buildGdpBoost += BUILD_GDP_BOOST[cb.type] ?? 0
+    }
+    if (buildGdpBoost > 0) {
+      const player = newCountries[s.playerCountryId]
+      if (player) {
+        newCountries[s.playerCountryId] = {
+          ...player,
+          stats: { ...player.stats, gdp: player.stats.gdp + buildGdpBoost },
+        }
+      }
+    }
+
+    // News for completed builds
+    const buildCompletionNews: NewsItem[] = completedBuilds.map(cb => ({
+      id: `news-build-${cb.id}`,
+      date: newDate,
+      headline: `${cb.name} Completed`,
+      body: `New ${cb.type.replace(/_/g, ' ')} now operational. Economic boost: $${((BUILD_GDP_BOOST[cb.type] ?? 0) / 1e9).toFixed(1)}B`,
+      category: 'economy' as any,
+      importance: 'minor' as any,
+      country: s.playerCountryId,
+    }))
+
     // ── Era phase transition check ────────────────────────────────────────────
     const allUnlockedAfter = [...(s.unlockedTechs ?? []), ...completedTechs]
     const newPhase = checkEraPhaseTransition(s.eraPhase ?? 'modern', allUnlockedAfter)
@@ -759,7 +785,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         railLines: [...(s.railLines ?? []), ...newRailLines],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
-        newsItems: [...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
+        newsItems: [...buildCompletionNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
         worldRelations,
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
         ...(newPhase ? { eraPhase: newPhase } : {}),
@@ -819,6 +845,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
     const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
     const newBuilds: BuildProject[] = []
     const blockedRailNewsItems: NewsItem[] = []
+    let totalBuildCost = 0
 
     // Countries friendly to the player: own country + allies + controlled countries
     const friendlyCountries = new Set<string>([
@@ -899,6 +926,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           cities: citiesList,
           waypoints,
         })
+        totalBuildCost += BUILD_COSTS[bp.type] ?? 0
       } else {
         const cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
         const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
@@ -913,6 +941,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           lat: centre ? centre[1] : undefined,
           lng: centre ? centre[0] : undefined,
         })
+        totalBuildCost += BUILD_COSTS[bp.type] ?? 0
       }
     }
 
@@ -968,6 +997,11 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       actionNewsItems.push(newsFromWorldEvent(worldEvent, s.currentDate))
     }
 
+    // ── Apply upfront build cost to debt ──────────────────────────────────────
+    const applyResultsEconomy = totalBuildCost > 0 && s.economy
+      ? { ...s.economy, debt: s.economy.debt + totalBuildCost }
+      : s.economy
+
     return {
       isJumping: false,
       state: {
@@ -978,6 +1012,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         pendingActions: [],
         actionHistory: newHistory,
         buildQueue: [...(s.buildQueue ?? []), ...newBuilds],
+        ...(applyResultsEconomy ? { economy: applyResultsEconomy } : {}),
         newsItems: [...blockedRailNewsItems, ...actionNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         warDamage: results.reduce((dmg, r) => {
           const updated = { ...dmg }
