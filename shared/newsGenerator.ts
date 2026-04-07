@@ -1,4 +1,5 @@
 import type { DisasterEvent, NewsItem, NewsCategory, NewsImportance, TechId, WorldEvent, WorldTickEvent } from './types.js'
+import { MODERN_COUNTRY_DATA } from './countryData.js'
 
 // ── Country name lookup ───────────────────────────────────────────────────────
 const COUNTRY_NAMES: Record<string, string> = {
@@ -19,7 +20,7 @@ const COUNTRY_NAMES: Record<string, string> = {
 }
 
 export function countryName(iso: string): string {
-  return COUNTRY_NAMES[iso] ?? iso
+  return COUNTRY_NAMES[iso] ?? MODERN_COUNTRY_DATA[iso]?.name ?? iso
 }
 
 function uid(prefix: string): string {

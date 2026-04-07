@@ -255,13 +255,19 @@ export default function WorldMap({ children, era }: Props) {
     const keys = new Set<string>()
     let raf = 0
 
-    const PAN_SPEED = 8 // pixels per frame at zoom 2; scales with zoom
+    const PAN_SPEED = 16   // pixels per frame at zoom 2; scales with zoom
+    const ACCEL_FRAMES = 10 // frames to reach full speed
+    let frameCount = 0
 
     const tick = () => {
-      if (keys.size === 0) { raf = 0; return }
+      if (keys.size === 0) { raf = 0; frameCount = 0; return }
+      frameCount++
       const zoom = mapInstance.getZoom()
-      // Pan speed inversely scales with zoom so movement feels consistent
-      const speed = PAN_SPEED / Math.pow(1.5, Math.max(0, zoom - 2))
+      // Smooth acceleration ramp: 0→1 over ACCEL_FRAMES
+      const accel = Math.min(1, frameCount / ACCEL_FRAMES)
+      // Pan speed inversely scales with zoom so movement feels consistent;
+      // use 1.3 instead of 1.5 so it doesn't slow down as aggressively when zoomed in
+      const speed = PAN_SPEED * accel / Math.pow(1.3, Math.max(0, zoom - 2))
       let dx = 0, dy = 0
       if (keys.has('ArrowLeft')  || keys.has('a') || keys.has('A')) dx -= speed
       if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) dx += speed
@@ -284,7 +290,7 @@ export default function WorldMap({ children, era }: Props) {
 
     const onKeyUp = (e: KeyboardEvent) => {
       keys.delete(e.key)
-      if (keys.size === 0) { cancelAnimationFrame(raf); raf = 0 }
+      if (keys.size === 0) { cancelAnimationFrame(raf); raf = 0; frameCount = 0 }
     }
 
     window.addEventListener('keydown', onKeyDown)

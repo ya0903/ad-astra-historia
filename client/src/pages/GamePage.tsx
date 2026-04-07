@@ -843,7 +843,7 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
       )}
 
       {/* ── Map area ── */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden select-none">
         {activePlanet !== 'earth' ? (
           <PlanetMap
             planet={activePlanet as 'moon' | 'mars'}
