@@ -44,6 +44,7 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const inbox = useGameStore(s => s.state?.diplomaticInbox ?? [])
   const acceptProposal = useGameStore(s => s.acceptProposal)
   const declineProposal = useGameStore(s => s.declineProposal)
+  const addNewsItem = useGameStore(s => s.addNewsItem)
   const countries = useGameStore(s => s.state?.countries ?? {})
   const pendingProposals = inbox.filter(p => p.status === 'pending')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -73,6 +74,15 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
       content: `Greetings from ${country}. What does ${gameContext.playerCountry} wish to discuss?`,
     }])
     setError('')
+    // Add a news headline that the talks have begun
+    addNewsItem({
+      id: `news-talks-${Date.now()}`,
+      date: gameContext.currentDate,
+      headline: `${gameContext.playerCountry} Opens Diplomatic Talks with ${country}`,
+      body: `Officials from both nations have begun bilateral discussions. Topics on the agenda are not yet public.`,
+      category: 'diplomacy',
+      importance: 'minor',
+    })
   }
 
   const sendMessage = async () => {
@@ -111,7 +121,18 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
       history.push({ role: 'user', content: msg })
 
       const reply = await callAI(config, system, history)
-      setMessages(m => [...m, { role: 'country', country: targetCountry, content: reply.trim() }])
+      const trimmedReply = reply.trim()
+      setMessages(m => [...m, { role: 'country', country: targetCountry, content: trimmedReply }])
+      // Add a news headline summarising the latest exchange
+      const shortMsg = msg.length > 80 ? msg.slice(0, 80) + '…' : msg
+      addNewsItem({
+        id: `news-chat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        date: gameContext.currentDate,
+        headline: `${gameContext.playerCountry}-${targetCountry} Talks Continue`,
+        body: `${gameContext.playerCountry} raised: "${shortMsg}". ${targetCountry} responded.`,
+        category: 'diplomacy',
+        importance: 'minor',
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'AI error')
     } finally {

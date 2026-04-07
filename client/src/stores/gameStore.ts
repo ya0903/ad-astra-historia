@@ -194,6 +194,8 @@ interface GameStoreState {
   // Diplomatic inbox
   acceptProposal: (proposalId: string) => void
   declineProposal: (proposalId: string) => void
+  // News
+  addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
   setEmpireName: (name: string) => void
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
@@ -1147,6 +1149,16 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         allies: newAllies,
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+      },
+    }
+  }),
+
+  addNewsItem: (item) => set(store => {
+    if (!store.state) return {}
+    return {
+      state: {
+        ...store.state,
+        newsItems: [item, ...(store.state.newsItems ?? [])].slice(0, 200),
       },
     }
   }),
