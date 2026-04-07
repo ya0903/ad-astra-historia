@@ -28,42 +28,38 @@ const ANCIENT_CENTER: [number, number] = [28, 38]  // Mediterranean fallback
 const ANCIENT_ZOOM = 3.5
 
 // ── Biome colours ──────────────────────────────────────────────────────────────
-// FEATURECLA values from ne_10m_geography_regions_polys
+// FEATURECLA values from ne_10m_geography_regions_polys (actual values in data)
 // Colors tuned for the dark (#0a1628) base: semi-transparent so the hillshade
 // topography bleeds through and gives a textured, painterly look.
 const BIOME_COLOURS: Record<string, string> = {
   // Arid / desert — warm ochre/sand
   'Desert':                  'rgba(195,155,55,0.62)',
-  'Dune':                    'rgba(210,180,75,0.52)',
-  'Arid':                    'rgba(195,155,55,0.52)',
   // Cold / polar
   'Tundra':                  'rgba(155,195,225,0.44)',
-  'Ice Shelf/Tundra':        'rgba(185,220,250,0.50)',
-  'Glaciated Areas':         'rgba(210,235,255,0.55)',
-  // Forest — rich greens, varying shade by type
-  'Forest':                  'rgba(28,100,48,0.62)',
-  'Rain Forest':             'rgba(18,120,55,0.68)',
-  'Tropical Rainforest':     'rgba(18,120,55,0.68)',
-  'Coniferous Forest':       'rgba(35,90,50,0.58)',
-  'Deciduous Forest':        'rgba(55,120,48,0.58)',
-  // Grassland / steppe
-  'Grassland':               'rgba(105,152,48,0.48)',
-  'Steppe':                  'rgba(138,162,62,0.44)',
-  'Savanna':                 'rgba(158,158,52,0.48)',
-  'Prairie':                 'rgba(118,158,50,0.46)',
-  'Plains':                  'rgba(125,158,72,0.42)',
+  // Grassland / plains
+  'Plain':                   'rgba(105,152,48,0.48)',
+  'Lowland':                 'rgba(118,158,50,0.46)',
   // Wetland
   'Wetlands':                'rgba(28,128,118,0.58)',
-  'Marsh':                   'rgba(35,138,110,0.58)',
-  'Swamp':                   'rgba(25,118,100,0.55)',
-  // Highland / mountain
-  'Alpine':                  'rgba(148,168,192,0.50)',
-  'Highland':                'rgba(138,150,172,0.48)',
-  // Shrubland / Mediterranean
-  'Mediterranean Shrubland': 'rgba(158,128,62,0.46)',
-  'Shrubland':               'rgba(148,125,58,0.44)',
-  // Farmland
-  'Agricultural':            'rgba(138,168,62,0.44)',
+  'Delta':                   'rgba(35,138,110,0.55)',
+  // Highland / mountain — grey-blue
+  'Range/mtn':               'rgba(148,168,192,0.50)',
+  'Plateau':                 'rgba(138,150,172,0.45)',
+  'Foothills':               'rgba(128,145,165,0.42)',
+  // Valleys and basins — muted greens
+  'Valley':                  'rgba(65,120,58,0.48)',
+  'Basin':                   'rgba(100,140,65,0.42)',
+  // Depression — dry/arid feel
+  'Depression':              'rgba(175,145,55,0.45)',
+  // Gorge — rocky grey
+  'Gorge':                   'rgba(120,130,150,0.45)',
+  // Geographic areas — subtle neutral
+  'Geoarea':                 'rgba(110,130,100,0.30)',
+  // Coast / peninsula — subtle blue-grey
+  'Coast':                   'rgba(80,120,150,0.30)',
+  'Pen/cape':                'rgba(90,130,145,0.28)',
+  'Peninsula':               'rgba(90,130,145,0.28)',
+  'Isthmus':                 'rgba(85,125,140,0.30)',
 }
 
 function buildBiomeColour(): ExpressionSpecification {

@@ -81,7 +81,7 @@ export default function EspionagePanel({ isOpen, onOpen, onClose }: EspionagePan
       <button
         onClick={() => isOpen ? onClose() : onOpen()}
         className={`w-9 h-9 rounded-full border flex items-center justify-center text-base transition-colors shadow-lg ${
-          isOpen ? 'bg-slate-700/60 border-slate-400/50' : 'bg-[#0d1829]/90 border-white/10 hover:bg-white/[0.08]'
+          isOpen ? 'bg-purple-700/60 border-purple-500/50' : 'bg-[#0d1829]/90 border-white/10 hover:bg-white/[0.08]'
         }`}
         title="Intelligence & Espionage"
       >
@@ -89,8 +89,7 @@ export default function EspionagePanel({ isOpen, onOpen, onClose }: EspionagePan
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-11 right-0 w-80 bg-[#080f1e]/97 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden"
-          style={{ maxHeight: 'calc(100vh - 160px)' }}>
+        <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
 
           {/* Header */}
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between shrink-0">
