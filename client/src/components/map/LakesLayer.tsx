@@ -14,19 +14,21 @@ export default function LakesLayer() {
       .then(geojson => {
         if (map.getSource('lakes')) return
         map.addSource('lakes', { type: 'geojson', data: geojson })
+        // Render lakes above country fills
+        const beforeLayer = map.getLayer('country-hover') ? 'country-hover' : undefined
         map.addLayer({
           id: 'lakes-fill',
           type: 'fill',
           source: 'lakes',
           minzoom: 3,
           paint: {
-            'fill-color': '#0e2a4a',
+            'fill-color': '#0c2240',
             'fill-opacity': ['interpolate', ['linear'], ['zoom'],
               3, 0.5,
               6, 0.7,
             ] as never,
           },
-        })
+        }, beforeLayer)
         map.addLayer({
           id: 'lakes-outline',
           type: 'line',

@@ -65,12 +65,12 @@ export default function CountryLayer() {
           paint: {
             'fill-color': ['coalesce', ['get', 'fill_colour'], '#1a4a7a'] as ExpressionSpecification,
             'fill-opacity': ['step', ['zoom'],
-              0.75,
-              3, 0.70,
-              4, 0.62,
-              5, 0.52,
-              6, 0.40,
-              8, 0.22,
+              0.35,
+              3, 0.30,
+              4, 0.25,
+              5, 0.22,
+              6, 0.18,
+              8, 0.12,
             ] as ExpressionSpecification,
           },
         })

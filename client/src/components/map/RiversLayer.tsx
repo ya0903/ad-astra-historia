@@ -14,6 +14,8 @@ export default function RiversLayer() {
       .then(geojson => {
         if (map.getSource('rivers')) return
         map.addSource('rivers', { type: 'geojson', data: geojson })
+        // Render rivers above country fills but below labels
+        const beforeLayer = map.getLayer('country-hover') ? 'country-hover' : undefined
         map.addLayer({
           id: 'rivers-line',
           type: 'line',
@@ -39,12 +41,12 @@ export default function RiversLayer() {
               ],
             ] as never,
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
-              3, 0.3,
-              5, 0.5,
-              8, 0.6,
+              3, 0.45,
+              5, 0.65,
+              8, 0.75,
             ] as never,
           },
-        })
+        }, beforeLayer)
       })
       .catch(() => { /* rivers.geojson not downloaded yet */ })
 
