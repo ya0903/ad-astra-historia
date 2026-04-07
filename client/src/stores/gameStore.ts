@@ -611,6 +611,28 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       }
     }
 
+    // ── RP generation (every week) ────────────────────────────────────────
+    const playerCountry = newCountries[s.playerCountryId]
+    if (playerCountry) {
+      const unlockedCount = (s.unlockedTechs ?? []).length
+      const universityCount = (s.infrastructureMap ?? []).filter(i => i.type === 'university').length
+      const educationIndex = s.society?.educationIndex ?? 55
+      const stability = playerCountry.stats.stability ?? 70
+
+      const base = 5
+      const uniBonus = universityCount * 3
+      const techBonus = unlockedCount * 0.5
+      const educationMultiplier = 0.5 + (educationIndex / 100)
+      const stabilityMultiplier = stability < 40 ? 0.5 : 1.0
+
+      const weeklyRP = Math.floor((base + uniBonus + techBonus) * educationMultiplier * stabilityMultiplier)
+      const totalRP = weeklyRP * weeksElapsed
+
+      const playerStats = { ...playerCountry.stats }
+      playerStats.researchPoints = (playerStats.researchPoints ?? 0) + totalRP
+      newCountries[s.playerCountryId] = { ...playerCountry, stats: playerStats }
+    }
+
     // ── World tick simulation (every week) ────────────────────────────────
     const worldRelations = { ...(s.worldRelations ?? {}) }
 
@@ -1008,14 +1030,35 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
   startResearch: (techId, weeksRequired) => set(store => {
     if (!store.state) return {}
+    const s = store.state
+
+    // Find the tech in all trees to get its cost
+    const allTechNodes = [...TECH_TREE, ...ANCIENT_TECH_TREE, ...INDUSTRIAL_TECH_TREE]
+    const tech = allTechNodes.find(t => t.id === techId)
+    const cost = tech?.cost ?? 0
+
+    // Check player has enough RP
+    const playerCountry = s.countries[s.playerCountryId]
+    const currentRP = playerCountry?.stats.researchPoints ?? 0
+    if (currentRP < cost) return {}
+
+    // Deduct the RP cost
+    const newCountries = { ...s.countries }
+    if (playerCountry) {
+      newCountries[s.playerCountryId] = {
+        ...playerCountry,
+        stats: { ...playerCountry.stats, researchPoints: currentRP - cost },
+      }
+    }
+
     const project: ResearchProject = {
       id: `rq-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       techId,
       weeksRemaining: weeksRequired,
       totalWeeks: weeksRequired,
-      startDate: store.state.currentDate,
+      startDate: s.currentDate,
     }
-    return { state: { ...store.state, researchQueue: [...(store.state.researchQueue ?? []), project] } }
+    return { state: { ...s, countries: newCountries, researchQueue: [...(s.researchQueue ?? []), project] } }
   }),
 
   instaResearch: () => set(store => {
