@@ -148,6 +148,7 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
 
   const [hovered, setHovered] = useState<TechId | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
+  const [activeCategory, setActiveCategory] = useState<TechCategory>('infrastructure')
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape
@@ -247,142 +248,151 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
         <button onClick={onClose} className="text-gray-500 hover:text-white text-lg">✕</button>
       </div>
 
-      {/* ── Scrollable 6-column layout ───────────────────────────────────── */}
-      <div ref={containerRef} className="flex-1 overflow-auto">
-        <div className="flex min-w-fit" style={{ minHeight: maxColumnHeight + 32 }}>
-          {COLUMN_ORDER.map(cat => {
-            const meta = CATEGORY_META[cat]
-            const layout = categoryLayouts.get(cat)!
-            const { nodes, positions, depths, totalHeight } = layout
-            // Column width: enough to fit widest row
-            const maxNodesInRow = (() => {
-              const byDepth = new Map<number, number>()
-              for (const n of nodes) {
-                const d = depths.get(n.id) ?? 0
-                byDepth.set(d, (byDepth.get(d) ?? 0) + 1)
-              }
-              return Math.max(1, ...byDepth.values())
-            })()
-            const columnWidth = Math.max(140, maxNodesInRow * NODE_SLOT_W + 16)
-            const columnCenterX = columnWidth / 2
+      {/* ── Category tabs ───────────────────────────────────────────────── */}
+      <div className="flex border-b border-white/10 bg-[#080f1e]/80 shrink-0">
+        {COLUMN_ORDER.map(cat => {
+          const meta = CATEGORY_META[cat]
+          const isActive = activeCategory === cat
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`flex-1 py-2.5 text-xs font-medium uppercase tracking-wider transition-colors border-b-2 ${
+                isActive
+                  ? `${meta.activeClass} border-current`
+                  : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/[0.03]'
+              }`}
+            >
+              <span className="mr-1">{meta.icon}</span>
+              {meta.label}
+            </button>
+          )
+        })}
+      </div>
 
-            return (
-              <div
-                key={cat}
-                className="flex-shrink-0 border-r border-white/5 last:border-r-0 relative"
-                style={{ width: columnWidth, minHeight: totalHeight }}
+      {/* ── Active category content (vertical scroll) ────────────────────── */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto">
+        {(() => {
+          const cat = activeCategory
+          const meta = CATEGORY_META[cat]
+          const layout = categoryLayouts.get(cat)!
+          const { nodes, positions, depths, totalHeight } = layout
+          const maxNodesInRow = (() => {
+            const byDepth = new Map<number, number>()
+            for (const n of nodes) {
+              const d = depths.get(n.id) ?? 0
+              byDepth.set(d, (byDepth.get(d) ?? 0) + 1)
+            }
+            return Math.max(1, ...byDepth.values())
+          })()
+          const columnWidth = Math.max(300, maxNodesInRow * NODE_SLOT_W + 32)
+
+          return (
+            <div className="relative mx-auto" style={{ width: columnWidth, minHeight: totalHeight + 32 }}>
+              {/* SVG lines */}
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                style={{ width: columnWidth, height: totalHeight + 32 }}
               >
-                {/* Column header */}
-                <div className="sticky top-0 z-10 bg-[#080f1e]/95 backdrop-blur-sm border-b border-white/8 px-2 py-2 text-center">
-                  <span className="text-sm">{meta.icon}</span>
-                  <span className="text-[11px] font-semibold text-gray-300 ml-1">{meta.label}</span>
-                </div>
-
-                {/* SVG lines within column */}
-                <svg
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ width: columnWidth, height: Math.max(totalHeight, maxColumnHeight), top: 0, left: 0 }}
-                >
-                  {nodes.map(node => {
-                    const toPos = positions.get(node.id)
-                    if (!toPos) return null
-                    const nodeIdsInCat = new Set(nodes.map(n => n.id))
-                    return node.prerequisites
-                      .filter(pid => nodeIdsInCat.has(pid))
-                      .map(pid => {
-                        const fromPos = positions.get(pid)
-                        if (!fromPos) return null
-                        const x1 = columnCenterX + fromPos.x
-                        const y1 = fromPos.y + NODE_SIZE / 2
-                        const x2 = columnCenterX + toPos.x
-                        const y2 = toPos.y - NODE_SIZE / 2
-                        const cpY = (y2 - y1) * 0.4
-                        return (
-                          <path
-                            key={`${pid}->${node.id}`}
-                            d={`M ${x1} ${y1} C ${x1} ${y1 + cpY}, ${x2} ${y2 - cpY}, ${x2} ${y2}`}
-                            fill="none"
-                            stroke={meta.color}
-                            strokeWidth={1.2}
-                            strokeOpacity={0.3}
-                            strokeLinecap="round"
-                          />
-                        )
-                      })
-                  })}
-                </svg>
-
-                {/* Nodes */}
-                {nodes.map(tech => {
-                  const pos = positions.get(tech.id)
-                  if (!pos) return null
-                  const nodeState = getNodeState(tech)
-                  const icon = getTechIcon(tech)
-                  const remainingWeeks = getRemainingWeeks(tech.id)
-
-                  // State-based classes
-                  let circleClasses = ''
-                  let nameColorClass = 'text-gray-500'
-                  let cursor = 'cursor-default'
-
-                  switch (nodeState) {
-                    case 'locked':
-                      circleClasses = 'bg-white/[0.04] border-white/10 opacity-50'
-                      nameColorClass = 'text-gray-600'
-                      break
-                    case 'available':
-                      circleClasses = `bg-white/[0.08] ${meta.borderColor} shadow-[0_0_8px_0px_${meta.color}40]`
-                      nameColorClass = 'text-gray-300'
-                      cursor = 'cursor-pointer'
-                      break
-                    case 'researching':
-                      circleClasses = 'bg-blue-950/60 border-blue-500/80'
-                      nameColorClass = 'text-blue-300'
-                      break
-                    case 'unlocked':
-                      circleClasses = 'bg-green-900/60 border-green-500/60'
-                      nameColorClass = 'text-green-300'
-                      break
-                  }
-
-                  return (
-                    <div
-                      key={tech.id}
-                      className="absolute flex flex-col items-center"
-                      style={{
-                        left: columnCenterX + pos.x - NODE_SLOT_W / 2,
-                        top: pos.y - NODE_SIZE / 2,
-                        width: NODE_SLOT_W,
-                      }}
-                    >
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-200 ${circleClasses} ${cursor}`}
-                        onMouseEnter={() => setHovered(tech.id)}
-                        onMouseLeave={() => setHovered(null)}
-                        onClick={() => nodeState === 'available' && currentRP >= tech.cost && startResearch(tech.id, tech.researchWeeks)}
-                        style={nodeState === 'researching' ? { animation: 'pulse 2s infinite' } : nodeState === 'available' ? { boxShadow: `0 0 10px 2px ${meta.color}30` } : {}}
-                      >
-                        {icon}
-                      </div>
-                      <span className={`text-[10px] text-center leading-tight mt-1 max-w-[72px] line-clamp-2 ${nameColorClass}`}>
-                        {tech.name}
-                      </span>
-                      {nodeState === 'researching' && (
-                        <span className="text-[9px] text-blue-400 mt-0.5">{formatWeeks(remainingWeeks)}</span>
-                      )}
-                    </div>
-                  )
+                {nodes.map(node => {
+                  const toPos = positions.get(node.id)
+                  if (!toPos) return null
+                  const nodeIdsInCat = new Set(nodes.map(n => n.id))
+                  return node.prerequisites
+                    .filter(pid => nodeIdsInCat.has(pid))
+                    .map(pid => {
+                      const fromPos = positions.get(pid)
+                      if (!fromPos) return null
+                      const cx = columnWidth / 2
+                      const x1 = cx + fromPos.x
+                      const y1 = fromPos.y + NODE_SIZE / 2
+                      const x2 = cx + toPos.x
+                      const y2 = toPos.y - NODE_SIZE / 2
+                      const cpY = (y2 - y1) * 0.4
+                      return (
+                        <path
+                          key={`${pid}->${node.id}`}
+                          d={`M ${x1} ${y1} C ${x1} ${y1 + cpY}, ${x2} ${y2 - cpY}, ${x2} ${y2}`}
+                          fill="none"
+                          stroke={meta.color}
+                          strokeWidth={1.2}
+                          strokeOpacity={0.3}
+                          strokeLinecap="round"
+                        />
+                      )
+                    })
                 })}
+              </svg>
 
-                {nodes.length === 0 && (
-                  <div className="flex items-center justify-center h-32 text-gray-600 text-xs">
-                    No techs
+              {/* Nodes */}
+              {nodes.map(tech => {
+                const pos = positions.get(tech.id)
+                if (!pos) return null
+                const nodeState = getNodeState(tech)
+                const icon = getTechIcon(tech)
+                const remainingWeeks = getRemainingWeeks(tech.id)
+
+                let circleClasses = ''
+                let nameColorClass = 'text-gray-500'
+                let cursor = 'cursor-default'
+
+                switch (nodeState) {
+                  case 'locked':
+                    circleClasses = 'bg-white/[0.04] border-white/10 opacity-50'
+                    nameColorClass = 'text-gray-600'
+                    break
+                  case 'available':
+                    circleClasses = `bg-white/[0.08] ${meta.borderColor} shadow-[0_0_8px_0px_${meta.color}40]`
+                    nameColorClass = 'text-gray-300'
+                    cursor = 'cursor-pointer'
+                    break
+                  case 'researching':
+                    circleClasses = 'bg-blue-950/60 border-blue-500/80'
+                    nameColorClass = 'text-blue-300'
+                    break
+                  case 'unlocked':
+                    circleClasses = 'bg-green-900/60 border-green-500/60'
+                    nameColorClass = 'text-green-300'
+                    break
+                }
+
+                return (
+                  <div
+                    key={tech.id}
+                    className="absolute flex flex-col items-center"
+                    style={{
+                      left: columnWidth / 2 + pos.x - NODE_SLOT_W / 2,
+                      top: pos.y - NODE_SIZE / 2,
+                      width: NODE_SLOT_W,
+                    }}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-200 ${circleClasses} ${cursor}`}
+                      onMouseEnter={() => setHovered(tech.id)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => nodeState === 'available' && currentRP >= tech.cost && startResearch(tech.id, tech.researchWeeks)}
+                      style={nodeState === 'researching' ? { animation: 'pulse 2s infinite' } : nodeState === 'available' ? { boxShadow: `0 0 10px 2px ${meta.color}30` } : {}}
+                    >
+                      {icon}
+                    </div>
+                    <span className={`text-[10px] text-center leading-tight mt-1 max-w-[72px] line-clamp-2 ${nameColorClass}`}>
+                      {tech.name}
+                    </span>
+                    {nodeState === 'researching' && (
+                      <span className="text-[9px] text-blue-400 mt-0.5">{formatWeeks(remainingWeeks)}</span>
+                    )}
                   </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+
+              {nodes.length === 0 && (
+                <div className="flex items-center justify-center h-32 text-gray-600 text-xs">
+                  No techs available in this category
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── Hover tooltip ────────────────────────────────────────────────── */}
