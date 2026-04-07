@@ -22,6 +22,7 @@ interface RailDrawState {
   addStation: (station: RailStation) => void
   removeStation: (id: string) => void
   upgradeStation: (id: string) => void
+  renameStation: (id: string, name: string) => void
   cancel: () => void
   reset: () => void
 }
@@ -44,6 +45,9 @@ export const useRailDrawStore = create<RailDrawState>((set) => ({
   removeStation: (id) => set(s => ({ stations: s.stations.filter(x => x.id !== id) })),
   upgradeStation: (id) => set(s => ({
     stations: s.stations.map(x => x.id === id ? { ...x, level: Math.min(5, x.level + 1) } : x),
+  })),
+  renameStation: (id, name) => set(s => ({
+    stations: s.stations.map(x => x.id === id ? { ...x, name } : x),
   })),
   cancel: () => set({ mode: 'idle', waypoints: [], stations: [], error: null }),
   reset: () => set({ mode: 'idle', waypoints: [], stations: [], borderValid: true, error: null }),

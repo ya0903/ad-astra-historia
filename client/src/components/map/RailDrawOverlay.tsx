@@ -18,6 +18,7 @@ const SOURCE_ID = 'rail-draft'
 const LINE_LAYER = 'rail-draft-line'
 const POINTS_LAYER = 'rail-draft-points'
 const STATIONS_LAYER = 'rail-draft-stations'
+const STATIONS_LABEL_LAYER = 'rail-draft-station-labels'
 
 function interpolatePath(tool: string, waypoints: LngLat[]): LngLat[] {
   if (waypoints.length < 2) return waypoints
@@ -155,13 +156,13 @@ export default function RailDrawOverlay() {
         properties: { kind: 'waypoint' },
       })
     }
-    for (const st of stations) {
+    stations.forEach((st, i) => {
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [st.lng, st.lat] },
-        properties: { kind: 'station', name: st.name, level: st.level },
+        properties: { kind: 'station', name: st.name, level: st.level, label: String(i + 1) },
       })
-    }
+    })
 
     const data: FeatureCollection = { type: 'FeatureCollection', features }
 
@@ -193,16 +194,34 @@ export default function RailDrawOverlay() {
           'circle-stroke-width': 2,
         },
       })
+      // Stations: bigger filled circle so they're clearly distinct from waypoints
       map.addLayer({
         id: STATIONS_LAYER,
         type: 'circle',
         source: SOURCE_ID,
         filter: ['==', ['get', 'kind'], 'station'],
         paint: {
-          'circle-radius': 6,
-          'circle-color': '#ffffff',
-          'circle-stroke-color': colour,
-          'circle-stroke-width': 3,
+          'circle-radius': 12,
+          'circle-color': '#a855f7',
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2.5,
+        },
+      })
+      // Station number label inside the circle
+      map.addLayer({
+        id: STATIONS_LABEL_LAYER,
+        type: 'symbol',
+        source: SOURCE_ID,
+        filter: ['==', ['get', 'kind'], 'station'],
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 12,
+          'text-font': ['Noto Sans Regular'],
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
+        paint: {
+          'text-color': '#ffffff',
         },
       })
     }
@@ -217,9 +236,10 @@ export default function RailDrawOverlay() {
   useEffect(() => {
     if (!map) return
     if (mode !== 'idle') return
+    if (map.getLayer(STATIONS_LABEL_LAYER)) map.removeLayer(STATIONS_LABEL_LAYER)
+    if (map.getLayer(STATIONS_LAYER)) map.removeLayer(STATIONS_LAYER)
     if (map.getLayer(LINE_LAYER)) map.removeLayer(LINE_LAYER)
     if (map.getLayer(POINTS_LAYER)) map.removeLayer(POINTS_LAYER)
-    if (map.getLayer(STATIONS_LAYER)) map.removeLayer(STATIONS_LAYER)
     if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID)
   }, [map, mode])
 

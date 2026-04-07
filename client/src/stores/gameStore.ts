@@ -1302,6 +1302,26 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           }
           return acc
         }, s.controlledRegions ?? []),
+        railLines: (() => {
+          // Apply station upgrades from action results to existing rail lines
+          const upgrades = results
+            .filter(r => r.outcome !== 'failure' && r.upgradeRailStation)
+            .map(r => r.upgradeRailStation!)
+          if (upgrades.length === 0) return s.railLines
+          return s.railLines.map(rail => {
+            if (rail.countryId !== pid || !rail.stations) return rail
+            let changed = false
+            const newStations = rail.stations.map(stn => {
+              const match = upgrades.find(u => stn.name.toLowerCase().includes(u.stationName.toLowerCase()) || u.stationName.toLowerCase().includes(stn.name.toLowerCase()))
+              if (!match) return stn
+              const targetLvl = Math.max(1, Math.min(5, match.targetLevel))
+              if (targetLvl <= stn.level) return stn
+              changed = true
+              return { ...stn, level: targetLvl }
+            })
+            return changed ? { ...rail, stations: newStations } : rail
+          })
+        })(),
         nationalisedResources: results.reduce((acc, r) => {
           if (r.outcome === 'failure' || !r.nationaliseResource) return acc
           const nr = r.nationaliseResource

@@ -600,6 +600,10 @@ export interface ActionResult {
     extractionLevel?: number   // 1-10 — default 3 if unset
     exportsAllowed?: boolean   // default true
   }
+  upgradeRailStation?: {       // upgrade an existing rail station's level
+    stationName: string        // station name to match (e.g. "Karachi Central")
+    targetLevel: number        // 1-5
+  }
   buildProject?: { type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string; targetLevel?: number }  // single build (legacy)
   buildProjects?: Array<{ type: InfrastructureType; name: string; city?: string; fromCity?: string; toCity?: string; cities?: string[]; hostCountry?: string; targetLevel?: number }> // multiple builds from one action
   nuclearStrike?: string[]     // ISO_A3 list of countries hit by nuclear strike

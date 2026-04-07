@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useRailDrawStore, useGameStore } from '../stores'
 import {
   interpolateStraight, interpolateBend, interpolateDoubleBend, interpolateSquiggle,
@@ -43,6 +43,11 @@ export default function RailDrawPanel() {
   const reset = useRailDrawStore(s => s.reset)
   const enterStationMode = useRailDrawStore(s => s.enterStationMode)
   const addStation = useRailDrawStore(s => s.addStation)
+  const removeStation = useRailDrawStore(s => s.removeStation)
+  const upgradeStation = useRailDrawStore(s => s.upgradeStation)
+  const renameStation = useRailDrawStore(s => s.renameStation)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   const commitDrawnRail = useGameStore(s => s.commitDrawnRail)
 
@@ -110,7 +115,10 @@ export default function RailDrawPanel() {
       {mode === 'drawing' && (
         <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300">New Rail Line</h3>
+            <div>
+              <p className="text-[10px] text-purple-400 font-semibold tracking-widest">STEP 1 / 2</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">🛤️ Draw Track Path</h3>
+            </div>
             <span className="text-[10px] text-gray-500">Esc cancel · Ctrl+Z undo</span>
           </div>
 
@@ -195,8 +203,11 @@ export default function RailDrawPanel() {
       {mode === 'stationing' && (
         <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300">Place Stations</h3>
-            <span className="text-[10px] text-gray-500">Click line to add station</span>
+            <div>
+              <p className="text-[10px] text-purple-400 font-semibold tracking-widest">STEP 2 / 2</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">📍 Place Stations</h3>
+            </div>
+            <span className="text-[10px] text-gray-500">Click line to add</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-xs">
@@ -214,15 +225,73 @@ export default function RailDrawPanel() {
             </div>
           </div>
 
+          {/* Station list */}
+          <div className="bg-white/[0.03] rounded-lg border border-white/10 max-h-40 overflow-y-auto">
+            {stations.length === 0 ? (
+              <div className="px-3 py-4 text-center text-[11px] text-gray-500 italic">
+                No stations placed yet.<br />
+                Click anywhere on the line to add a stop.
+              </div>
+            ) : (
+              <ul className="divide-y divide-white/5">
+                {stations.map((s, i) => {
+                  const isEditing = editingId === s.id
+                  const commitRename = () => {
+                    if (editText.trim()) renameStation(s.id, editText.trim())
+                    setEditingId(null)
+                  }
+                  return (
+                    <li key={s.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/[0.04]">
+                      <span className="w-5 h-5 rounded-full bg-purple-700/60 border border-purple-400 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                      {isEditing ? (
+                        <input
+                          autoFocus
+                          value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') commitRename()
+                            if (e.key === 'Escape') setEditingId(null)
+                          }}
+                          className="flex-1 bg-white/10 border border-purple-500/50 rounded px-1.5 py-0.5 text-xs text-white outline-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setEditingId(s.id); setEditText(s.name) }}
+                          className="flex-1 text-left text-xs text-gray-200 hover:text-purple-300 truncate"
+                          title="Click to rename"
+                        >{s.name}</button>
+                      )}
+                      <span className="text-[9px] text-gray-500 shrink-0">L{s.level}</span>
+                      <button
+                        onClick={() => upgradeStation(s.id)}
+                        disabled={s.level >= 5}
+                        className="text-[11px] text-gray-500 hover:text-amber-400 px-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={s.level >= 5 ? 'Max level' : `Upgrade to L${s.level + 1}`}
+                      >▲</button>
+                      <button
+                        onClick={() => removeStation(s.id)}
+                        className="text-[11px] text-gray-500 hover:text-red-400 px-1"
+                        title="Remove station"
+                      >✕</button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={cancel}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-gray-300 hover:text-white"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-gray-300 hover:text-red-300"
             >Cancel Line</button>
             <button
               onClick={handleFinalise}
-              className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-700/70 border border-purple-400 text-white hover:bg-purple-600/80"
-            >Finalise</button>
+              className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-700/70 border border-emerald-400 text-white hover:bg-emerald-600/80"
+            >Finalise →</button>
           </div>
         </div>
       )}
