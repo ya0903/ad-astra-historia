@@ -7,12 +7,11 @@ import type { GameState } from '@ad-astra/shared/types'
 
 const FILENAME_REGEX = /^[\w\-]+$/
 
-function requireAuth(req: Request, res: Response): string | null {
+/** Returns the authenticated userId, or 'guest' for unauthenticated requests. */
+function optionalAuth(req: Request): string {
   const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) { res.status(401).json({ error: 'Login required' }); return null }
-  const userId = resolveSession(token)
-  if (!userId) { res.status(401).json({ error: 'Session expired — please log in again' }); return null }
-  return userId
+  if (!token) return 'guest'
+  return resolveSession(token) ?? 'guest'
 }
 
 export function createSavesRouter(savesDir: string) {
@@ -20,8 +19,7 @@ export function createSavesRouter(savesDir: string) {
 
   // POST /api/saves/:filename — save a game
   router.post('/:filename', (req: Request, res: Response) => {
-    const userId = requireAuth(req, res)
-    if (!userId) return
+    const userId = optionalAuth(req)
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
@@ -44,8 +42,7 @@ export function createSavesRouter(savesDir: string) {
 
   // GET /api/saves — list saves for current user
   router.get('/', (req: Request, res: Response) => {
-    const userId = requireAuth(req, res)
-    if (!userId) return
+    const userId = optionalAuth(req)
     const userDir = join(savesDir, userId)
     if (!existsSync(userDir)) return res.status(200).json({ saves: [] })
     try {
@@ -63,8 +60,7 @@ export function createSavesRouter(savesDir: string) {
 
   // GET /api/saves/:filename — load a save
   router.get('/:filename', (req: Request, res: Response) => {
-    const userId = requireAuth(req, res)
-    if (!userId) return
+    const userId = optionalAuth(req)
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
@@ -83,8 +79,7 @@ export function createSavesRouter(savesDir: string) {
 
   // DELETE /api/saves/:filename — delete a save
   router.delete('/:filename', (req: Request, res: Response) => {
-    const userId = requireAuth(req, res)
-    if (!userId) return
+    const userId = optionalAuth(req)
     const { filename } = req.params
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' })
