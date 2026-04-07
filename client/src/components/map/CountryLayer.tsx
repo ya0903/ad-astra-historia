@@ -4,6 +4,7 @@ import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import difference from '@turf/difference'
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Geometry } from 'geojson'
 import { getCountryColour } from '@ad-astra/shared/countries'
+import { HISTORICAL_ERAS as HISTORICAL_ERA_DEFS } from '@ad-astra/shared/eraConfig'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
 
@@ -87,7 +88,10 @@ function injectColours(
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-const ANCIENT_ERAS = new Set(['greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku'])
+const ANCIENT_ERAS = new Set<string>([
+  'greek', 'roman', 'ottoman', 'abbasid', 'tang', 'aztec', 'songhai', 'sengoku',
+  ...HISTORICAL_ERA_DEFS.map(e => e.id),
+])
 
 export default function CountryLayer() {
   const map = useMap()

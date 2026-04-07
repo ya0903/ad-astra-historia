@@ -105,8 +105,6 @@ export default function RailDrawOverlay() {
           const d = lineLengthKm([[st.lng, st.lat], nearest])
           if (d < 40) return
         }
-        const max = railType === 'domestic_hsr' ? 8 : 12
-        if (stations.length >= max) return
         const station: RailStation = {
           id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           lng: nearest[0],
@@ -119,7 +117,7 @@ export default function RailDrawOverlay() {
     }
     map.on('click', handler)
     return () => { map.off('click', handler) }
-  }, [map, mode, renderedPath, stations, railType, addWaypoint, addStation])
+  }, [map, mode, renderedPath, stations, railType, addWaypoint, addStation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard listeners
   useEffect(() => {

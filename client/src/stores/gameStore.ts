@@ -268,6 +268,8 @@ interface GameStoreState {
   /** Advance to the next era. Carries over conquered territory + stats; renames empire if provided. */
   advanceEra: (newEmpireName?: string) => void
   setMilitaryState: (patch: Partial<MilitaryState>) => void
+  /** Run a counter-insurgency operation: cost treasury, +stability. */
+  runCounterInsurgency: () => void
   setPolitics: (patch: Partial<PoliticsState>) => void
   setSociety: (patch: Partial<SocietyState>) => void
   setDiplomacyState: (patch: Partial<DiplomacyState>) => void
@@ -1157,19 +1159,30 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       // creating a duplicate. For rail, check by matching cities list instead.
       const isRail = RAIL_INFRA.has(bp.type)
       if (!isRail) {
-        // Try to match by type + city + country. Cities dedupe on name case-
-        // insensitively; types match exactly. Same for already-queued builds.
-        const cityKey = (bp.city ?? bp.name).toLowerCase().trim()
+        // Dedupe by type + country + shared name prefix (first significant word).
+        // If any existing infrastructure of the same type in this country shares
+        // the first word of the new build's name, treat it as an upgrade.
+        const stopWords = new Set(['the', 'a', 'an', 'new', 'old', 'north', 'south', 'east', 'west', 'national', 'central'])
+        const firstWord = (str: string) => {
+          const words = str.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+          return words.find(w => !stopWords.has(w) && w.length > 2) ?? words[0] ?? ''
+        }
+        const newKey = firstWord(bp.city ?? bp.name)
+        const sharesPrefix = (existingName: string) => {
+          const existingKey = firstWord(existingName)
+          if (!newKey || !existingKey) return false
+          return existingKey === newKey || existingKey.startsWith(newKey) || newKey.startsWith(existingKey)
+        }
         const existing = s.infrastructureMap.find(inf =>
           inf.countryId === targetIso
           && inf.type === bp.type
-          && (inf.name.toLowerCase().includes(cityKey) || cityKey.includes(inf.name.toLowerCase().split(' ')[0] ?? ''))
+          && sharesPrefix(inf.name)
         )
         // Also skip if a build project of the same type + city is already queued
         const alreadyQueued = (s.buildQueue ?? []).concat(newBuilds).find(q =>
           q.countryId === targetIso
           && q.type === bp.type
-          && (q.name.toLowerCase().includes(cityKey) || cityKey.includes(q.name.toLowerCase().split(' ')[0] ?? ''))
+          && sharesPrefix(q.name)
         )
         if (alreadyQueued) {
           // Silently skip — can't double-build the same thing while already building
@@ -1853,6 +1866,39 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
   setMilitaryState: (patch) => set(s => {
     if (!s.state?.militaryState) return {}
     return { state: { ...s.state, militaryState: { ...s.state.militaryState, ...patch } } }
+  }),
+
+  runCounterInsurgency: () => set(s => {
+    const st = s.state
+    if (!st) return {}
+    const player = st.countries[st.playerCountryId]
+    if (!player) return {}
+    const cost = Math.max(50_000_000, Math.round(player.stats.gdp * 0.005))
+    if (player.stats.gdp < cost) return {}
+    const newStability = Math.min(100, (player.stats.stability ?? 70) + 4)
+    const newCountries = {
+      ...st.countries,
+      [st.playerCountryId]: {
+        ...player,
+        stats: { ...player.stats, gdp: player.stats.gdp - cost, stability: newStability },
+      },
+    }
+    const newsItem: NewsItem = {
+      id: `news-coin-${Date.now()}`,
+      date: st.currentDate,
+      headline: `${player.name} Launches Counter-Insurgency Operation`,
+      body: `Security forces sweep restive regions. Stability +4. Cost: $${(cost / 1e6).toFixed(0)}M.`,
+      category: 'military',
+      importance: 'minor',
+      country: st.playerCountryId,
+    }
+    return {
+      state: {
+        ...st,
+        countries: newCountries,
+        newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
+      },
+    }
   }),
 
   setPolitics: (patch) => set(s => {

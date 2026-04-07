@@ -30,6 +30,7 @@ interface MilitaryPanelProps { isOpen: boolean; onOpen: () => void; onClose: () 
 export default function MilitaryPanel({ isOpen, onOpen, onClose }: MilitaryPanelProps) {
   const militaryState = useGameStore(s => s.state?.militaryState)
   const setMilitaryState = useGameStore(s => s.setMilitaryState)
+  const runCounterInsurgency = useGameStore(s => s.runCounterInsurgency)
   const atWarWith = useGameStore(s => s.state?.atWarWith ?? [])
   const playerStats = useGameStore(s => {
     const pid = s.state?.playerCountryId
@@ -139,6 +140,18 @@ export default function MilitaryPanel({ isOpen, onOpen, onClose }: MilitaryPanel
                 <span className="font-mono text-white">{playerStats.military}</span>
               </div>
             )}
+
+            {/* Counter-insurgency action */}
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Internal Security</p>
+              <button
+                onClick={runCounterInsurgency}
+                className="w-full py-1.5 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+                title="Sweep restive regions: costs ~0.5% GDP, +4 stability"
+              >
+                🛡 Counter-Insurgency Sweep (+4 stability)
+              </button>
+            </div>
 
             {/* Doctrine selector */}
             <div>

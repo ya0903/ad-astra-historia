@@ -105,27 +105,49 @@ function generatePolityColour(name, era) {
 }
 
 function normaliseEra(eraId, geojson) {
-  return {
-    type: 'FeatureCollection',
-    features: geojson.features.map((f) => {
-      const props = f.properties || {}
-      const name = props.NAME || props.SUBJECTO || 'Unknown'
-      const id = polityIdFor(eraId, name)
-      return {
-        ...f,
-        properties: {
-          ...props,
-          polity_id: id,
-          name,
-          ISO_A3: id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6),
-          ADMIN: name,
-          NAME: name,
-          fill_colour: generatePolityColour(name, eraId),
-          border_precision: typeof props.BORDERPRECISION === 'number' ? props.BORDERPRECISION : 2,
-        },
-      }
-    }),
+  // Build a stable, UNIQUE per-polity ISO_A3-ish code. We take the slug after
+  // the era prefix, drop non-alphanumerics, upper-case it, and truncate to 12
+  // chars so it still fits the downstream keying. Uniqueness is enforced by
+  // suffixing a counter if we see a collision inside this era.
+  const seenCodes = new Set()
+  function buildCode(slug) {
+    const base = slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'POLITY'
+    if (!seenCodes.has(base)) { seenCodes.add(base); return base }
+    for (let i = 2; i < 1000; i++) {
+      const candidate = `${base.slice(0, 10)}${i}`
+      if (!seenCodes.has(candidate)) { seenCodes.add(candidate); return candidate }
+    }
+    return `${base}X`
   }
+
+  const features = []
+  for (const f of geojson.features) {
+    const props = f.properties || {}
+    const rawName = props.NAME || props.SUBJECTO
+    // Skip features with no meaningful name — these are unidentified territories
+    // (uninhabited frontier, polar ice caps, etc.) that shouldn't be playable.
+    if (!rawName || rawName === 'Unknown' || rawName === 'unknown' || rawName.trim() === '') continue
+
+    const name = rawName
+    const id = polityIdFor(eraId, name)
+    const slug = id.split(':')[1] || name
+    const iso = buildCode(slug)
+    features.push({
+      ...f,
+      properties: {
+        ...props,
+        polity_id: id,
+        name,
+        ISO_A3: iso,
+        ADM0_A3: iso,
+        ADMIN: name,
+        NAME: name,
+        fill_colour: generatePolityColour(name, eraId),
+        border_precision: typeof props.BORDERPRECISION === 'number' ? props.BORDERPRECISION : 2,
+      },
+    })
+  }
+  return { type: 'FeatureCollection', features }
 }
 
 async function main() {

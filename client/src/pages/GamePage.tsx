@@ -375,6 +375,16 @@ export default function GamePage() {
   const handleExecute = () => {
     const text = actionText.trim()
     if (!text) return
+    // Rail-line intent detection: offer draw-myself option instead of queuing as AI action
+    if (/\b(rail|railway|railroad|train\s*line|hsr|high[- ]speed)\b/i.test(text)) {
+      const draw = window.confirm(`It looks like you want to build a rail line. Draw it yourself on the map?\n\nOK = Draw it myself\nCancel = Let the AI decide`)
+      if (draw) {
+        const isHsr = /\b(hsr|high[- ]speed|bullet)\b/i.test(text)
+        useRailDrawStore.getState().startDrawing(isHsr ? 'domestic_hsr' : 'cross_continent')
+        setActionText('')
+        return
+      }
+    }
     addPendingAction(text)
     setActionText('')
   }
