@@ -35,6 +35,90 @@ function getPersonality(iso: string): CountryPersonality {
   return COUNTRY_PERSONALITIES[iso] ?? { aggression: 30, diplomacy: 50, economicFocus: 50, stability: 50, unpredictability: 10 }
 }
 
+// ── Realism filters ──────────────────────────────────────────────────────────
+
+/** Major / regional powers — these countries dominate global diplomacy */
+const MAJOR_POWERS = new Set([
+  'USA', 'CHN', 'RUS', 'GBR', 'FRA', 'DEU', 'JPN', 'IND', 'BRA', 'ITA', 'CAN', 'KOR',
+  'AUS', 'ESP', 'MEX', 'TUR', 'IDN', 'SAU', 'NLD', 'CHE', 'POL',
+])
+
+/** Regional powers — significant within their continent/region */
+const REGIONAL_POWERS = new Set([
+  'IRN', 'ISR', 'EGY', 'ARE', 'NGA', 'ZAF', 'KEN', 'ETH', 'DZA', 'MAR',
+  'PAK', 'BGD', 'VNM', 'THA', 'PHL', 'MYS', 'SGP',
+  'ARG', 'COL', 'CHL', 'PER', 'VEN',
+  'UKR', 'SWE', 'NOR', 'FIN', 'BEL', 'AUT', 'GRC', 'CZE', 'PRT',
+  'QAT', 'KWT', 'IRQ', 'JOR',
+])
+
+/** Arms-exporting countries — only these can plausibly sell weapons */
+const ARMS_EXPORTERS = new Set([
+  'USA', 'RUS', 'FRA', 'CHN', 'GBR', 'DEU', 'ITA', 'KOR', 'ISR', 'ESP',
+  'NLD', 'TUR', 'CHE', 'SWE', 'CAN', 'BRA', 'IND', 'JPN', 'NOR', 'POL',
+])
+
+/** Power tier — higher = more globally influential */
+function powerTier(iso: string): number {
+  if (MAJOR_POWERS.has(iso)) return 3
+  if (REGIONAL_POWERS.has(iso)) return 2
+  return 1
+}
+
+/**
+ * Geographic + political compatibility score for two countries.
+ * Returns a multiplier 0-1 for opportunity event probability.
+ *
+ * Real-world logic:
+ * - Same continent → high compatibility
+ * - Major powers can interact globally
+ * - Major + minor: only if same continent OR existing positive relations
+ * - Two minor powers from different continents: very unlikely to interact
+ */
+function geoPoliticalCompatibility(a: string, b: string): number {
+  const dataA = MODERN_COUNTRY_DATA[a]
+  const dataB = MODERN_COUNTRY_DATA[b]
+  if (!dataA || !dataB) return 0.3
+
+  const tierA = powerTier(a)
+  const tierB = powerTier(b)
+  const sameContinent = dataA.continent === dataB.continent
+  const sameSubregion = dataA.subregion === dataB.subregion
+
+  // Two major powers — global reach, always plausible
+  if (tierA === 3 && tierB === 3) return 1.0
+
+  // Major + regional power — plausible across regions
+  if ((tierA === 3 && tierB === 2) || (tierA === 2 && tierB === 3)) {
+    return sameContinent ? 1.0 : 0.6
+  }
+
+  // Major + minor power — plausible if same region, otherwise rare
+  if ((tierA === 3 && tierB === 1) || (tierA === 1 && tierB === 3)) {
+    if (sameSubregion) return 0.8
+    if (sameContinent) return 0.5
+    return 0.15  // distant minor + major: occasional aid/trade
+  }
+
+  // Two regional powers — strong if same continent
+  if (tierA === 2 && tierB === 2) {
+    if (sameContinent) return 0.9
+    return 0.3
+  }
+
+  // Regional + minor power — only really interact in same region
+  if ((tierA === 2 && tierB === 1) || (tierA === 1 && tierB === 2)) {
+    if (sameSubregion) return 0.7
+    if (sameContinent) return 0.4
+    return 0.1
+  }
+
+  // Two minor powers — basically only interact as direct neighbors
+  if (sameSubregion) return 0.5
+  if (sameContinent) return 0.2
+  return 0.03  // Namibia × Sri Lanka case — almost never
+}
+
 // ── Headline Templates ───────────────────────────────────────────────────────
 
 const HEADLINES: Record<WorldTickEventType, string[]> = {
@@ -160,7 +244,9 @@ export function worldTick(
       const pA = getPersonality(a)
       const pB = getPersonality(b)
       const avgAggression = (pA.aggression + pB.aggression) / 200 // 0-1
-      const probability = tensionScore * avgAggression * 0.08
+      // Apply geographic compatibility — distant minor powers don't have border skirmishes
+      const compatibility = geoPoliticalCompatibility(a, b)
+      const probability = tensionScore * avgAggression * 0.08 * compatibility
 
       if (!roll(probability)) continue
 
@@ -211,15 +297,26 @@ export function worldTick(
       const pB = getPersonality(b)
       const avgDiplomacy = (pA.diplomacy + pB.diplomacy) / 200
       const friendliness = (rel + 50) / 150 // normalize 0-100 to ~0.33-1.0
-      const probability = avgDiplomacy * friendliness * 0.005
+      // Apply geographic + political realism filter — distant minor powers
+      // shouldn't randomly form alliances with each other
+      const compatibility = geoPoliticalCompatibility(a, b)
+      const probability = avgDiplomacy * friendliness * 0.005 * compatibility
 
       if (!roll(probability)) continue
 
+      // Arms deals only plausible if at least one party is an arms exporter
+      const armsDealWeight = (ARMS_EXPORTERS.has(a) || ARMS_EXPORTERS.has(b)) ? 15 : 0
+      // Surprise summits and alliances need both parties to be at least regional
+      const tierA = powerTier(a)
+      const tierB = powerTier(b)
+      const summitWeight = (tierA >= 2 && tierB >= 2) ? 10 : 2
+      const allianceWeight = (tierA >= 2 || tierB >= 2) ? 20 : 5
+
       const oppOptions: Array<{ value: WorldTickEventType; weight: number }> = [
         { value: 'trade_deal_proposed', weight: 40 },
-        { value: 'alliance_proposed',   weight: 20 },
-        { value: 'arms_deal',           weight: 15 },
-        { value: 'surprise_summit',     weight: 10 },
+        { value: 'alliance_proposed',   weight: allianceWeight },
+        { value: 'arms_deal',           weight: armsDealWeight },
+        { value: 'surprise_summit',     weight: summitWeight },
         { value: 'reform_passed',       weight: 8 },
       ]
 
