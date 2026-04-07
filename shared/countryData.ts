@@ -1864,4 +1864,17 @@ export const MODERN_COUNTRY_DATA: Record<string, CountryBaseData> = {
     activePersonnel: 0, defenceSpendingPct: 0.0, nuclearCapable: false,
     governmentType: 'constitutional_monarchy', corruptionIndex: 50, areaKm2: 26, landlocked: false, strategicPassages: [],
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DISPUTED / SPECIAL TERRITORIES (in Natural Earth GeoJSON)
+  // ══════════════════════════════════════════════════════════════════════════
+  TWN: {
+    iso3: 'TWN', name: 'Taiwan', continent: 'Asia', subregion: 'Eastern Asia',
+    population: 23900000, populationGrowthRate: 0.0, urbanisationRate: 79, medianAge: 42.5,
+    gdp: 790_000_000_000, gdpPerCapita: 33060, gdpGrowthRate: 1.3,
+    sectorAgriculture: 1.5, sectorIndustry: 36.0, sectorServices: 62.5,
+    debtToGdpRatio: 28, inflationRate: 2.5, hdi: 0.926, educationIndex: 0.880, giniCoefficient: 33.6,
+    activePersonnel: 170000, defenceSpendingPct: 2.4, nuclearCapable: false,
+    governmentType: 'democracy', corruptionIndex: 16, areaKm2: 36193, landlocked: false, strategicPassages: [],
+  },
 }
