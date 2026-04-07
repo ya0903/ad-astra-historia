@@ -191,6 +191,9 @@ interface GameStoreState {
   applyResults: (results: ActionResult[], advancePeriod: 'week' | 'month' | 'year', worldEvent?: import('@ad-astra/shared/types').WorldEvent) => void
   togglePause: () => void
   setPaused: (paused: boolean) => void
+  // Diplomatic inbox
+  acceptProposal: (proposalId: string) => void
+  declineProposal: (proposalId: string) => void
   setEmpireName: (name: string) => void
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
@@ -696,8 +699,14 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
     // Run world tick for each week in the period
     const allWorldEvents: WorldTickEvent[] = []
+    const newProposals: typeof s.diplomaticInbox = []
     for (let w = 0; w < weeksElapsed; w++) {
-      const result = worldTick(newCountries, worldRelations, newDate, s.allies ?? [])
+      const result = worldTick(newCountries, worldRelations, newDate, s.allies ?? [], s.playerCountryId)
+
+      // Collect proposals directed at the player
+      if (result.proposalsForPlayer && result.proposalsForPlayer.length > 0) {
+        newProposals!.push(...result.proposalsForPlayer)
+      }
 
       for (const event of result.events) {
         allWorldEvents.push(event)
@@ -787,6 +796,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
         newsItems: [...buildCompletionNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
         worldRelations,
+        diplomaticInbox: [...(s.diplomaticInbox ?? []), ...(newProposals ?? [])].slice(-20),
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
         ...(newPhase ? { eraPhase: newPhase } : {}),
         ...(newEconomy ? { economy: newEconomy } : {}),
@@ -1057,6 +1067,70 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
 
   togglePause: () => set(s => ({ isPaused: !s.isPaused })),
   setPaused: (paused) => set({ isPaused: paused }),
+
+  acceptProposal: (proposalId) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const inbox = s.diplomaticInbox ?? []
+    const proposal = inbox.find(p => p.id === proposalId)
+    if (!proposal) return {}
+    // Apply effect based on proposal type
+    const newRelations = { ...(s.worldRelations ?? {}) }
+    const key = [s.playerCountryId, proposal.fromCountry].sort().join('-')
+    const newAllies = [...(s.allies ?? [])]
+    const player = s.countries[s.playerCountryId]
+    let newPlayer = player
+    switch (proposal.type) {
+      case 'trade_deal':
+        newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 15)
+        if (player) {
+          newPlayer = { ...player, stats: { ...player.stats, gdp: player.stats.gdp + Math.round(player.stats.gdp * 0.005) } }
+        }
+        break
+      case 'alliance':
+        newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 30)
+        if (!newAllies.includes(proposal.fromCountry)) newAllies.push(proposal.fromCountry)
+        break
+      case 'arms_deal':
+        newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 10)
+        if (player) {
+          newPlayer = { ...player, stats: { ...player.stats, military: Math.min(100, player.stats.military + 5) } }
+        }
+        break
+      case 'summit':
+        newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 20)
+        if (player) {
+          newPlayer = { ...player, stats: { ...player.stats, softPower: Math.min(100, player.stats.softPower + 3) } }
+        }
+        break
+    }
+    const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'accepted' as const } : p)
+    return {
+      state: {
+        ...s,
+        diplomaticInbox: newInbox,
+        worldRelations: newRelations,
+        allies: newAllies,
+        countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
+      },
+    }
+  }),
+
+  declineProposal: (proposalId) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const inbox = s.diplomaticInbox ?? []
+    const proposal = inbox.find(p => p.id === proposalId)
+    if (!proposal) return {}
+    // Small relation penalty for declining
+    const newRelations = { ...(s.worldRelations ?? {}) }
+    const key = [s.playerCountryId, proposal.fromCountry].sort().join('-')
+    newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - 5)
+    const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'declined' as const } : p)
+    return {
+      state: { ...s, diplomaticInbox: newInbox, worldRelations: newRelations },
+    }
+  }),
 
   setEmpireName: (name) => set(store => {
     if (!store.state) return {}

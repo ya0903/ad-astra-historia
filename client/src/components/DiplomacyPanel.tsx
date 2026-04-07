@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useConfigStore } from '../stores'
+import { useConfigStore, useGameStore } from '../stores'
 import { callAI } from '../lib/aiClient'
 
 interface GameContext {
@@ -40,6 +40,11 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const [panelH, setPanelH] = useState(420)
   const dragRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null)
   const config = useConfigStore(s => s.config)
+  const inbox = useGameStore(s => s.state?.diplomaticInbox ?? [])
+  const acceptProposal = useGameStore(s => s.acceptProposal)
+  const declineProposal = useGameStore(s => s.declineProposal)
+  const countries = useGameStore(s => s.state?.countries ?? {})
+  const pendingProposals = inbox.filter(p => p.status === 'pending')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -119,10 +124,15 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
     return (
       <button
         onClick={handleOpen}
-        className="w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
-        title="Diplomatic Chats"
+        className="relative w-10 h-10 rounded-full bg-[#0d1f3c] border border-white/20 shadow-xl flex items-center justify-center text-lg hover:bg-blue-900 hover:border-blue-600 transition-all"
+        title={`Diplomatic Chats${pendingProposals.length > 0 ? ` (${pendingProposals.length} pending)` : ''}`}
       >
         🤝
+        {pendingProposals.length > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 border border-[#0d1f3c] text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
+            {pendingProposals.length}
+          </span>
+        )}
       </button>
     )
   }
@@ -159,6 +169,47 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
       {/* Country picker */}
       {!targetCountry && (
         <div className="flex-1 overflow-y-auto px-3 py-2" style={{ minHeight: 0 }}>
+          {/* ── Inbox: pending proposals ── */}
+          {pendingProposals.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] text-amber-400 mb-2 uppercase tracking-wider font-semibold">📬 Incoming Proposals ({pendingProposals.length})</p>
+              <div className="space-y-2">
+                {pendingProposals.map(p => {
+                  const fromName = countries[p.fromCountry]?.name ?? p.fromCountry
+                  const typeIcon = p.type === 'trade_deal' ? '💰'
+                    : p.type === 'alliance' ? '🤝'
+                    : p.type === 'arms_deal' ? '🔫'
+                    : p.type === 'summit' ? '🏛️' : '📜'
+                  return (
+                    <div key={p.id} className="rounded-lg bg-amber-950/30 border border-amber-700/40 p-2.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span>{typeIcon}</span>
+                        <span className="text-xs font-bold text-amber-300">{fromName}</span>
+                        <span className="text-[9px] text-gray-500 ml-auto">{p.date}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-300 mb-2 leading-snug">{p.message}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => acceptProposal(p.id)}
+                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-700/60 hover:bg-emerald-600/70 text-white transition-colors"
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          onClick={() => declineProposal(p.id)}
+                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-900/50 hover:bg-red-800/60 text-white transition-colors"
+                        >
+                          ✗ Decline
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="border-t border-white/8 my-3" />
+            </div>
+          )}
+
           <p className="text-[10px] text-gray-600 mb-2 uppercase tracking-wider">Select a nation to open talks</p>
           <input
             autoFocus

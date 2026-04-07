@@ -1,4 +1,4 @@
-import type { CountryPersonality, Country, WorldTickEvent, WorldTickEventType, NewsCategory, NewsImportance } from './types.js'
+import type { CountryPersonality, Country, WorldTickEvent, WorldTickEventType, NewsCategory, NewsImportance, DiplomaticProposal } from './types.js'
 import { COUNTRY_PERSONALITIES } from './countryPersonalities.js'
 import { countryName } from './newsGenerator.js'
 import { MODERN_COUNTRY_DATA } from './countryData.js'
@@ -218,6 +218,8 @@ function eventImportance(type: WorldTickEventType): NewsImportance {
 export interface WorldTickResult {
   events: WorldTickEvent[]
   relationDeltas: Record<string, number>
+  /** Diplomatic proposals directed at the player country, to be added to the inbox */
+  proposalsForPlayer: DiplomaticProposal[]
 }
 
 // ── Core Simulation ──────────────────────────────────────────────────────────
@@ -227,9 +229,11 @@ export function worldTick(
   relations: Record<string, number>,
   date: string,
   existingAlliances: string[],
+  playerCountryId?: string,
 ): WorldTickResult {
   const events: WorldTickEvent[] = []
   const relationDeltas: Record<string, number> = {}
+  const proposalsForPlayer: DiplomaticProposal[] = []
   const isos = Object.keys(countries)
 
   // Step 1 — Bilateral tension evaluation
@@ -325,7 +329,48 @@ export function worldTick(
       const key = relationKey(a, b)
       relationDeltas[key] = (relationDeltas[key] ?? 0) + relDelta
 
-      events.push(makeEvent(eventType, a, b, date, relDelta, countries))
+      // If the player is involved in this opportunity, route it to the diplomatic
+      // inbox instead of as a generic news event — the player needs to actively
+      // accept or decline. Otherwise it's a third-party event.
+      const playerInvolved = playerCountryId && (a === playerCountryId || b === playerCountryId)
+      if (playerInvolved) {
+        const fromCountry = a === playerCountryId ? b : a
+        const fromName = countries[fromCountry]?.name ?? countryName(fromCountry)
+        let proposalType: DiplomaticProposal['type'] = 'trade_deal'
+        let message = ''
+        switch (eventType) {
+          case 'trade_deal_proposed':
+            proposalType = 'trade_deal'
+            message = `${fromName} proposes a major trade agreement. Mutual tariff reductions and preferred market access. Accepting boosts both economies but may strain relations with rivals.`
+            break
+          case 'alliance_proposed':
+            proposalType = 'alliance'
+            message = `${fromName} extends an offer of military alliance. We would defend each other in war and coordinate foreign policy. A serious commitment.`
+            break
+          case 'arms_deal':
+            proposalType = 'arms_deal'
+            message = `${fromName} offers to sell us advanced weapons systems. Strengthens our military capability but at a financial cost.`
+            break
+          case 'surprise_summit':
+            proposalType = 'summit'
+            message = `${fromName} requests an emergency summit between our leaders. Topic to be agreed upon. Improves bilateral relations.`
+            break
+          default:
+            // Fall through to normal news event for other types
+            events.push(makeEvent(eventType, a, b, date, relDelta, countries))
+            continue
+        }
+        proposalsForPlayer.push({
+          id: `prop-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          date,
+          fromCountry,
+          type: proposalType,
+          message,
+          status: 'pending',
+        })
+      } else {
+        events.push(makeEvent(eventType, a, b, date, relDelta, countries))
+      }
     }
   }
 
@@ -436,7 +481,7 @@ export function worldTick(
   events.sort((a, b) => importanceOrder[a.importance] - importanceOrder[b.importance])
   const capped = events.slice(0, 8)
 
-  return { events: capped, relationDeltas }
+  return { events: capped, relationDeltas, proposalsForPlayer }
 }
 
 // ── Event construction helpers ───────────────────────────────────────────────

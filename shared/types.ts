@@ -478,6 +478,16 @@ export interface WorldTickEvent {
 export type NewsCategory = 'economy' | 'military' | 'diplomacy' | 'science' | 'disaster' | 'politics' | 'world'
 export type NewsImportance = 'breaking' | 'major' | 'minor'
 
+/** Incoming diplomatic proposal directed at the player country. */
+export interface DiplomaticProposal {
+  id: string
+  date: string                                 // YYYY-MM-DD when received
+  fromCountry: string                          // ISO_A3 of proposing country
+  type: 'trade_deal' | 'alliance' | 'arms_deal' | 'peace_talks' | 'summit' | 'sanctions_threat'
+  message: string                              // human-readable proposal text
+  status: 'pending' | 'accepted' | 'declined'
+}
+
 export interface NewsItem {
   id: string
   date: string                  // YYYY-MM-DD
@@ -572,6 +582,8 @@ export interface GameState {
   newsItems?: NewsItem[]       // recent world headlines
   // ── World simulation ──────────────────────────────────────────────────────
   worldRelations?: Record<string, number>  // "ISO-ISO" → opinion (-100 to +100)
+  // Diplomatic inbox — incoming proposals from other countries that the player can accept/decline
+  diplomaticInbox?: DiplomaticProposal[]
   // Diplomacy
   allies?: string[]            // ISO_A3 of allied nations
   atWarWith?: string[]         // ISO_A3 of nations at war with player
