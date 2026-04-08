@@ -4,7 +4,7 @@ import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import difference from '@turf/difference'
 import union from '@turf/union'
 import buffer from '@turf/buffer'
-import type { Feature, FeatureCollection, Polygon, MultiPolygon, Geometry } from 'geojson'
+import type { Feature, FeatureCollection, Polygon, MultiPolygon, LineString, Geometry, Position } from 'geojson'
 import { getCountryColour } from '@ad-astra/shared/countries'
 import { HISTORICAL_ERAS as HISTORICAL_ERA_DEFS } from '@ad-astra/shared/eraConfig'
 import { useMap } from './MapContext'
@@ -66,11 +66,83 @@ function buildEmpireOutline(
       if (u) merged = u as Feature<Polygon | MultiPolygon>
     }
     const eroded = buffer(merged, -2, { units: 'kilometers' }) as Feature<Polygon | MultiPolygon> | undefined
-    return { type: 'FeatureCollection', features: [eroded ?? merged] }
+    const final = eroded ?? merged
+    // Strip interior rings (holes). Any holes left after buffer-dilate-union-
+    // erode are sliver artefacts caused by vertex mismatches between the
+    // country and province datasets — they would render as faint internal
+    // seams along the annexed-province boundary. Dropping holes is safe for
+    // border-line rendering: we're only tracing the empire perimeter and do
+    // not need to preserve inland lake/enclave rings on this layer.
+    const stripped = stripHoles(final.geometry as Polygon | MultiPolygon)
+    return {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: stripped }],
+    }
   } catch (err) {
     console.warn('[CountryLayer] turf.union failed', err)
     return { type: 'FeatureCollection', features: polys }
   }
+}
+
+/**
+ * Removes all interior rings (holes) from a Polygon or MultiPolygon geometry,
+ * keeping only each piece's outer ring. Used to dissolve sliver artefacts
+ * left behind by turf.union when the input polygons come from datasets with
+ * mismatched vertices along a shared edge.
+ */
+function stripHoles(geom: Polygon | MultiPolygon): Polygon | MultiPolygon {
+  if (geom.type === 'Polygon') {
+    return { type: 'Polygon', coordinates: [geom.coordinates[0]] }
+  }
+  return {
+    type: 'MultiPolygon',
+    coordinates: geom.coordinates.map(poly => [poly[0]]),
+  }
+}
+
+/**
+ * Builds a LineString FeatureCollection containing only the OUTER rings of
+ * every country polygon, EXCLUDING any country in `excludeIsos` (the player's
+ * empire). This becomes the data source for the grey country-borders line
+ * layer. Skipping inner rings prevents the grey line from tracing the holes
+ * left in parent countries by injectColours' turf.difference clip — which
+ * was the source of the faint internal seam around annexed provinces such
+ * as Kashmir. Excluding empire countries also removes the parent country's
+ * native eastern/western edge that ran along the annexed province border.
+ *
+ * The resulting outline of empire territory is drawn solely by the merged
+ * `empire-outline` source (see buildEmpireOutline) which has no internal
+ * rings and so renders as one seamless border.
+ */
+function buildBorderLines(
+  geojson: GeoJSON.FeatureCollection,
+  excludeIsos: string[],
+): FeatureCollection<LineString> {
+  const exclude = new Set(excludeIsos.map(s => s.toUpperCase()))
+  const out: Feature<LineString>[] = []
+  for (const f of geojson.features) {
+    const p = f.properties as Record<string, unknown> | null
+    const iso = String(p?.ISO_A3 ?? p?.ADM0_A3 ?? '').toUpperCase()
+    if (exclude.has(iso)) continue
+    const geom = f.geometry as Geometry | null
+    if (!geom) continue
+    const polys: Position[][][] =
+      geom.type === 'Polygon' ? [(geom as Polygon).coordinates] :
+      geom.type === 'MultiPolygon' ? (geom as MultiPolygon).coordinates :
+      []
+    for (const poly of polys) {
+      // poly[0] is outer ring; poly[1..] are holes — drop holes entirely.
+      if (!poly || poly.length === 0) continue
+      const outer = poly[0]
+      if (!outer || outer.length < 2) continue
+      out.push({
+        type: 'Feature',
+        properties: { ...(p ?? {}) },
+        geometry: { type: 'LineString', coordinates: outer },
+      })
+    }
+  }
+  return { type: 'FeatureCollection', features: out }
 }
 
 /**
@@ -210,8 +282,18 @@ export default function CountryLayer() {
           },
         })
 
+        // Grey country borders are drawn from a SEPARATE LineString source
+        // (`country-border-lines`) that contains only outer rings of countries
+        // NOT in the player's empire. This avoids two seam-causing artefacts:
+        //   1. Pakistan's eastern edge being drawn alongside the Kashmir
+        //      polygon's western edge (two near-coincident grey lines).
+        //   2. India's polygon hole (left by injectColours' difference clip)
+        //      tracing a grey ring around the annexed Kashmir province.
+        const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries])
+        map.addSource('country-border-lines', { type: 'geojson', data: borderLines })
+
         map.addLayer({
-          id: 'country-borders', type: 'line', source: 'countries',
+          id: 'country-borders', type: 'line', source: 'country-border-lines',
           paint: {
             'line-color': '#4a5568',
             'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.8, 5, 1.2, 7, 1.8] as ExpressionSpecification,
@@ -286,6 +368,7 @@ export default function CountryLayer() {
       }
       if (map.getSource('countries')) map.removeSource('countries')
       if (map.getSource('empire-outline')) map.removeSource('empire-outline')
+      if (map.getSource('country-border-lines')) map.removeSource('country-border-lines')
     }
   }, [map, playerCountryId, era]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -304,6 +387,10 @@ export default function CountryLayer() {
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
     if (outlineSrc) {
       outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
+    }
+    const borderSrc = map.getSource('country-border-lines') as maplibregl.GeoJSONSource | undefined
+    if (borderSrc) {
+      borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries]))
     }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
