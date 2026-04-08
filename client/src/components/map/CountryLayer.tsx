@@ -117,58 +117,33 @@ function stripHoles(geom: Polygon | MultiPolygon): Polygon | MultiPolygon {
 function buildBorderLines(
   geojson: GeoJSON.FeatureCollection,
   excludeIsos: string[],
-  controlledRegions: Array<{ name: string; adm0_a3: string }> = [],
-  provincesGeojson: FeatureCollection | null = null,
+  empireMask: Feature<Polygon | MultiPolygon> | null = null,
 ): FeatureCollection<LineString> {
   const exclude = new Set(excludeIsos.map(s => s.toUpperCase()))
-
-  // Pre-resolve province polygons by parent country, so when we trace a parent
-  // country's outer ring we can first subtract the annexed province. Otherwise
-  // the parent's outer perimeter still runs along the (now empire) province
-  // edge — e.g. India's outer ring tracing the Pakistan↔Kashmir boundary.
-  const provincesByParent = new Map<string, Feature<Polygon | MultiPolygon>[]>()
-  if (provincesGeojson && controlledRegions.length > 0) {
-    for (const region of controlledRegions) {
-      const needle = region.name.toLowerCase()
-      const parentIso = region.adm0_a3.toUpperCase()
-      for (const pf of provincesGeojson.features) {
-        const pp = pf.properties as Record<string, unknown> ?? {}
-        const pName = String(pp?.name ?? '').toLowerCase()
-        const pIso = String(pp?.adm0_a3 ?? '').toUpperCase()
-        if (pIso === parentIso && (pName.includes(needle) || needle.includes(pName))) {
-          if (pf.geometry && (pf.geometry.type === 'Polygon' || pf.geometry.type === 'MultiPolygon')) {
-            if (!provincesByParent.has(parentIso)) provincesByParent.set(parentIso, [])
-            provincesByParent.get(parentIso)!.push(pf as Feature<Polygon | MultiPolygon>)
-          }
-        }
-      }
-    }
-  }
-
   const out: Feature<LineString>[] = []
   for (const f of geojson.features) {
     const p = f.properties as Record<string, unknown> | null
     const iso = String(p?.ISO_A3 ?? p?.ADM0_A3 ?? '').toUpperCase()
     if (exclude.has(iso)) continue
 
-    // If this country has annexed provinces, clip them out before tracing.
+    // Clip this country's polygon by the merged empire mask. This removes any
+    // part of the country that is now inside the player's empire (including
+    // annexed provinces) so its outer ring no longer traces the old internal
+    // boundary. The remaining border simply runs along the OUTER edge of the
+    // empire where it touches this country — co-incident with the blue empire
+    // outline, so no visible seam appears.
     let geom: Geometry | null = f.geometry as Geometry | null
-    const provincesToClip = provincesByParent.get(iso)
-    if (provincesToClip && provincesToClip.length > 0 && geom
-        && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
+    if (empireMask && geom && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
       try {
-        let clipped: Feature<Polygon | MultiPolygon> = f as Feature<Polygon | MultiPolygon>
-        for (const province of provincesToClip) {
-          const fc: FeatureCollection<Polygon | MultiPolygon> = {
-            type: 'FeatureCollection',
-            features: [clipped, province],
-          }
-          const diff = difference(fc)
-          if (diff) clipped = diff
+        const fc: FeatureCollection<Polygon | MultiPolygon> = {
+          type: 'FeatureCollection',
+          features: [f as Feature<Polygon | MultiPolygon>, empireMask],
         }
-        geom = clipped.geometry
+        const diff = difference(fc)
+        if (diff) geom = diff.geometry
+        else geom = null // country fully consumed by empire
       } catch (err) {
-        console.warn('[CountryLayer] buildBorderLines difference failed for', iso, err)
+        console.warn('[CountryLayer] buildBorderLines empire-mask difference failed for', iso, err)
       }
     }
 
@@ -336,7 +311,12 @@ export default function CountryLayer() {
         //      polygon's western edge (two near-coincident grey lines).
         //   2. India's polygon hole (left by injectColours' difference clip)
         //      tracing a grey ring around the annexed Kashmir province.
-        const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
+        // Compute the merged empire polygon FIRST so we can use it as a mask
+        // when building country border lines (so India's outer ring doesn't
+        // trace the old PAK↔Kashmir boundary).
+        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
+        const empireMask = (empireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
+        const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries], empireMask)
         map.addSource('country-border-lines', { type: 'geojson', data: borderLines })
 
         map.addLayer({
@@ -359,10 +339,8 @@ export default function CountryLayer() {
           },
         })
 
-        // Empire outline: a separate source carrying the merged union of
-        // [player + controlled] features so adjacent territories show one
-        // continuous border (no internal seam).
-        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
+        // Empire outline source (data already computed above and used as the
+        // border-lines clip mask).
         map.addSource('empire-outline', { type: 'geojson', data: empireOutline })
 
         map.addLayer({
@@ -431,14 +409,12 @@ export default function CountryLayer() {
       controlledRegions,
       provincesGeojsonRef.current,
     ))
+    const newEmpireOutline = buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current)
+    const newEmpireMask = (newEmpireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
-    if (outlineSrc) {
-      outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
-    }
+    if (outlineSrc) outlineSrc.setData(newEmpireOutline)
     const borderSrc = map.getSource('country-border-lines') as maplibregl.GeoJSONSource | undefined
-    if (borderSrc) {
-      borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
-    }
+    if (borderSrc) borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], newEmpireMask))
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
   return null
