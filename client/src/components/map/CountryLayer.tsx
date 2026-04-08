@@ -114,36 +114,57 @@ function stripHoles(geom: Polygon | MultiPolygon): Polygon | MultiPolygon {
  * `empire-outline` source (see buildEmpireOutline) which has no internal
  * rings and so renders as one seamless border.
  */
+function geomBbox(geom: Geometry): [number, number, number, number] {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  const walk = (c: unknown): void => {
+    if (Array.isArray(c) && typeof c[0] === 'number') {
+      const x = c[0] as number, y = c[1] as number
+      if (x < minX) minX = x; if (x > maxX) maxX = x
+      if (y < minY) minY = y; if (y > maxY) maxY = y
+      return
+    }
+    if (Array.isArray(c)) for (const x of c) walk(x)
+  }
+  walk((geom as { coordinates: unknown }).coordinates)
+  return [minX, minY, maxX, maxY]
+}
+
+function bboxIntersects(a: [number, number, number, number], b: [number, number, number, number]): boolean {
+  return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3])
+}
+
 function buildBorderLines(
   geojson: GeoJSON.FeatureCollection,
   excludeIsos: string[],
   empireMask: Feature<Polygon | MultiPolygon> | null = null,
 ): FeatureCollection<LineString> {
   const exclude = new Set(excludeIsos.map(s => s.toUpperCase()))
+  const empireBbox = empireMask?.geometry ? geomBbox(empireMask.geometry) : null
   const out: Feature<LineString>[] = []
   for (const f of geojson.features) {
     const p = f.properties as Record<string, unknown> | null
     const iso = String(p?.ISO_A3 ?? p?.ADM0_A3 ?? '').toUpperCase()
     if (exclude.has(iso)) continue
 
-    // Clip this country's polygon by the merged empire mask. This removes any
-    // part of the country that is now inside the player's empire (including
-    // annexed provinces) so its outer ring no longer traces the old internal
-    // boundary. The remaining border simply runs along the OUTER edge of the
-    // empire where it touches this country — co-incident with the blue empire
-    // outline, so no visible seam appears.
+    // Bbox prefilter: only run the (very expensive) turf.difference for the
+    // handful of countries whose bbox actually overlaps the empire. Everyone
+    // else just emits their raw outer ring. This drops the per-update cost
+    // from ~200 difference calls to typically 1-3.
     let geom: Geometry | null = f.geometry as Geometry | null
-    if (empireMask && geom && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
-      try {
-        const fc: FeatureCollection<Polygon | MultiPolygon> = {
-          type: 'FeatureCollection',
-          features: [f as Feature<Polygon | MultiPolygon>, empireMask],
+    if (empireMask && empireBbox && geom && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
+      const cb = geomBbox(geom)
+      if (bboxIntersects(cb, empireBbox)) {
+        try {
+          const fc: FeatureCollection<Polygon | MultiPolygon> = {
+            type: 'FeatureCollection',
+            features: [f as Feature<Polygon | MultiPolygon>, empireMask],
+          }
+          const diff = difference(fc)
+          if (diff) geom = diff.geometry
+          else geom = null // country fully consumed by empire
+        } catch (err) {
+          console.warn('[CountryLayer] buildBorderLines empire-mask difference failed for', iso, err)
         }
-        const diff = difference(fc)
-        if (diff) geom = diff.geometry
-        else geom = null // country fully consumed by empire
-      } catch (err) {
-        console.warn('[CountryLayer] buildBorderLines empire-mask difference failed for', iso, err)
       }
     }
 
@@ -255,11 +276,17 @@ const ANCIENT_ERAS = new Set<string>([
   ...HISTORICAL_ERA_DEFS.map(e => e.id),
 ])
 
+// Stable empty defaults so the zustand selectors don't return a new []/array
+// reference on every state change — that was forcing the heavy turf.difference
+// pipeline to re-run on every keystroke / tick.
+const EMPTY_ISOS: string[] = []
+const EMPTY_REGIONS: Array<{ name: string; adm0_a3: string }> = []
+
 export default function CountryLayer() {
   const map = useMap()
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
-  const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
-  const controlledRegions = useGameStore(s => s.state?.controlledRegions ?? [])
+  const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? EMPTY_ISOS)
+  const controlledRegions = useGameStore(s => s.state?.controlledRegions ?? EMPTY_REGIONS)
   const era = useGameStore(s => s.state?.era)
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
   // Raw GeoJSON stored after fetch — Effect 2 re-injects colours when empire changes

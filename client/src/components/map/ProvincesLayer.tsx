@@ -25,7 +25,10 @@ export default function ProvincesLayer() {
 
         map.addSource('provinces', { type: 'geojson', data: geojson })
 
-        // Faint province borders — visible when zoomed in
+        // Faint province borders — visible when zoomed in. We later filter
+        // out any controlled provinces in Effect 2 so they don't draw their
+        // perimeter (which would create a faint seam along the empire's
+        // internal — now-merged — boundary).
         map.addLayer({
           id: 'province-borders',
           type: 'line',
@@ -119,9 +122,20 @@ export default function ProvincesLayer() {
 
     const filter = ['in', ['get', 'name'], ['literal', matchedNames]]
     map.setFilter('province-controlled', filter as never)
-    map.setFilter('province-controlled-border', filter as never)
+    // CountryLayer's merged empire-outline now draws the blue border around
+    // the entire empire (including annexed provinces). Hide ProvincesLayer's
+    // own controlled-region border layers so they don't double-draw a glow
+    // around just the province — which produced the visible seam along the
+    // shared edge with the parent country.
+    const NEVER_MATCH = ['in', ['get', 'name'], ['literal', [] as string[]]]
+    map.setFilter('province-controlled-border', NEVER_MATCH as never)
     if (map.getLayer('province-controlled-border-glow')) {
-      map.setFilter('province-controlled-border-glow', filter as never)
+      map.setFilter('province-controlled-border-glow', NEVER_MATCH as never)
+    }
+    // Hide the faint white province-borders for any controlled province too,
+    // so its perimeter isn't traced inside the merged empire.
+    if (map.getLayer('province-borders')) {
+      map.setFilter('province-borders', ['!', ['in', ['get', 'name'], ['literal', matchedNames]]] as never)
     }
     // Use the same LIGHTENED player country colour as the player's own
     // country fill, so the annexed region visually matches your land
