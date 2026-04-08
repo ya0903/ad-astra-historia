@@ -204,6 +204,7 @@ export default function CountryLayer() {
 
         map.addLayer({
           id: 'country-borders', type: 'line', source: 'countries',
+          filter: ['!', ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]]] as ExpressionSpecification,
           paint: {
             'line-color': '#4a5568',
             'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.8, 5, 1.2, 7, 1.8] as ExpressionSpecification,
@@ -296,6 +297,9 @@ export default function CountryLayer() {
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
     if (outlineSrc) {
       outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
+    }
+    if (map.getLayer('country-borders')) {
+      map.setFilter('country-borders', ['!', ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]]] as ExpressionSpecification)
     }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
