@@ -2,11 +2,48 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import difference from '@turf/difference'
+import union from '@turf/union'
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Geometry } from 'geojson'
 import { getCountryColour } from '@ad-astra/shared/countries'
 import { HISTORICAL_ERAS as HISTORICAL_ERA_DEFS } from '@ad-astra/shared/eraConfig'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
+
+/**
+ * Builds a single merged outline of [player + controlled] features so that
+ * adjacent territories show one continuous border instead of an internal seam.
+ * Returns a FeatureCollection with one Polygon/MultiPolygon feature, or empty
+ * if the empire ISO list resolves to nothing.
+ */
+function buildEmpireOutline(
+  geojson: GeoJSON.FeatureCollection,
+  empireIsos: string[],
+): FeatureCollection {
+  const set = new Set(empireIsos)
+  const polys: Feature<Polygon | MultiPolygon>[] = []
+  for (const f of geojson.features) {
+    const p = f.properties as Record<string, unknown> | null
+    const iso = String(p?.ISO_A3 ?? p?.ADM0_A3 ?? '')
+    if (!set.has(iso)) continue
+    if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
+      polys.push(f as Feature<Polygon | MultiPolygon>)
+    }
+  }
+  if (polys.length === 0) return { type: 'FeatureCollection', features: [] }
+  if (polys.length === 1) return { type: 'FeatureCollection', features: [polys[0]] }
+  try {
+    let merged: Feature<Polygon | MultiPolygon> = polys[0]
+    for (let i = 1; i < polys.length; i++) {
+      const fc: FeatureCollection<Polygon | MultiPolygon> = { type: 'FeatureCollection', features: [merged, polys[i]] }
+      const u = union(fc)
+      if (u) merged = u as Feature<Polygon | MultiPolygon>
+    }
+    return { type: 'FeatureCollection', features: [merged] }
+  } catch (err) {
+    console.warn('[CountryLayer] turf.union failed', err)
+    return { type: 'FeatureCollection', features: polys }
+  }
+}
 
 /**
  * Stamps fill_colour onto every GeoJSON feature using the shared COUNTRY_COLOURS
@@ -165,17 +202,19 @@ export default function CountryLayer() {
           },
         })
 
-        const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
+        // Empire outline: a separate source carrying the merged union of
+        // [player + controlled] features so adjacent territories show one
+        // continuous border (no internal seam).
+        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries])
+        map.addSource('empire-outline', { type: 'geojson', data: empireOutline })
 
         map.addLayer({
-          id: 'player-border-glow', type: 'line', source: 'countries',
-          filter: empireFilter,
+          id: 'player-border-glow', type: 'line', source: 'empire-outline',
           paint: { 'line-color': '#60a5fa', 'line-width': 8, 'line-opacity': 0.3, 'line-blur': 6 },
         })
 
         map.addLayer({
-          id: 'player-border', type: 'line', source: 'countries',
-          filter: empireFilter,
+          id: 'player-border', type: 'line', source: 'empire-outline',
           paint: { 'line-color': '#93c5fd', 'line-width': 1.5, 'line-opacity': 0.85 },
         })
 
@@ -218,6 +257,7 @@ export default function CountryLayer() {
         if (map.getLayer(id)) map.removeLayer(id)
       }
       if (map.getSource('countries')) map.removeSource('countries')
+      if (map.getSource('empire-outline')) map.removeSource('empire-outline')
     }
   }, [map, playerCountryId, era]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -233,9 +273,10 @@ export default function CountryLayer() {
       controlledRegions,
       provincesGeojsonRef.current,
     ))
-    const empireFilter = ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]] as ExpressionSpecification
-    if (map.getLayer('player-border')) map.setFilter('player-border', empireFilter)
-    if (map.getLayer('player-border-glow')) map.setFilter('player-border-glow', empireFilter)
+    const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
+    if (outlineSrc) {
+      outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries]))
+    }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
   return null
