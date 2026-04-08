@@ -120,21 +120,50 @@ function normaliseEra(eraId, geojson) {
     return `${base}X`
   }
 
-  const features = []
+  // Group features by polity name first — the source data sometimes splits a
+  // single empire across two disconnected Polygon features (e.g. two "Ottoman
+  // Empire" features in 1530). We merge them into a single MultiPolygon so
+  // each polity appears once in the playable list and once on the map.
+  const groups = new Map() // name → { features: [], isUnknown }
   for (const f of geojson.features) {
     const props = f.properties || {}
     const rawName = props.NAME || props.SUBJECTO
     const isUnknown = !rawName || rawName === 'Unknown' || rawName === 'unknown' || rawName.trim() === ''
-    // Keep Unknown territories in the map (so gaps are filled), but mark them
-    // non-playable. The country picker filters on `playable: true`.
-    const name = isUnknown ? 'Uncharted Territory' : rawName
+    const name = isUnknown ? `Uncharted ${groups.size}` : rawName
+    // Don't merge Uncharted tiles — each gap should remain its own feature.
+    const key = isUnknown ? `__uncharted_${groups.size}` : name
+    if (!groups.has(key)) groups.set(key, { name: isUnknown ? 'Uncharted Territory' : name, isUnknown, features: [] })
+    groups.get(key).features.push(f)
+  }
+
+  const features = []
+  for (const { name, isUnknown, features: group } of groups.values()) {
     const id = polityIdFor(eraId, name)
     const slug = id.split(':')[1] || name
     const iso = buildCode(slug)
+
+    // Combine geometries: if more than one feature, build a MultiPolygon by
+    // flattening every Polygon/MultiPolygon in the group.
+    let geometry
+    if (group.length === 1) {
+      geometry = group[0].geometry
+    } else {
+      const polys = []
+      for (const f of group) {
+        const g = f.geometry
+        if (!g) continue
+        if (g.type === 'Polygon') polys.push(g.coordinates)
+        else if (g.type === 'MultiPolygon') polys.push(...g.coordinates)
+      }
+      geometry = { type: 'MultiPolygon', coordinates: polys }
+    }
+
+    const baseProps = group[0].properties || {}
     features.push({
-      ...f,
+      type: 'Feature',
+      geometry,
       properties: {
-        ...props,
+        ...baseProps,
         polity_id: id,
         name,
         ISO_A3: iso,
@@ -143,7 +172,7 @@ function normaliseEra(eraId, geojson) {
         NAME: name,
         playable: !isUnknown,
         fill_colour: isUnknown ? '#3a3f47' : generatePolityColour(name, eraId),
-        border_precision: typeof props.BORDERPRECISION === 'number' ? props.BORDERPRECISION : 2,
+        border_precision: typeof baseProps.BORDERPRECISION === 'number' ? baseProps.BORDERPRECISION : 2,
       },
     })
   }

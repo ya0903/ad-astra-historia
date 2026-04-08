@@ -373,7 +373,8 @@ export default function GamePage() {
     const text = actionText.trim()
     if (!text) return
     // Rail-line intent detection: offer draw-myself option instead of queuing as AI action
-    const railUnlocked = unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)
+    const RAIL_ERAS = new Set<string>(['industrial_dawn', 'great_war', 'interwar', '1945', '1960s', '1990s', '2010s', 'modern'])
+    const railUnlocked = RAIL_ERAS.has(gameState.era) || unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)
     if (railUnlocked && /\b(rail|railway|railroad|train\s*line|hsr|high[- ]speed)\b/i.test(text)) {
       const draw = window.confirm(`It looks like you want to build a rail line. Draw it yourself on the map?\n\nOK = Draw it myself\nCancel = Let the AI decide`)
       if (draw) {
@@ -963,9 +964,14 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
           </WorldMap>
         )}
 
-        {/* ── Rail draw panel + trigger (only after rail tech unlocked) ── */}
+        {/* ── Rail draw panel + trigger (after rail tech unlocked OR in industrial+ era) ── */}
         <RailDrawPanel />
-        {(unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)) && (
+        {(() => {
+          const RAIL_ERAS = new Set<string>(['industrial_dawn', 'great_war', 'interwar', '1945', '1960s', '1990s', '2010s', 'modern'])
+          const railEra = RAIL_ERAS.has(gameState.era)
+          const railTech = unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)
+          return railEra || railTech
+        })() && (
           <button
             onClick={() => useRailDrawStore.getState().startDrawing('domestic_hsr')}
             title="Draw Rail Line"

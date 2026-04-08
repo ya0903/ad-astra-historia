@@ -287,33 +287,50 @@ export default function TechTreeFullscreen({ onClose }: TechTreeFullscreenProps)
       </div>
 
       {/* ── Era tabs ────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto px-3 py-2 border-b border-white/10 bg-[#080f1e] shrink-0">
-        {ALL_ERAS_IN_ORDER.map((era) => {
-          const cur = gameState?.era ?? 'modern'
-          const isCurrent = era === cur
-          const idx = ALL_ERAS_IN_ORDER.indexOf(era as AnyEraId)
-          const currentIdx = ALL_ERAS_IN_ORDER.indexOf(cur as AnyEraId)
-          const isPast = idx < currentIdx
-          const isSelected = viewingEra === era
-          return (
-            <button
-              key={era}
-              onClick={() => setViewingEra(era as AnyEraId)}
-              className={`text-[10px] font-mono px-2.5 py-1 rounded-md whitespace-nowrap transition-colors ${
-                isSelected
-                  ? 'bg-purple-700 text-white border border-purple-400'
-                  : isPast
-                    ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/40'
-                    : isCurrent
-                      ? 'bg-purple-950/40 text-purple-300 border border-purple-500/40'
-                      : 'bg-white/[0.03] text-gray-500 border border-white/5 hover:bg-white/[0.06]'
-              }`}
-            >
-              {isPast ? '✅ ' : isCurrent ? '🔵 ' : '🔒 '}{era}
-            </button>
-          )
-        })}
-      </div>
+      {(() => {
+        // Collapse the modern era IDs into a single "Modern Day" tab — they
+        // all share the same tech tree, so separate tabs are redundant.
+        const MODERN_IDS = new Set<string>(['1945', '1960s', '1990s', '2010s', 'modern'])
+        const tabs: { id: AnyEraId; label: string }[] = []
+        let modernAdded = false
+        for (const era of ALL_ERAS_IN_ORDER) {
+          if (MODERN_IDS.has(era)) {
+            if (!modernAdded) { tabs.push({ id: 'modern' as AnyEraId, label: 'Modern Day' }); modernAdded = true }
+          } else {
+            tabs.push({ id: era as AnyEraId, label: era })
+          }
+        }
+        const cur = gameState?.era ?? 'modern'
+        const curNormalised = (MODERN_IDS.has(cur) ? 'modern' : cur) as AnyEraId
+        const viewNormalised = (MODERN_IDS.has(viewingEra) ? 'modern' : viewingEra) as AnyEraId
+        const tabIndex = (id: AnyEraId) => tabs.findIndex(t => t.id === id)
+        return (
+          <div className="flex gap-1 overflow-x-auto px-3 py-2 border-b border-white/10 bg-[#080f1e] shrink-0">
+            {tabs.map(({ id, label }) => {
+              const isCurrent = id === curNormalised
+              const isPast = tabIndex(id) < tabIndex(curNormalised)
+              const isSelected = id === viewNormalised
+              return (
+                <button
+                  key={id}
+                  onClick={() => setViewingEra(id)}
+                  className={`text-[10px] font-mono px-2.5 py-1 rounded-md whitespace-nowrap transition-colors ${
+                    isSelected
+                      ? 'bg-purple-700 text-white border border-purple-400'
+                      : isPast
+                        ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/40'
+                        : isCurrent
+                          ? 'bg-purple-950/40 text-purple-300 border border-purple-500/40'
+                          : 'bg-white/[0.03] text-gray-500 border border-white/5 hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {isPast ? '✅ ' : isCurrent ? '🔵 ' : '🔒 '}{label}
+                </button>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* ── Category tabs ───────────────────────────────────────────────── */}
       <div className="flex border-b border-white/10 bg-[#080f1e]/80 shrink-0">
