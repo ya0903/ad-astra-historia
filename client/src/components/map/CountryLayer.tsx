@@ -117,14 +117,61 @@ function stripHoles(geom: Polygon | MultiPolygon): Polygon | MultiPolygon {
 function buildBorderLines(
   geojson: GeoJSON.FeatureCollection,
   excludeIsos: string[],
+  controlledRegions: Array<{ name: string; adm0_a3: string }> = [],
+  provincesGeojson: FeatureCollection | null = null,
 ): FeatureCollection<LineString> {
   const exclude = new Set(excludeIsos.map(s => s.toUpperCase()))
+
+  // Pre-resolve province polygons by parent country, so when we trace a parent
+  // country's outer ring we can first subtract the annexed province. Otherwise
+  // the parent's outer perimeter still runs along the (now empire) province
+  // edge — e.g. India's outer ring tracing the Pakistan↔Kashmir boundary.
+  const provincesByParent = new Map<string, Feature<Polygon | MultiPolygon>[]>()
+  if (provincesGeojson && controlledRegions.length > 0) {
+    for (const region of controlledRegions) {
+      const needle = region.name.toLowerCase()
+      const parentIso = region.adm0_a3.toUpperCase()
+      for (const pf of provincesGeojson.features) {
+        const pp = pf.properties as Record<string, unknown> ?? {}
+        const pName = String(pp?.name ?? '').toLowerCase()
+        const pIso = String(pp?.adm0_a3 ?? '').toUpperCase()
+        if (pIso === parentIso && (pName.includes(needle) || needle.includes(pName))) {
+          if (pf.geometry && (pf.geometry.type === 'Polygon' || pf.geometry.type === 'MultiPolygon')) {
+            if (!provincesByParent.has(parentIso)) provincesByParent.set(parentIso, [])
+            provincesByParent.get(parentIso)!.push(pf as Feature<Polygon | MultiPolygon>)
+          }
+        }
+      }
+    }
+  }
+
   const out: Feature<LineString>[] = []
   for (const f of geojson.features) {
     const p = f.properties as Record<string, unknown> | null
     const iso = String(p?.ISO_A3 ?? p?.ADM0_A3 ?? '').toUpperCase()
     if (exclude.has(iso)) continue
-    const geom = f.geometry as Geometry | null
+
+    // If this country has annexed provinces, clip them out before tracing.
+    let geom: Geometry | null = f.geometry as Geometry | null
+    const provincesToClip = provincesByParent.get(iso)
+    if (provincesToClip && provincesToClip.length > 0 && geom
+        && (geom.type === 'Polygon' || geom.type === 'MultiPolygon')) {
+      try {
+        let clipped: Feature<Polygon | MultiPolygon> = f as Feature<Polygon | MultiPolygon>
+        for (const province of provincesToClip) {
+          const fc: FeatureCollection<Polygon | MultiPolygon> = {
+            type: 'FeatureCollection',
+            features: [clipped, province],
+          }
+          const diff = difference(fc)
+          if (diff) clipped = diff
+        }
+        geom = clipped.geometry
+      } catch (err) {
+        console.warn('[CountryLayer] buildBorderLines difference failed for', iso, err)
+      }
+    }
+
     if (!geom) continue
     const polys: Position[][][] =
       geom.type === 'Polygon' ? [(geom as Polygon).coordinates] :
@@ -289,7 +336,7 @@ export default function CountryLayer() {
         //      polygon's western edge (two near-coincident grey lines).
         //   2. India's polygon hole (left by injectColours' difference clip)
         //      tracing a grey ring around the annexed Kashmir province.
-        const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries])
+        const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
         map.addSource('country-border-lines', { type: 'geojson', data: borderLines })
 
         map.addLayer({
@@ -390,7 +437,7 @@ export default function CountryLayer() {
     }
     const borderSrc = map.getSource('country-border-lines') as maplibregl.GeoJSONSource | undefined
     if (borderSrc) {
-      borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries]))
+      borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
     }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
