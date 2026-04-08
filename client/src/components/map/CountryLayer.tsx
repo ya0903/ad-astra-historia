@@ -18,6 +18,8 @@ import { useGameStore } from '../../stores'
 function buildEmpireOutline(
   geojson: GeoJSON.FeatureCollection,
   empireIsos: string[],
+  controlledRegions: Array<{ name: string; adm0_a3: string }> = [],
+  provincesGeojson: FeatureCollection | null = null,
 ): FeatureCollection {
   const set = new Set(empireIsos)
   const polys: Feature<Polygon | MultiPolygon>[] = []
@@ -27,6 +29,24 @@ function buildEmpireOutline(
     if (!set.has(iso)) continue
     if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
       polys.push(f as Feature<Polygon | MultiPolygon>)
+    }
+  }
+  // Add any controlled provinces (e.g. annexed Kashmir) — they're separate
+  // polygons in the provinces dataset, not in the country source.
+  if (provincesGeojson && controlledRegions.length > 0) {
+    for (const region of controlledRegions) {
+      const needle = region.name.toLowerCase()
+      const parentIso = region.adm0_a3.toUpperCase()
+      for (const pf of provincesGeojson.features) {
+        const pp = pf.properties as Record<string, unknown> ?? {}
+        const pName = String(pp?.name ?? '').toLowerCase()
+        const pIso = String(pp?.adm0_a3 ?? '').toUpperCase()
+        if (pIso === parentIso && (pName.includes(needle) || needle.includes(pName))) {
+          if (pf.geometry && (pf.geometry.type === 'Polygon' || pf.geometry.type === 'MultiPolygon')) {
+            polys.push(pf as Feature<Polygon | MultiPolygon>)
+          }
+        }
+      }
     }
   }
   if (polys.length === 0) return { type: 'FeatureCollection', features: [] }
@@ -205,7 +225,7 @@ export default function CountryLayer() {
         // Empire outline: a separate source carrying the merged union of
         // [player + controlled] features so adjacent territories show one
         // continuous border (no internal seam).
-        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries])
+        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
         map.addSource('empire-outline', { type: 'geojson', data: empireOutline })
 
         map.addLayer({
@@ -275,7 +295,7 @@ export default function CountryLayer() {
     ))
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
     if (outlineSrc) {
-      outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries]))
+      outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
     }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
