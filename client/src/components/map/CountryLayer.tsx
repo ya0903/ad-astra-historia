@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec'
 import difference from '@turf/difference'
 import union from '@turf/union'
+import buffer from '@turf/buffer'
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Geometry } from 'geojson'
 import { getCountryColour } from '@ad-astra/shared/countries'
 import { HISTORICAL_ERAS as HISTORICAL_ERA_DEFS } from '@ad-astra/shared/eraConfig'
@@ -52,13 +53,20 @@ function buildEmpireOutline(
   if (polys.length === 0) return { type: 'FeatureCollection', features: [] }
   if (polys.length === 1) return { type: 'FeatureCollection', features: [polys[0]] }
   try {
-    let merged: Feature<Polygon | MultiPolygon> = polys[0]
-    for (let i = 1; i < polys.length; i++) {
-      const fc: FeatureCollection<Polygon | MultiPolygon> = { type: 'FeatureCollection', features: [merged, polys[i]] }
+    // Dilate each polygon by ~2km before unioning so adjacent borders that
+    // don't share exact vertices still overlap and dissolve into a single
+    // ring. Then erode the merged result back by 2km to restore size.
+    const dilated = polys.map(p => {
+      try { return buffer(p, 2, { units: 'kilometers' }) ?? p } catch { return p }
+    }) as Feature<Polygon | MultiPolygon>[]
+    let merged: Feature<Polygon | MultiPolygon> = dilated[0]
+    for (let i = 1; i < dilated.length; i++) {
+      const fc: FeatureCollection<Polygon | MultiPolygon> = { type: 'FeatureCollection', features: [merged, dilated[i]] }
       const u = union(fc)
       if (u) merged = u as Feature<Polygon | MultiPolygon>
     }
-    return { type: 'FeatureCollection', features: [merged] }
+    const eroded = buffer(merged, -2, { units: 'kilometers' }) as Feature<Polygon | MultiPolygon> | undefined
+    return { type: 'FeatureCollection', features: [eroded ?? merged] }
   } catch (err) {
     console.warn('[CountryLayer] turf.union failed', err)
     return { type: 'FeatureCollection', features: polys }
@@ -204,7 +212,6 @@ export default function CountryLayer() {
 
         map.addLayer({
           id: 'country-borders', type: 'line', source: 'countries',
-          filter: ['!', ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]]] as ExpressionSpecification,
           paint: {
             'line-color': '#4a5568',
             'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.8, 5, 1.2, 7, 1.8] as ExpressionSpecification,
@@ -297,9 +304,6 @@ export default function CountryLayer() {
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
     if (outlineSrc) {
       outlineSrc.setData(buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current))
-    }
-    if (map.getLayer('country-borders')) {
-      map.setFilter('country-borders', ['!', ['in', ['get', 'ISO_A3'], ['literal', [playerCountryId, ...controlledCountries]]]] as ExpressionSpecification)
     }
   }, [map, playerCountryId, controlledCountries, controlledRegions])
 
