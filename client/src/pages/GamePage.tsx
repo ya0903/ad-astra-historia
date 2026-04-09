@@ -21,6 +21,7 @@ import SocietyPanel from '../components/SocietyPanel'
 import EspionagePanel from '../components/EspionagePanel'
 import PlanetSwitcher from '../components/PlanetSwitcher'
 import PendingPlacementPrompt from '../components/PendingPlacementPrompt'
+import ModalHost, { confirm as uiConfirm } from '../components/ModalHost'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 import { getCountryResources } from '@ad-astra/shared/countryResources'
@@ -429,14 +430,19 @@ export default function GamePage() {
     }
   }
 
-  const handleExecute = () => {
+  const handleExecute = async () => {
     const text = actionText.trim()
     if (!text) return
     // Rail-line intent detection: offer draw-myself option instead of queuing as AI action
     const RAIL_ERAS = new Set<string>(['industrial_dawn', 'great_war', 'interwar', '1945', '1960s', '1990s', '2010s', 'modern'])
     const railUnlocked = RAIL_ERAS.has(gameState.era) || unlockedTechs.includes('railroad' as any) || unlockedTechs.includes('steam_engine' as any) || unlockedTechs.includes('high_speed_rail' as any)
     if (railUnlocked && /\b(rail|railway|railroad|train\s*line|hsr|high[- ]speed)\b/i.test(text)) {
-      const draw = window.confirm(`It looks like you want to build a rail line. Draw it yourself on the map?\n\nOK = Draw it myself\nCancel = Let the AI decide`)
+      const draw = await uiConfirm({
+        title: 'Draw the rail line yourself?',
+        body: 'You can plot the route on the map, or let the AI decide where it goes.',
+        okLabel: 'Draw it myself',
+        cancelLabel: 'Let the AI decide',
+      })
       if (draw) {
         const isHsr = /\b(hsr|high[- ]speed|bullet)\b/i.test(text)
         useRailDrawStore.getState().startDrawing(isHsr ? 'domestic_hsr' : 'cross_continent')
@@ -1268,6 +1274,7 @@ followUps: When a result reasonably invites a player response — e.g. a country
 
         {/* ── Unknown-place build prompt ── */}
         <PendingPlacementPrompt />
+        <ModalHost />
 
         {/* ── Full-screen Tech Tree overlay ── */}
         {techTreeOpen && <TechTreeFullscreen onClose={() => { setTechTreeOpen(false); setActiveRightPanel(null) }} />}
@@ -1337,11 +1344,15 @@ followUps: When a result reasonably invites a player response — e.g. a country
               )}
             </div>
             <button
-              onClick={() => {
-                if (window.confirm('Start a new game? Unsaved progress will be lost.')) {
+              onClick={async () => {
+                const ok = await uiConfirm({
+                  title: 'Start a new game?',
+                  body: 'Unsaved progress will be lost.',
+                  okLabel: 'New Game',
+                  tone: 'danger',
+                })
+                if (ok) {
                   clearGame()
-                  // Hard reload so every map layer, cached geojson, and
-                  // zustand store re-initialises cleanly.
                   setTimeout(() => window.location.reload(), 50)
                 }
               }}

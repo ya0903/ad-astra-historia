@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { useConfigStore, useGameStore } from '../stores'
 import { callAI } from '../lib/aiClient'
 import { getCountryCentre } from '../lib/mapFly'
+import { confirm as uiConfirm, prompt as uiPrompt, alert as uiAlert } from './ModalHost'
 
 // Diplomatic reach in kilometres by era. Pre-modern civilisations couldn't
 // realistically negotiate across oceans they didn't know existed. Numbers are
@@ -349,8 +350,14 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           {targetCountry && (
             <>
               <button
-                onClick={() => {
-                  if (window.confirm(`Clear chat history with ${targetCountry}?`)) {
+                onClick={async () => {
+                  const ok = await uiConfirm({
+                    title: `Clear chat history with ${targetCountry}?`,
+                    body: 'The previous messages will be deleted.',
+                    okLabel: 'Clear',
+                    tone: 'danger',
+                  })
+                  if (ok) {
                     clearDiplomaticChat(targetCountry)
                     setMessages([])
                     setTargetCountry('')
@@ -473,7 +480,10 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                               setNegotiating(newId)
                               setDemand({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
                             } else {
-                              window.alert(`You are not formally at war with ${countries[iso]?.name ?? iso}. Use the action input to declare war first.`)
+                              uiAlert({
+                                title: 'Not at war',
+                                body: `You are not formally at war with ${countries[iso]?.name ?? iso}. Use the action input to declare war first.`,
+                              })
                             }
                           }}
                           disabled={alreadyPending}
@@ -517,8 +527,14 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                         </p>
                       </div>
                       <button
-                        onClick={() => {
-                          const next = window.prompt(`Rename ${origName}?\n\nLeave blank to clear the custom name.`, custom ?? '')
+                        onClick={async () => {
+                          const next = await uiPrompt({
+                            title: `Rename ${origName}`,
+                            body: 'Leave blank to clear the custom name.',
+                            defaultValue: custom ?? '',
+                            placeholder: 'New name',
+                            okLabel: 'Rename',
+                          })
                           if (next !== null) renameTerritory(iso.toUpperCase(), next)
                         }}
                         className="px-2 py-0.5 rounded text-[9px] font-semibold bg-white/5 hover:bg-purple-900/40 text-purple-300 transition-colors"
