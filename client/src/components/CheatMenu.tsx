@@ -144,18 +144,14 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
 
     if (parts[0] === 'unlockall' || parts[0] === 'unlockalltech') {
       // Union of modern, ancient, industrial and every historical-era tree.
-      const historicalIds = Object.values(HISTORICAL_TECH_TREES)
-        .flat()
-        .map(n => n.id as unknown as import('@ad-astra/shared/types').TechId)
-      const allIds = new Set<import('@ad-astra/shared/types').TechId>([
-        ...ALL_TECH_IDS as Set<import('@ad-astra/shared/types').TechId>,
-        ...historicalIds,
-      ])
-      const existing = new Set(gameState.unlockedTechs ?? [])
-      for (const id of allIds) existing.add(id)
-      cheatPatch({ unlockedTechs: Array.from(existing) as import('@ad-astra/shared/types').TechId[] })
+      const historicalIds = Object.values(HISTORICAL_TECH_TREES).flat().map(n => n.id)
+      const already = new Set(gameState.unlockedTechs ?? [])
+      const toUnlock = new Set<string>()
+      for (const id of ALL_TECH_IDS) if (!already.has(id as never)) toUnlock.add(id as string)
+      for (const id of historicalIds) if (!already.has(id as never)) toUnlock.add(id)
+      for (const id of toUnlock) cheatUnlockTech(id)
       instaResearch() // clears the research queue too
-      push(`Unlocked all ${existing.size} techs across every era.`, 'ok')
+      push(`Unlocked ${toUnlock.size} techs (all eras).`, 'ok')
       return
     }
 
