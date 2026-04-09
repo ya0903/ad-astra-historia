@@ -570,7 +570,13 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
       // set annexedCountry / transferTo doesn't lose the player's intent. Only
       // kicks in when the action text uses an explicit wipeout verb.
       {
-        const WIPEOUT_RE = /\b(conquer|annex|wipe out|dissolve|take over|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminate|capitulate)\b/i
+        // NOTE: trailing \b is intentionally omitted after each verb stem so
+        // inflected forms ("conquers", "annexes", "absorbs", "dissolves",
+        // "eliminates", "capitulates") still match. A trailing \b would
+        // reject "conquers" because `r` → `s` is not a word boundary,
+        // silently bypassing the whole post-processor for most real
+        // sentences and routing foreign conquests through controlledCountries.
+        const WIPEOUT_RE = /\b(conquer|annex|wipe out|dissolv|take over|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminat|capitulat)/i
         // Two-country patterns: "X conquers Y", "give Y to X", "Y to X",
         // "hand X to Y", etc. We use these to pick WHICH country is the
         // conquered one vs the new owner.
