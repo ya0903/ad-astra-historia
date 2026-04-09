@@ -169,6 +169,9 @@ function sanitiseDeltas(result: ActionResult, pending: { id: string; text: strin
   const isMilitary = MILITARY_KEYWORDS.test(text)
   const isDiplomacy = DIPLOMACY_KEYWORDS.test(text)
   const isTech = TECH_KEYWORDS.test(text)
+  // Bigger stability swings allowed for war / nuclear / bombardment events.
+  const isCatastrophic = (result.nuclearStrike?.length ?? 0) > 0
+    || (result.bombardment?.length ?? 0) > 0
   // Conquest, annexation, invasions and wipe-outs should NEVER yield a
   // positive GDP delta — wars cost money and integration is slow. The AI
   // often returns large positive GDP on these actions; clamp them to ≤ 0.
@@ -187,6 +190,9 @@ function sanitiseDeltas(result: ActionResult, pending: { id: string; text: strin
       approval: clamp(d.approval ?? 0, -5, 5),
       softPower: isDiplomacy ? clamp(d.softPower ?? 0, -3, 3) : 0,
       techLevel: isTech ? clamp(d.techLevel ?? 0, -2, 2) : 0,
+      stability: isCatastrophic
+        ? clamp(d.stability ?? 0, -10, 10)
+        : clamp(d.stability ?? 0, -5, 5),
     },
   }
 }
@@ -340,7 +346,28 @@ export default function GamePage() {
 
   const player = gameState.countries[gameState.playerCountryId]
   const stats = player?.stats
-  const sectors = player?.sectors
+  // Sector levels derived from player infrastructure so builds update them live.
+  const SECTOR_INFRA_MAP: Record<string, string[]> = {
+    technology:      ['research_centre', 'university', 'intelligence_agency', 'telecom_node', 'data_centre'],
+    manufacturing:   ['industrial_zone', 'fossil_fuel_plant', 'solar_farm', 'wind_farm', 'nuclear_plant', 'hydro_dam'],
+    infrastructure:  ['port', 'airport', 'rail_line', 'high_speed_rail'],
+    defence:         ['military_base', 'nuclear_silo', 'defence_system'],
+    finance:         ['financial_institution'],
+    agriculture:     ['desalination_plant'],
+    pharmaceuticals: ['emergency_services'],
+    space:           [],
+  }
+  const playerInfra = (gameState.infrastructureMap ?? []).filter(i => i.countryId === gameState.playerCountryId)
+  const sectors = (() => {
+    const base: Record<string, number> = { ...(player?.sectors as unknown as Record<string, number> ?? {}) }
+    for (const [sector, types] of Object.entries(SECTOR_INFRA_MAP)) {
+      const derived = playerInfra
+        .filter(i => types.includes(i.type))
+        .reduce((acc, i) => acc + (i.level ?? 1) * 4, 0)
+      base[sector] = Math.min(100, (base[sector] ?? 0) + derived)
+    }
+    return base as unknown as typeof player.sectors
+  })()
   const pendingActions = gameState.pendingActions ?? []
   const buildQueue = gameState.buildQueue ?? []
   const researchQueue = gameState.researchQueue ?? []
@@ -492,7 +519,8 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
 - approval: public satisfaction. Positive for welfare/growth/populist actions; negative for tax hikes, austerity, or conflict casualties.
 - softPower: ONLY for diplomacy, culture, international aid, hosting events. Must be 0 for purely domestic economic or military actions.
 - techLevel: ONLY for R&D, education, technology, or space actions. Must be 0 for all other categories.
-- Maximum magnitude per action: gdp ±$30B, military ±5, approval ±5, softPower ±3, techLevel ±2.
+- stability: internal order of the nation (0-100). POSITIVE (+1..+5) for counter-insurgency, policing, crackdowns on unrest, border security, welfare / healthcare / social programmes, and building hospitals, emergency services, universities, or public infrastructure. NEGATIVE (-1..-5, up to -10 for catastrophic events) for bombings, wars on home soil, economic collapse, mass protests, failed coups, or nuclear strikes AGAINST the player. Must be 0 for purely foreign or neutral actions that don't touch the homeland's internal order.
+- Maximum magnitude per action: gdp ±$30B, military ±5, approval ±5, softPower ±3, techLevel ±2, stability ±5 (±10 for nuclear/bombardment).
 - Be consistent: the same type of action should give similar deltas regardless of how many times it is called.`
 
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
@@ -514,7 +542,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>,"stability":<-5..5>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.

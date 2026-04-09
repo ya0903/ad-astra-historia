@@ -740,6 +740,39 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       // (handled by the existing s.railLines update path)
     }
 
+    // ── Passive stability boost from completed builds ────────────────────────
+    // Internal-security, welfare, education and economic infrastructure makes
+    // the country more stable as it comes online. Only counts builds that
+    // belong to the player's country (not foreign embassies, not allied builds).
+    {
+      const STABILITY_PER_BUILD: Record<string, number> = {
+        emergency_services: 0.5,
+        university: 0.5,
+        research_centre: 0.5,
+        financial_institution: 0.5,
+        military_base: 0.3,
+      }
+      let stabilityBoost = 0
+      for (const cb of completedBuilds) {
+        const countryId = cb.countryId ?? s.playerCountryId
+        if (countryId !== s.playerCountryId) continue
+        const per = STABILITY_PER_BUILD[cb.type]
+        if (!per) continue
+        const level = cb.targetLevel ?? 1
+        stabilityBoost += per * level
+      }
+      if (stabilityBoost > 0) {
+        const player = newCountries[s.playerCountryId]
+        if (player) {
+          const curr = player.stats.stability ?? 70
+          newCountries[s.playerCountryId] = {
+            ...player,
+            stats: { ...player.stats, stability: Math.max(0, Math.min(100, curr + stabilityBoost)) },
+          }
+        }
+      }
+    }
+
     // ── Monthly recurring income (infrastructure + resources + power) ────────
     // Every month the player earns income from:
     //   1. Infrastructure (ports, rails, universities, etc.) — tax + usage fees
@@ -1135,11 +1168,16 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     if (!player) return {}
 
     const newStats = { ...player.stats }
+    // Stats that are 0-100 bounded (rather than uncapped like gdp)
+    const BOUNDED_STATS = new Set(['stability', 'approval', 'military', 'softPower', 'techLevel'])
     for (const result of results) {
       for (const [key, delta] of Object.entries(result.statDeltas)) {
         const k = key as keyof typeof newStats
         if (typeof newStats[k] === 'number') {
-          (newStats as Record<string, number>)[k] = Math.max(0, (newStats[k] as number) + delta)
+          const next = (newStats[k] as number) + delta
+          ;(newStats as Record<string, number>)[k] = BOUNDED_STATS.has(key)
+            ? Math.max(0, Math.min(100, next))
+            : Math.max(0, next)
         }
       }
     }
