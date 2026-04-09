@@ -3,6 +3,7 @@ import type { FeatureCollection } from 'geojson'
 import maplibregl from 'maplibre-gl'
 import { useMap } from './MapContext'
 import { useGameStore } from '../../stores'
+import { useRailDrawStore } from '../../stores/railDrawStore'
 import { RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { RailType } from '@ad-astra/shared/types'
 
@@ -21,6 +22,7 @@ const RAIL_WIDTH: Record<RailType, number> = {
 export default function RailLayer() {
   const map = useMap()
   const gameState = useGameStore(s => s.state)
+  const drawMode = useRailDrawStore(s => s.mode)
   const popupRef = useRef<maplibregl.Popup | null>(null)
 
   useEffect(() => {
@@ -150,6 +152,72 @@ export default function RailLayer() {
       popupRef.current?.remove()
     }
   }, [map, gameState])
+
+  // ── Clickable yellow dots to start a new rail line from existing stations ──
+  useEffect(() => {
+    if (!map || !gameState) return
+    const playerCountryId = gameState.playerCountryId
+    const SRC = 'rail-start-dots-src'
+    const LYR = 'rail-start-dots-layer'
+
+    const features = gameState.railLines
+      .filter(r => r.countryId === playerCountryId)
+      .flatMap(r => (r.stations ?? []).map(s => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
+        properties: { name: s.name, lng: s.lng, lat: s.lat },
+      })))
+    const data = { type: 'FeatureCollection' as const, features }
+
+    if (map.getSource(SRC)) {
+      (map.getSource(SRC) as maplibregl.GeoJSONSource).setData(data)
+    } else {
+      map.addSource(SRC, { type: 'geojson', data })
+      map.addLayer({
+        id: LYR,
+        type: 'circle',
+        source: SRC,
+        minzoom: 3,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 9, 5],
+          'circle-color': '#facc15',
+          'circle-stroke-color': '#1a1a1a',
+          'circle-stroke-width': 1,
+        },
+      })
+    }
+
+    // Toggle visibility based on draw mode
+    if (map.getLayer(LYR)) {
+      map.setLayoutProperty(LYR, 'visibility', drawMode === 'idle' ? 'visible' : 'none')
+    }
+
+    const onClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      const f = e.features?.[0]
+      if (!f) return
+      const props = f.properties as { lng: number; lat: number }
+      const lng = typeof props.lng === 'number' ? props.lng : Number(props.lng)
+      const lat = typeof props.lat === 'number' ? props.lat : Number(props.lat)
+      const store = useRailDrawStore.getState()
+      store.startDrawing('domestic_hsr')
+      useRailDrawStore.getState().addWaypoint(lng, lat)
+      e.originalEvent?.stopPropagation?.()
+    }
+    const onEnter = () => { map.getCanvas().style.cursor = 'pointer' }
+    const onLeave = () => { map.getCanvas().style.cursor = '' }
+
+    map.on('click', LYR, onClick)
+    map.on('mouseenter', LYR, onEnter)
+    map.on('mouseleave', LYR, onLeave)
+
+    return () => {
+      map.off('click', LYR, onClick)
+      map.off('mouseenter', LYR, onEnter)
+      map.off('mouseleave', LYR, onLeave)
+      if (map.getLayer(LYR)) map.removeLayer(LYR)
+      if (map.getSource(SRC)) map.removeSource(SRC)
+    }
+  }, [map, gameState, drawMode])
 
   return null
 }
