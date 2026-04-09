@@ -84,7 +84,7 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
       {isOpen && showGovPicker && (
         <div
           className="fixed w-48 bg-[#080f1e]/98 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden"
-          style={{ right: 380 + 288 + 8, bottom: 80, zIndex: 31 }}
+          style={{ right: 64 + 288 + 8, bottom: 80, zIndex: 31 }}
         >
           <div className="px-3 py-2 border-b border-white/[0.07]">
             <p className="text-[10px] text-gray-500 uppercase tracking-widest">Government Type</p>
@@ -106,7 +106,7 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
       {isOpen && (
         <div
           className="fixed w-72 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 380, bottom: 80, zIndex: 30 }}
+          style={{ right: 64, bottom: 80, zIndex: 30 }}
         >
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Internal Politics</span>

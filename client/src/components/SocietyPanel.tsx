@@ -64,7 +64,7 @@ export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelPr
       {isOpen && (
         <div
           className="fixed w-64 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 380, bottom: 80, zIndex: 30 }}
+          style={{ right: 64, bottom: 80, zIndex: 30 }}
         >
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Society</span>

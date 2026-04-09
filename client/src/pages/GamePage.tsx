@@ -293,11 +293,20 @@ export default function GamePage() {
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set())
   const [techTreeOpen, setTechTreeOpen] = useState(false)
   const [activeRightPanel, setActiveRightPanel] = useState<'org' | 'advisor' | 'diplomacy' | 'news' | 'tech' | null>(null)
-  const openRightPanel = (p: 'org' | 'advisor' | 'diplomacy' | 'news' | 'tech') =>
-    setActiveRightPanel(prev => prev === p ? null : p)
   const [activeDeepPanel, setActiveDeepPanel] = useState<'economy' | 'military' | 'politics' | 'society' | 'espionage' | null>(null)
-  const openDeepPanel = (p: 'economy' | 'military' | 'politics' | 'society' | 'espionage') =>
+  // All side panels EXCEPT tech tree and cheat console are mutually exclusive.
+  // Opening any side panel closes every other side panel so only one floats
+  // at any time — prevents overlapping panels next to the button column.
+  const openRightPanel = (p: 'org' | 'advisor' | 'diplomacy' | 'news' | 'tech') => {
+    // Tech tree is a fullscreen modal — it's independent and doesn't dismiss
+    // the floating panels.
+    if (p !== 'tech') setActiveDeepPanel(null)
+    setActiveRightPanel(prev => prev === p ? null : p)
+  }
+  const openDeepPanel = (p: 'economy' | 'military' | 'politics' | 'society' | 'espionage') => {
+    setActiveRightPanel(prev => (prev === 'tech' ? prev : null))
     setActiveDeepPanel(prev => prev === p ? null : p)
+  }
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedResult, setExpandedResult] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')

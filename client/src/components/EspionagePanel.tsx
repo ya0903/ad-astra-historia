@@ -142,7 +142,7 @@ export default function EspionagePanel({ isOpen, onOpen, onClose }: EspionagePan
       {isOpen && (
         <div
           className="fixed w-80 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 380, bottom: 80, zIndex: 30 }}
+          style={{ right: 64, bottom: 80, zIndex: 30 }}
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between sticky top-0 bg-[#080f1e]/95 z-10">
