@@ -122,17 +122,21 @@ export default function RailLayer() {
         id: STATION_LAYER,
         type: 'circle',
         source: STATION_SOURCE,
-        minzoom: 3,
+        minzoom: 0,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 3.5],
+          // Bigger so they're actually visible on top of the 2px rail line
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 6, 5, 9, 7],
           'circle-color': '#facc15',
-          'circle-stroke-color': '#1a1a1a',
-          'circle-stroke-width': 0.5,
+          'circle-stroke-color': '#0a1020',
+          'circle-stroke-width': 1.2,
         },
       })
     }
 
+    // Always re-move the station layer to the very top so any rail-line
+    // layers added later (new rail types) don't draw over the dots.
     if (map.getLayer(STATION_LAYER)) {
+      try { map.moveLayer(STATION_LAYER) } catch { /* no-op */ }
       map.setLayoutProperty(STATION_LAYER, 'visibility', drawMode === 'idle' ? 'visible' : 'none')
     }
 
