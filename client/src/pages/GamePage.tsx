@@ -620,16 +620,26 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
             // "X conquers Y" or "Y taken by X" — resolve who is the actor.
             const firstHit = hits[0]
             const secondHit = hits[1]
+            let actorIso: string, conqueredIso: string
             if (TRANSFER_RE.test(text)) {
               // "Y given to X" — X is the recipient, Y is the conquered land.
-              r.annexedCountry = firstHit.iso
-              r.transferTo = secondHit.iso
-              r.focusIso = r.focusIso ?? firstHit.iso
+              actorIso = secondHit.iso
+              conqueredIso = firstHit.iso
             } else {
               // "X conquers Y" — first mention is the actor/recipient.
-              r.annexedCountry = secondHit.iso
-              r.transferTo = firstHit.iso
-              r.focusIso = r.focusIso ?? secondHit.iso
+              actorIso = firstHit.iso
+              conqueredIso = secondHit.iso
+            }
+            r.annexedCountry = conqueredIso
+            r.focusIso = r.focusIso ?? conqueredIso
+            // Only set transferTo when the actor is a NON-player country.
+            // When the player is the named conqueror ("pakistan conquers
+            // afghanistan" with player=PAK) treat it as an implicit player
+            // annexation so the empire glow extends to cover the new land.
+            if (actorIso !== gameState.playerCountryId) {
+              r.transferTo = actorIso
+            } else {
+              r.transferTo = undefined
             }
           } else if (hits.length === 1 && hits[0].iso !== gameState.playerCountryId) {
             // No named actor — player is the implicit conqueror.
