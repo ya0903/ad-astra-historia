@@ -10,6 +10,7 @@ import { useGameStore } from '../../stores'
 export default function DamageLayer() {
   const map = useMap()
   const warDamage = useGameStore(s => s.state?.warDamage ?? {})
+  const gameState = useGameStore(s => s.state)
   const initialised = useRef(false)
 
   // Wait for the countries source to exist, then add damage layers on top
@@ -78,8 +79,15 @@ export default function DamageLayer() {
   useEffect(() => {
     if (!map || !initialised.current) return
 
-    const nukedIsos = Object.entries(warDamage).filter(([, v]) => v === 'nuked').map(([k]) => k)
-    const bombedIsos = Object.entries(warDamage).filter(([, v]) => v === 'bombed').map(([k]) => k)
+    // Exclude any country the player has since annexed — no point painting
+    // our own territory as war-damaged (user saw Israel still showing brown
+    // after conquest).
+    const excluded = new Set<string>([
+      ...(gameState?.controlledCountries ?? []),
+      gameState?.playerCountryId ?? '',
+    ])
+    const nukedIsos = Object.entries(warDamage).filter(([k, v]) => v === 'nuked' && !excluded.has(k)).map(([k]) => k)
+    const bombedIsos = Object.entries(warDamage).filter(([k, v]) => v === 'bombed' && !excluded.has(k)).map(([k]) => k)
 
     const nukedOpacity: ExpressionSpecification = nukedIsos.length > 0
       ? ['match', ['get', 'ISO_A3'], nukedIsos, 0.88, 0] as unknown as ExpressionSpecification
@@ -102,7 +110,7 @@ export default function DamageLayer() {
     if (map.getLayer('damage-nuked-border')) {
       map.setPaintProperty('damage-nuked-border', 'line-opacity', nukedBorderOpacity)
     }
-  }, [map, warDamage])
+  }, [map, warDamage, gameState?.controlledCountries, gameState?.playerCountryId])
 
   return null
 }

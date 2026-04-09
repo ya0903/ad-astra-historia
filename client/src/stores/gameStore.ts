@@ -260,6 +260,7 @@ interface GameStoreState {
   declineProposal: (proposalId: string) => void
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
+  addTimelineResult: (result: ActionResult) => void
   // Diplomatic chat history
   appendDiplomaticChat: (country: string, message: import('@ad-astra/shared/types').DiplomaticChatMessage) => void
   clearDiplomaticChat: (country: string) => void
@@ -1341,7 +1342,25 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         const scaledWeeks = targetLvl > 1
           ? weeksForLevelRange(bp.type, 0, targetLvl)
           : weeks
-        const cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
+        // Resolve a coordinate for this build. Try (in order):
+        //   1. The city field, matched against the target country's overrides
+        //   2. The name field, scanned for known city substrings
+        //   3. Any known city substring inside the name OR city in any country
+        //   4. Country centre of targetIso / player
+        // If the resolved coord falls OUTSIDE the target country, redirect the
+        // build to whichever country actually contains that coord — this fixes
+        // "Rafah Relief Corridor" being placed in Ramallah because the AI
+        // picked Israel as the focus but the actual place is in Gaza/PSE.
+        let cityCoords = (bp.city ? getCityCentre(bp.city, targetIso) : null) ?? getCityCentre(bp.name, targetIso)
+        if (cityCoords) {
+          if (!isCoordInCountry(cityCoords[0], cityCoords[1], targetIso)) {
+            // City isn't in the nominally-targeted country — find the country
+            // it actually belongs to and retarget the build there.
+            for (const iso of Object.keys(s.countries)) {
+              if (isCoordInCountry(cityCoords[0], cityCoords[1], iso)) { targetIso = iso; break }
+            }
+          }
+        }
         const centre = cityCoords ?? getCountryCentre(targetIso) ?? getCountryCentre(pid)
         newBuilds.push({
           id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -1448,6 +1467,40 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       ? { ...s.economy, debt: s.economy.debt + totalBuildCost }
       : s.economy
 
+    // ── War surrender / white-flag ──
+    // Tally how much damage each enemy has taken from the player across all
+    // historical actions. A nuclear strike = 100, a bombardment = 25. Once
+    // an enemy has ≥100 damage and we're currently at war with them, spawn
+    // a one-time peace_talks proposal offering unconditional surrender.
+    const damageByIso: Record<string, number> = {}
+    const existingPeaceTalks = new Set(
+      (s.diplomaticInbox ?? [])
+        .filter(p => p.type === 'peace_talks')
+        .map(p => p.fromCountry),
+    )
+    const allResults = [...(s.lastResults ?? []), ...results]
+    for (const r of allResults) {
+      for (const iso of r.nuclearStrike ?? []) damageByIso[iso] = (damageByIso[iso] ?? 0) + 100
+      for (const iso of r.bombardment ?? []) damageByIso[iso] = (damageByIso[iso] ?? 0) + 25
+    }
+    const atWar = new Set(s.atWarWith ?? [])
+    const surrenderProposals: import('@ad-astra/shared/types').DiplomaticProposal[] = []
+    for (const [iso, dmg] of Object.entries(damageByIso)) {
+      if (!atWar.has(iso)) continue
+      if (existingPeaceTalks.has(iso)) continue
+      if (dmg < 100) continue
+      const enemyName = s.countries[iso]?.name ?? iso
+      const playerName = player.name
+      surrenderProposals.push({
+        id: `peace-${iso}-${Date.now()}`,
+        date: s.currentDate,
+        fromCountry: iso,
+        type: 'peace_talks',
+        message: `🏳️ ${enemyName} raises the white flag. After catastrophic losses, the ${enemyName} government formally sues for peace with ${playerName} and offers unconditional surrender on any reasonable terms. Accepting ends the war and gives you a diplomatic victory.`,
+        status: 'pending' as const,
+      })
+    }
+
     return {
       isJumping: false,
       state: {
@@ -1464,8 +1517,18 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           const updated = { ...dmg }
           for (const iso of r.nuclearStrike ?? []) updated[iso] = 'nuked'
           for (const iso of r.bombardment ?? []) { if (!updated[iso]) updated[iso] = 'bombed' }
+          // Clear war damage for any country annexed this tick — it's our
+          // territory now, shouldn't keep its bombed/nuked overlay.
+          if (r.annexedCountry) delete updated[r.annexedCountry]
           return updated
         }, s.warDamage ?? {}),
+        // End any active war with a country that just got annexed.
+        atWarWith: (s.atWarWith ?? []).filter(iso =>
+          !results.some(r => r.annexedCountry === iso)
+        ),
+        diplomaticInbox: surrenderProposals.length > 0
+          ? [...(s.diplomaticInbox ?? []), ...surrenderProposals].slice(-30)
+          : (s.diplomaticInbox ?? []),
         empireName: results.find(r => r.empireName)?.empireName ?? s.empireName,
         controlledCountries: results.reduce((acc, r) => {
           if (r.annexedCountry && !acc.includes(r.annexedCountry)) return [...acc, r.annexedCountry]
@@ -1581,6 +1644,26 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         headline = `${playerName} and ${fromName} Hold Diplomatic Summit`
         body = `Leaders of both nations met to discuss bilateral relations and shared interests. The summit was widely seen as a success.`
         break
+      case 'peace_talks':
+        newRelations[key] = Math.max(0, (newRelations[key] ?? 0) + 40)
+        if (player) {
+          newPlayer = {
+            ...player,
+            stats: {
+              ...player.stats,
+              approval: Math.min(100, player.stats.approval + 10),
+              softPower: Math.min(100, player.stats.softPower + 5),
+            },
+          }
+        }
+        headline = `${fromName} Surrenders to ${playerName} — War Ends`
+        body = `After devastating losses, ${fromName} has formally surrendered to ${playerName}. A diplomatic victory for the ${playerName} government.`
+        break
+      case 'sanctions_threat':
+        newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - 5)
+        headline = `${playerName} Complies with ${fromName} Sanctions Ultimatum`
+        body = `${playerName} has accepted ${fromName}'s demands to avoid threatened sanctions.`
+        break
     }
     const newsItem = {
       id: `news-accept-${proposal.id}`,
@@ -1608,6 +1691,10 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         diplomaticInbox: newInbox,
         worldRelations: newRelations,
         allies: newAllies,
+        // Accepting peace_talks ends the war with that country
+        atWarWith: proposal.type === 'peace_talks'
+          ? (s.atWarWith ?? []).filter(iso => iso !== proposal.fromCountry)
+          : (s.atWarWith ?? []),
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), acceptResult].slice(-50),
@@ -1621,6 +1708,16 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       state: {
         ...store.state,
         newsItems: [item, ...(store.state.newsItems ?? [])].slice(0, 200),
+      },
+    }
+  }),
+
+  addTimelineResult: (result) => set(store => {
+    if (!store.state) return {}
+    return {
+      state: {
+        ...store.state,
+        lastResults: [...(store.state.lastResults ?? []), result].slice(-50),
       },
     }
   }),

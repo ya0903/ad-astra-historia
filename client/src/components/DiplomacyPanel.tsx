@@ -82,6 +82,7 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const addNewsItem = useGameStore(s => s.addNewsItem)
   const appendDiplomaticChat = useGameStore(s => s.appendDiplomaticChat)
   const clearDiplomaticChat = useGameStore(s => s.clearDiplomaticChat)
+  const addTimelineResult = useGameStore(s => s.addTimelineResult)
   const chatHistory = useGameStore(s => s.state?.diplomaticChats ?? {})
   const countries = useGameStore(s => s.state?.countries ?? {})
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
@@ -213,6 +214,59 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   }
 
   const reset = () => { setTargetCountry(''); setMessages([]); setError('') }
+
+  // ── Finish Talks ───────────────────────────────────────────────────────────
+  // Asks the AI to summarise the conversation into a concrete diplomatic
+  // outcome and pushes it to the timeline as an ActionResult so the player
+  // can see everything that was agreed in one place.
+  const finishTalks = async () => {
+    if (!targetCountry || messages.length === 0 || !config) return
+    setLoading(true)
+    setError('')
+    try {
+      const transcript = messages
+        .map(m => `${m.role === 'player' ? gameContext.playerCountry : targetCountry}: ${m.content}`)
+        .join('\n')
+      const system = `Summarise the following diplomatic conversation between ${gameContext.playerCountry} and ${targetCountry} into a concrete outcome. Return ONLY valid JSON with this shape (no markdown): {"summary":"<1 short sentence of the outcome>","fullNarrative":"<2-3 sentences describing what was agreed and the immediate consequences>","worldReaction":"<1 sentence on how the wider world sees this>","outcome":"success|partial|failure","tags":["diplomacy","<topic>"]}`
+      const raw = await callAI(config, system, [{ role: 'user', content: transcript }])
+      const cleaned = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim()
+      let parsed: { summary: string; fullNarrative: string; worldReaction: string; outcome: 'success' | 'partial' | 'failure'; tags?: string[] }
+      try {
+        parsed = JSON.parse(cleaned)
+      } catch {
+        // Fall back to a plain-text summary if the AI didn't return JSON
+        parsed = {
+          summary: cleaned.slice(0, 120) || `Talks with ${targetCountry} concluded`,
+          fullNarrative: cleaned || `${gameContext.playerCountry} and ${targetCountry} concluded diplomatic talks.`,
+          worldReaction: 'Observers note the conclusion of bilateral talks.',
+          outcome: 'success',
+          tags: ['diplomacy'],
+        }
+      }
+      addTimelineResult({
+        actionId: `diplo-finish-${Date.now()}`,
+        outcome: parsed.outcome ?? 'success',
+        summary: parsed.summary,
+        fullNarrative: parsed.fullNarrative,
+        worldReaction: parsed.worldReaction,
+        statDeltas: {},
+        tags: parsed.tags ?? ['diplomacy'],
+      } as unknown as Parameters<typeof addTimelineResult>[0])
+      addNewsItem({
+        id: `news-finish-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        date: gameContext.currentDate,
+        headline: `${gameContext.playerCountry}-${targetCountry}: ${parsed.summary}`,
+        body: parsed.fullNarrative,
+        category: 'diplomacy',
+        importance: 'major',
+      })
+      reset()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to finish talks')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (!open) {
     return (
@@ -431,6 +485,11 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
             <button onClick={sendMessage} disabled={loading || !input.trim()}
               className="px-3 py-2 rounded-xl text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors font-semibold">
               Send
+            </button>
+            <button onClick={finishTalks} disabled={loading || messages.length === 0}
+              title="End talks and push the agreement to the timeline"
+              className="px-3 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 transition-colors font-semibold">
+              Finish
             </button>
           </div>
         </>
