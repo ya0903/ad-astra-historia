@@ -194,6 +194,16 @@ function sanitiseDeltas(result: ActionResult, pending: { id: string; text: strin
         ? clamp(d.stability ?? 0, -10, 10)
         : clamp(d.stability ?? 0, -5, 5),
     },
+    societyDeltas: (() => {
+      const sd = result.societyDeltas ?? {}
+      const out: NonNullable<ActionResult['societyDeltas']> = {}
+      const allowed = ['educationIndex', 'happinessIndex', 'inequalityIndex', 'urbanisationRate'] as const
+      for (const k of allowed) {
+        const v = (sd as Record<string, number | undefined>)[k]
+        if (typeof v === 'number' && v !== 0) out[k] = clamp(v, -5, 5)
+      }
+      return Object.keys(out).length > 0 ? out : undefined
+    })(),
   }
 }
 
@@ -521,7 +531,20 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
 - techLevel: ONLY for R&D, education, technology, or space actions. Must be 0 for all other categories.
 - stability: internal order of the nation (0-100). POSITIVE (+1..+5) for counter-insurgency, policing, crackdowns on unrest, border security, welfare / healthcare / social programmes, and building hospitals, emergency services, universities, or public infrastructure. NEGATIVE (-1..-5, up to -10 for catastrophic events) for bombings, wars on home soil, economic collapse, mass protests, failed coups, or nuclear strikes AGAINST the player. Must be 0 for purely foreign or neutral actions that don't touch the homeland's internal order.
 - Maximum magnitude per action: gdp ±$30B, military ±5, approval ±5, softPower ±3, techLevel ±2, stability ±5 (±10 for nuclear/bombardment).
-- Be consistent: the same type of action should give similar deltas regardless of how many times it is called.`
+- Be consistent: the same type of action should give similar deltas regardless of how many times it is called.
+
+SOCIETY DELTAS — for GENERIC NATIONWIDE actions (NOT individual buildings): mass campaigns, policy reforms, welfare programmes, literacy drives, healthcare initiatives, anti-poverty drives, urban renewal, social reforms. Use societyDeltas INSTEAD of buildProjects. Fields (each -5..+5, 0-100 scale underneath):
+  - educationIndex: schools, universities, curriculum reform, literacy (higher = better educated).
+  - happinessIndex: welfare, healthcare, quality of life, public services (higher = happier).
+  - inequalityIndex: Gini-like — POSITIVE = more unequal, NEGATIVE = more equal. Jobs programmes, wealth redistribution, progressive tax → NEGATIVE. Austerity, tax cuts for rich → POSITIVE.
+  - urbanisationRate: mass urban development, rural-to-urban migration policies.
+Examples:
+  - "build thousands of schools in deprived areas" → societyDeltas:{educationIndex:+4, inequalityIndex:-2}, NO buildProjects.
+  - "launch a national literacy campaign" → societyDeltas:{educationIndex:+5}.
+  - "universal healthcare reform" → societyDeltas:{happinessIndex:+5, inequalityIndex:-2}.
+  - "massive job / anti-poverty programme" → societyDeltas:{inequalityIndex:-4, happinessIndex:+2}, positive approval.
+  - "rural electrification / urban renewal at scale" → societyDeltas:{urbanisationRate:+3, happinessIndex:+2}.
+Keep buildProjects ONLY when the action is about a SPECIFIC building in a SPECIFIC city (e.g. "build a university in Lahore"). Generic "build X across the country" actions are society-level and should OMIT buildProjects entirely.`
 
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
       const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
@@ -542,7 +565,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>,"stability":<-5..5>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>,"stability":<-5..5>},"societyDeltas":{"educationIndex":<-5..5>,"happinessIndex":<-5..5>,"inequalityIndex":<-5..5>,"urbanisationRate":<-5..5>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.

@@ -381,7 +381,8 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                   const typeIcon = p.type === 'trade_deal' ? '💰'
                     : p.type === 'alliance' ? '🤝'
                     : p.type === 'arms_deal' ? '🔫'
-                    : p.type === 'summit' ? '🏛️' : '📜'
+                    : p.type === 'summit' ? '🏛️'
+                    : p.type === 'call_to_arms' ? '⚔️' : '📜'
                   return (
                     <div key={p.id} className="rounded-lg bg-amber-950/30 border border-amber-700/40 p-2.5">
                       <div className="flex items-center gap-1.5 mb-1.5">

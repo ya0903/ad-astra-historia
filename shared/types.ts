@@ -583,9 +583,10 @@ export interface DiplomaticProposal {
   id: string
   date: string                                 // YYYY-MM-DD when received
   fromCountry: string                          // ISO_A3 of proposing country
-  type: 'trade_deal' | 'alliance' | 'arms_deal' | 'peace_talks' | 'summit' | 'sanctions_threat'
+  type: 'trade_deal' | 'alliance' | 'arms_deal' | 'peace_talks' | 'summit' | 'sanctions_threat' | 'call_to_arms'
   message: string                              // human-readable proposal text
   status: 'pending' | 'accepted' | 'declined'
+  againstIso?: string                          // for call_to_arms: ISO_A3 of the enemy the ally is asking help against
 }
 
 export interface NewsItem {
@@ -606,6 +607,12 @@ export interface ActionResult {
   fullNarrative: string
   worldReaction: string
   statDeltas: Record<string, number>
+  societyDeltas?: {
+    educationIndex?: number
+    happinessIndex?: number
+    inequalityIndex?: number
+    urbanisationRate?: number
+  }
   tags: string[]
   countryReactions?: Array<{ country: string; stance: 'positive' | 'negative' | 'neutral'; quote: string }>
   domesticReaction?: string

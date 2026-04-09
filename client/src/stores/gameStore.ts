@@ -1046,6 +1046,47 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       }
     }
 
+    // Detect allies newly entering wars → spawn call_to_arms proposals
+    const playerAllies = s.allies ?? []
+    const playerAtWar = new Set(s.atWarWith ?? [])
+    const existingInbox = s.diplomaticInbox ?? []
+    for (const evt of allWorldEvents) {
+      if (evt.type !== 'war_declared' || !evt.targetCountry) continue
+      // Determine which side (if any) is the player's ally and who the enemy is
+      let allyIso: string | null = null
+      let enemyIso: string | null = null
+      if (playerAllies.includes(evt.primaryCountry)) {
+        allyIso = evt.primaryCountry
+        enemyIso = evt.targetCountry
+      } else if (playerAllies.includes(evt.targetCountry)) {
+        allyIso = evt.targetCountry
+        enemyIso = evt.primaryCountry
+      }
+      if (!allyIso || !enemyIso) continue
+      if (allyIso === s.playerCountryId || enemyIso === s.playerCountryId) continue
+      // Skip if player already at war with that enemy
+      if (playerAtWar.has(enemyIso)) continue
+      // Skip if a call_to_arms already exists for this (ally, enemy) pair
+      const duplicate = [...existingInbox, ...(newProposals ?? [])].some(p =>
+        p.type === 'call_to_arms' &&
+        p.fromCountry === allyIso &&
+        p.againstIso === enemyIso &&
+        (p.status === 'pending' || p.status === 'accepted')
+      )
+      if (duplicate) continue
+      const allyName = newCountries[allyIso]?.name ?? allyIso
+      const enemyName = newCountries[enemyIso]?.name ?? enemyIso
+      newProposals!.push({
+        id: `cta-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        date: newDate,
+        fromCountry: allyIso,
+        type: 'call_to_arms',
+        againstIso: enemyIso,
+        message: `${allyName} has gone to war with ${enemyName} and invokes our alliance. They request we honour our mutual defence pact and join them on the battlefield.`,
+        status: 'pending',
+      })
+    }
+
     // Convert world events to news items
     const worldNews = allWorldEvents.map(e => newsFromWorldTickEvent(e, s.era))
 
@@ -1168,6 +1209,30 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     if (!player) return {}
 
     const newStats = { ...player.stats }
+    // Aggregate society-level deltas from generic player actions (literacy
+    // drives, healthcare reforms, anti-poverty programmes, etc.) and apply
+    // them clamped to 0..100. These update s.society INSTEAD of spawning
+    // individual point-infrastructure buildings.
+    let newSocietyFromDeltas = s.society
+    {
+      const socAgg: Record<string, number> = {}
+      for (const result of results) {
+        const sd = result.societyDeltas
+        if (!sd) continue
+        for (const [k, v] of Object.entries(sd)) {
+          if (typeof v === 'number') socAgg[k] = (socAgg[k] ?? 0) + v
+        }
+      }
+      if (newSocietyFromDeltas && Object.keys(socAgg).length > 0) {
+        const next = { ...newSocietyFromDeltas } as Record<string, number>
+        for (const [k, delta] of Object.entries(socAgg)) {
+          if (typeof next[k] === 'number') {
+            next[k] = Math.max(0, Math.min(100, next[k] + delta))
+          }
+        }
+        newSocietyFromDeltas = next as unknown as typeof newSocietyFromDeltas
+      }
+    }
     // Stats that are 0-100 bounded (rather than uncapped like gdp)
     const BOUNDED_STATS = new Set(['stability', 'approval', 'military', 'softPower', 'techLevel'])
     for (const result of results) {
@@ -1633,6 +1698,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       state: {
         ...s,
         countries: { ...s.countries, [pid]: { ...player, stats: newStats } },
+        ...(newSocietyFromDeltas ? { society: newSocietyFromDeltas } : {}),
         lastResults: results,
         lore: [...(s.lore ?? []), ...newLoreEntries],
         pendingActions: [],
@@ -1808,6 +1874,14 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         headline = `${playerName} Complies with ${fromName} Sanctions Ultimatum`
         body = `${playerName} has accepted ${fromName}'s demands to avoid threatened sanctions.`
         break
+      case 'call_to_arms': {
+        newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 20)
+        const enemyIso = proposal.againstIso
+        const enemyName = enemyIso ? (s.countries[enemyIso]?.name ?? enemyIso) : 'the enemy'
+        headline = `${playerName} Joins War Against ${enemyName} Alongside ${fromName}`
+        body = `Honouring the alliance, ${playerName} has declared war on ${enemyName} and pledged to fight alongside ${fromName}. The battlefield beckons.`
+        break
+      }
     }
     const newsItem = {
       id: `news-accept-${proposal.id}`,
@@ -1835,10 +1909,13 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         diplomaticInbox: newInbox,
         worldRelations: newRelations,
         allies: newAllies,
-        // Accepting peace_talks ends the war with that country
+        // Accepting peace_talks ends the war with that country;
+        // accepting call_to_arms adds the ally's enemy to our war list.
         atWarWith: proposal.type === 'peace_talks'
           ? (s.atWarWith ?? []).filter(iso => iso !== proposal.fromCountry)
-          : (s.atWarWith ?? []),
+          : proposal.type === 'call_to_arms' && proposal.againstIso && !(s.atWarWith ?? []).includes(proposal.againstIso)
+            ? [...(s.atWarWith ?? []), proposal.againstIso]
+            : (s.atWarWith ?? []),
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), acceptResult].slice(-50),
@@ -2046,17 +2123,34 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     const inbox = s.diplomaticInbox ?? []
     const proposal = inbox.find(p => p.id === proposalId)
     if (!proposal) return {}
-    // Small relation penalty for declining
+    // Small relation penalty for declining (larger for call_to_arms)
     const newRelations = { ...(s.worldRelations ?? {}) }
     const key = [s.playerCountryId, proposal.fromCountry].sort().join('-')
-    newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - 5)
+    const declinePenalty = proposal.type === 'call_to_arms' ? 15 : 5
+    newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - declinePenalty)
     const fromName = s.countries[proposal.fromCountry]?.name ?? proposal.fromCountry
     const playerName = s.countries[s.playerCountryId]?.name ?? s.playerCountryId
+    // If call_to_arms declined and relation tanks, the ally repudiates the alliance
+    let newAllies = s.allies ?? []
+    const extraNews: NewsItem[] = []
+    if (proposal.type === 'call_to_arms' && newRelations[key] < 30 && newAllies.includes(proposal.fromCountry)) {
+      newAllies = newAllies.filter(iso => iso !== proposal.fromCountry)
+      extraNews.push({
+        id: `news-ally-break-${proposal.id}`,
+        date: s.currentDate,
+        headline: `${fromName} Repudiates the Alliance with ${playerName}`,
+        body: `Betrayed by ${playerName}'s refusal to honour the mutual defence pact, ${fromName} has formally dissolved the alliance. Relations are in tatters.`,
+        category: 'diplomacy',
+        importance: 'breaking',
+        country: proposal.fromCountry,
+      })
+    }
     const typeLabel =
       proposal.type === 'trade_deal' ? 'Trade Deal' :
       proposal.type === 'alliance'   ? 'Alliance Offer' :
       proposal.type === 'arms_deal'  ? 'Arms Deal' :
-      proposal.type === 'summit'     ? 'Summit Request' : 'Proposal'
+      proposal.type === 'summit'     ? 'Summit Request' :
+      proposal.type === 'call_to_arms' ? 'Call to Arms' : 'Proposal'
     const newsItem = {
       id: `news-decline-${proposal.id}`,
       date: s.currentDate,
@@ -2082,7 +2176,8 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         ...s,
         diplomaticInbox: newInbox,
         worldRelations: newRelations,
-        newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+        allies: newAllies,
+        newsItems: [...extraNews, newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), declineResult].slice(-50),
       },
       timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
