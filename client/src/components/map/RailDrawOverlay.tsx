@@ -31,13 +31,32 @@ function interpolatePath(tool: string, waypoints: LngLat[]): LngLat[] {
 }
 
 function nearestPointOnPath(path: LngLat[], lng: number, lat: number): LngLat {
+  // Point-to-segment projection across every segment in the path, so a click
+  // between two waypoints snaps to the perpendicular foot on the segment
+  // (not just the closest vertex). Without this, straight lines with only
+  // two waypoints collapse every station onto an endpoint.
+  if (path.length === 0) return [lng, lat]
+  if (path.length === 1) return path[0]
   let best: LngLat = path[0]
   let bestD = Infinity
-  for (const p of path) {
-    const dx = p[0] - lng
-    const dy = p[1] - lat
-    const d = dx * dx + dy * dy
-    if (d < bestD) { bestD = d; best = p }
+  for (let i = 0; i < path.length - 1; i++) {
+    const [ax, ay] = path[i]
+    const [bx, by] = path[i + 1]
+    const dx = bx - ax
+    const dy = by - ay
+    const lenSq = dx * dx + dy * dy
+    let t = 0
+    if (lenSq > 0) {
+      t = ((lng - ax) * dx + (lat - ay) * dy) / lenSq
+      if (t < 0) t = 0
+      else if (t > 1) t = 1
+    }
+    const px = ax + t * dx
+    const py = ay + t * dy
+    const ddx = px - lng
+    const ddy = py - lat
+    const d = ddx * ddx + ddy * ddy
+    if (d < bestD) { bestD = d; best = [px, py] }
   }
   return best
 }
