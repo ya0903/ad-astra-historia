@@ -1623,15 +1623,16 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         empireName: results.find(r => r.empireName)?.empireName ?? s.empireName,
         controlledCountries: results.reduce((acc, r) => {
           if (!r.annexedCountry) return acc
-          // If transferTo is set to a country OTHER than the player, the land
-          // goes to that third country via foreignAnnexations (below) — do
-          // NOT add it to the player's own controlled list.
-          if (r.transferTo && r.transferTo !== pid) return acc
+          // If transferTo is SET AT ALL (even to the player), the prompt
+          // explicitly named a conquering country — route the land through
+          // foreignAnnexations so it gets no player glow. Only implicit
+          // conquests (no named recipient) enter the player's empire.
+          if (r.transferTo) return acc
           if (!acc.includes(r.annexedCountry)) return [...acc, r.annexedCountry]
           return acc
         }, s.controlledCountries ?? []),
         foreignAnnexations: results.reduce((acc, r) => {
-          if (!r.annexedCountry || !r.transferTo || r.transferTo === pid) return acc
+          if (!r.annexedCountry || !r.transferTo) return acc
           // Upsert: newest owner wins if the same iso is annexed twice
           const filtered = acc.filter(e => e.iso !== r.annexedCountry)
           return [...filtered, { iso: r.annexedCountry, newOwner: r.transferTo }]

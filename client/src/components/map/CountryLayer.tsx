@@ -242,13 +242,19 @@ function injectColours(
       const preComputed = (p?.fill_colour as string | undefined)
       const base = preComputed ?? getCountryColour(iso)
       const foreignOwner = foreignOwnerByIso.get(iso.toUpperCase())
-      // Player territory and directly-controlled (annexed) territory both use
-      // the SAME lightened player colour, so absorbed countries blend
-      // seamlessly with the player's own land — no visible seam between
-      // original and annexed territory.
+      // Colour resolution:
+      //  - player's native country → lightened player colour (with glow)
+      //  - implicitly controlled country (no transferTo) → same lightened
+      //    player colour (part of the player's visible empire + glow)
+      //  - foreign-annexed country → the new owner's country colour; when
+      //    the new owner happens to be the player, we STILL don't match
+      //    the glow-wrapped player colour — we use the player's base
+      //    colour (without the lighten boost) so absorbed-by-prompt
+      //    territory is visually distinct from the glowing empire core.
       const colour =
         iso === playerCountryId ? lightenColour(playerColour) :
         controlledSet.has(iso) ? lightenColour(playerColour) :
+        foreignOwner === playerCountryId ? playerColour :
         foreignOwner ? getCountryColour(foreignOwner) :
         base
       // If this country has been conquered by a non-player state, relabel it

@@ -586,45 +586,50 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
             const at = text.indexOf(c.name)
             if (at >= 0) hits.push({ ...c, at })
           }
-          // De-dupe: if one country name is a substring of another (e.g. "iran"
-          // inside "iran" – not an issue – but "india" vs "indian ocean"), keep
-          // the longest.
+          // Sort by position (earliest first), ties broken by longest name
+          // so when two entries overlap we see the longer one first.
           hits.sort((a, b) => a.at - b.at || b.name.length - a.name.length)
-          return hits
+          // De-dupe: if a shorter name's span is fully contained inside a
+          // longer name's span (e.g. "niger" inside "nigeria", "iran" inside
+          // "iranian"), drop the shorter one. Otherwise two-country actions
+          // misidentify firstHit / secondHit.
+          const deduped: typeof hits = []
+          for (const h of hits) {
+            const dominated = deduped.some(d => h.at >= d.at && h.at + h.name.length <= d.at + d.name.length)
+            if (!dominated) deduped.push(h)
+          }
+          return deduped
         }
         for (const r of clampedResults) {
           const originalAction = pendingActions.find(a => a.id === r.actionId)
           const text = (originalAction?.text ?? r.summary ?? r.fullNarrative ?? '').toLowerCase()
           if (!WIPEOUT_RE.test(text)) continue
+          // Include ALL mentioned countries (including the player) so a
+          // phrasing like "palestine conquers israel" — with player==PSE —
+          // still routes via foreignAnnexations (the text NAMES the
+          // conquering country, so that's the owner). Only when no country
+          // is explicitly named does the player implicitly claim the land.
           const hits = findAll(text)
-          // Pick annexedCountry = first non-player mention. If we also see a
-          // SECOND non-player mention, that's the transferTo (new owner).
-          const nonPlayer = hits.filter(h => h.iso !== gameState.playerCountryId)
-          if (!r.annexedCountry && nonPlayer[0]) {
-            r.annexedCountry = nonPlayer[0].iso
-            r.focusIso = r.focusIso ?? nonPlayer[0].iso
-          }
-          if (!r.transferTo && nonPlayer.length >= 2 && r.annexedCountry) {
-            // Heuristic: "X conquers Y" usually means X is the actor. If
-            // the text matches TRANSFER_RE, the country AFTER "to" is the
-            // recipient; otherwise the FIRST country is usually the actor
-            // and the SECOND is the conquered land.
-            const annexIdx = nonPlayer.findIndex(h => h.iso === r.annexedCountry)
-            const other = nonPlayer.find((_, i) => i !== annexIdx)
-            if (other) {
-              if (TRANSFER_RE.test(text)) {
-                // "Y given to X" — X is recipient, Y is conquered
-                r.transferTo = other.iso
-              } else {
-                // "X conquers Y" — first mention is likely the actor/recipient
-                const first = nonPlayer[0]
-                const second = nonPlayer[1]
-                if (first && second) {
-                  r.annexedCountry = second.iso
-                  r.transferTo = first.iso
-                  r.focusIso = second.iso
-                }
-              }
+          if (hits.length >= 2) {
+            // "X conquers Y" or "Y taken by X" — resolve who is the actor.
+            const firstHit = hits[0]
+            const secondHit = hits[1]
+            if (TRANSFER_RE.test(text)) {
+              // "Y given to X" — X is the recipient, Y is the conquered land.
+              r.annexedCountry = firstHit.iso
+              r.transferTo = secondHit.iso
+              r.focusIso = r.focusIso ?? firstHit.iso
+            } else {
+              // "X conquers Y" — first mention is the actor/recipient.
+              r.annexedCountry = secondHit.iso
+              r.transferTo = firstHit.iso
+              r.focusIso = r.focusIso ?? secondHit.iso
+            }
+          } else if (hits.length === 1 && hits[0].iso !== gameState.playerCountryId) {
+            // No named actor — player is the implicit conqueror.
+            if (!r.annexedCountry) {
+              r.annexedCountry = hits[0].iso
+              r.focusIso = r.focusIso ?? hits[0].iso
             }
           }
         }
