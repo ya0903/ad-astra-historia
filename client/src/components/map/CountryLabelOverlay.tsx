@@ -178,9 +178,17 @@ const TIER_SCALE_PX = [18,  15,  13,  11]  // max font size at high zoom
 // Approx text width per character: uppercase serif (≈0.60em) + letter-spacing (0.14em) = 0.74em
 const CHAR_WIDTH_EM = 0.74
 
+const EMPTY_ISOS: string[] = []
+const EMPTY_ANNEX: Array<{ iso: string; newOwner: string }> = []
+const EMPTY_NAMES: Record<string, string> = {}
+
 export default function CountryLabelOverlay() {
   const map = useMap()
   const era = useGameStore(s => s.state?.era)
+  const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? EMPTY_ISOS)
+  const foreignAnnexations = useGameStore(s => s.state?.foreignAnnexations ?? EMPTY_ANNEX)
+  const territoryNames = useGameStore(s => s.state?.territoryNames ?? EMPTY_NAMES)
+  const countries = useGameStore(s => s.state?.countries)
   const [labelsData, setLabelsData] = useState<LabelDatum[]>([])
   // Refs to the rendered DOM elements so we can update positions without React state
   const labelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -192,6 +200,11 @@ export default function CountryLabelOverlay() {
     // Ancient eras: fetch era-specific polity borders and show polity names
     // Modern eras: fetch modern country borders
     const url = ANCIENT_ERAS.has(era) ? `/api/game/borders/${era}` : '/api/game/borders'
+    // Build lookups for annexation state
+    const controlledSet = new Set(controlledCountries.map(s => s.toUpperCase()))
+    const foreignOwnerByIso = new Map<string, string>()
+    for (const fa of foreignAnnexations) foreignOwnerByIso.set(fa.iso.toUpperCase(), fa.newOwner.toUpperCase())
+
     fetch(url, { signal: controller.signal })
       .then(r => r.json())
       .then((geojson: GeoJSON.FeatureCollection) => {
@@ -210,6 +223,21 @@ export default function CountryLabelOverlay() {
           let iso = (props?.ISO_A3 ?? props?.ADM0_A3 ?? '') as string
           if (!iso || iso === '-99') iso = rawName
           if (!iso) continue
+          const isoUpper = iso.toUpperCase()
+
+          // ── Absorption handling ──
+          // If this country has been fully annexed by the player, its label
+          // disappears entirely (the player's empire label covers the area).
+          // If it's been annexed by a foreign country, suppress its native
+          // label — the foreign owner's own label will extend across the
+          // new territory visually.
+          if (controlledSet.has(isoUpper)) {
+            // Unless the player explicitly renamed this territory, no label.
+            if (!territoryNames[isoUpper]) continue
+          }
+          if (foreignOwnerByIso.has(isoUpper)) {
+            if (!territoryNames[isoUpper]) continue
+          }
 
           const geom = feature.geometry as GeoJSON.Geometry
           let rings: Ring[] = []
@@ -228,7 +256,8 @@ export default function CountryLabelOverlay() {
           if (!existing || bestArea > existing.area) {
             let [lng, lat] = ringCentroid(bestRing)
             let { angle, bboxW, bboxH } = computeAngleAndBbox(bestRing)
-            const displayName = abbreviate(rawName)
+            const custom = territoryNames[isoUpper]
+            const displayName = custom ?? abbreviate(rawName)
             // Force horizontal for specific countries (treats bbox as horizontal)
             if (FORCE_HORIZONTAL.has(rawName) || FORCE_HORIZONTAL.has(displayName)) {
               angle = 0
@@ -253,7 +282,7 @@ export default function CountryLabelOverlay() {
       })
       .catch(err => { if (err.name !== 'AbortError') console.error(err) })
     return () => controller.abort()
-  }, [era])
+  }, [era, controlledCountries, foreignAnnexations, territoryNames]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Direct DOM update on every map render — zero React-state lag ──────────
   useEffect(() => {

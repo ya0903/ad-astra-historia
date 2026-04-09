@@ -705,6 +705,10 @@ export interface GameState {
   // maps a conquered iso to its new owner iso. Drives alternate fill colour
   // and label remap in CountryLayer.
   foreignAnnexations?: Array<{ iso: string; newOwner: string }>
+  // Custom display names for conquered territory — keyed by the conquered
+  // country's original ISO_A3. Used by the label overlay so the player can
+  // rename absorbed land (e.g. "Holy Land" instead of "Israel").
+  territoryNames?: Record<string, string>
   // War damage accumulated per enemy (scaled numeric value). Used to drive
   // the surrender threshold. Replaces the older 'bombed' | 'nuked' flag
   // (warDamage) which stays as a visual indicator only.

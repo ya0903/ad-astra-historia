@@ -266,6 +266,8 @@ interface GameStoreState {
    *  targeting an enemy the player is currently fighting. Returns the new
    *  proposal id so the caller can open the demands modal. */
   initiatePeaceDemand: (enemyIso: string) => string | null
+  /** Rename a conquered territory. Pass empty string to remove the custom name. */
+  renameTerritory: (iso: string, name: string) => void
   acceptPeaceWithDemands: (proposalId: string, demands: {
     annex?: boolean
     transferTo?: string
@@ -383,6 +385,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       warDamageScore: {},
       deathToll: {},
       foreignAnnexations: [],
+      territoryNames: {},
       lore: [],
       newsItems: conditions.disputes.map(d => ({
         id: `news-dispute-${d.id}`,
@@ -465,6 +468,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       warDamageScore: saved.warDamageScore ?? {},
       deathToll: saved.deathToll ?? {},
       foreignAnnexations: saved.foreignAnnexations ?? [],
+      territoryNames: saved.territoryNames ?? {},
       lore: saved.lore ?? [],
       newsItems: saved.newsItems ?? [],
       yesman: saved.yesman ?? false,
@@ -1715,7 +1719,10 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       case 'trade_deal':
         newRelations[key] = Math.min(100, (newRelations[key] ?? 0) + 15)
         if (player) {
-          newPlayer = { ...player, stats: { ...player.stats, gdp: player.stats.gdp + Math.round(player.stats.gdp * 0.005) } }
+          // Small, bounded bonus — 0.3% of GDP capped at $5B so accepting a
+          // trade deal can't silently add tens of billions for mega-economies.
+          const bonus = Math.min(5e9, Math.round(player.stats.gdp * 0.003))
+          newPlayer = { ...player, stats: { ...player.stats, gdp: player.stats.gdp + bonus } }
         }
         headline = `${playerName} and ${fromName} Sign Trade Agreement`
         body = `The two nations have ratified a major bilateral trade deal, lifting tariffs and opening markets. Both economies expected to benefit.`
@@ -1829,6 +1836,14 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     })
     return id
   },
+
+  renameTerritory: (iso, name) => set(store => {
+    if (!store.state) return {}
+    const existing = { ...(store.state.territoryNames ?? {}) }
+    if (!name.trim()) delete existing[iso]
+    else existing[iso] = name.trim()
+    return { state: { ...store.state, territoryNames: existing } }
+  }),
 
   acceptPeaceWithDemands: (proposalId, demands) => set(store => {
     if (!store.state) return {}

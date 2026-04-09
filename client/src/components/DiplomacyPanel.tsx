@@ -85,6 +85,10 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const addTimelineResult = useGameStore(s => s.addTimelineResult)
   const acceptPeaceWithDemands = useGameStore(s => s.acceptPeaceWithDemands)
   const initiatePeaceDemand = useGameStore(s => s.initiatePeaceDemand)
+  const renameTerritory = useGameStore(s => s.renameTerritory)
+  const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
+  const foreignAnnexations = useGameStore(s => s.state?.foreignAnnexations ?? [])
+  const territoryNames = useGameStore(s => s.state?.territoryNames ?? {})
   const chatHistory = useGameStore(s => s.state?.diplomaticChats ?? {})
 
   // ── Peace demands modal state ──
@@ -469,6 +473,43 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                           💬 Talk
                         </button>
                       </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="border-t border-white/8 my-3" />
+            </div>
+          )}
+
+          {/* ── Conquered territories — rename ── */}
+          {(controlledCountries.length > 0 || foreignAnnexations.length > 0) && (
+            <div className="mb-3">
+              <p className="text-[10px] text-purple-400 mb-2 uppercase tracking-wider font-semibold">🏛 Conquered Territories</p>
+              <div className="space-y-1">
+                {[
+                  ...controlledCountries.map(iso => ({ iso, ownerIso: gameContext.playerCountry, kind: 'controlled' as const })),
+                  ...foreignAnnexations.map(a => ({ iso: a.iso, ownerIso: countries[a.newOwner]?.name ?? a.newOwner, kind: 'foreign' as const })),
+                ].map(({ iso, ownerIso, kind }) => {
+                  const origName = countries[iso]?.name ?? iso
+                  const custom = territoryNames[iso.toUpperCase()]
+                  return (
+                    <div key={iso} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-purple-950/20 border border-purple-700/30">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-gray-200 truncate">{custom ?? origName}</p>
+                        <p className="text-[9px] text-gray-500 truncate">
+                          {custom ? `(was ${origName}) ` : ''}
+                          {kind === 'controlled' ? 'absorbed into empire' : `held by ${ownerIso}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const next = window.prompt(`Rename ${origName}?\n\nLeave blank to clear the custom name.`, custom ?? '')
+                          if (next !== null) renameTerritory(iso.toUpperCase(), next)
+                        }}
+                        className="px-2 py-0.5 rounded text-[9px] font-semibold bg-white/5 hover:bg-purple-900/40 text-purple-300 transition-colors"
+                      >
+                        Rename
+                      </button>
                     </div>
                   )
                 })}
