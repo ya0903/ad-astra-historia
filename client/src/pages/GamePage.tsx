@@ -20,6 +20,7 @@ import PoliticsPanel from '../components/PoliticsPanel'
 import SocietyPanel from '../components/SocietyPanel'
 import EspionagePanel from '../components/EspionagePanel'
 import PlanetSwitcher from '../components/PlanetSwitcher'
+import PendingPlacementPrompt from '../components/PendingPlacementPrompt'
 import { INFRA_COLOURS, RAIL_COLOURS } from '@ad-astra/shared/infraColours'
 import type { ActionResult, WorldEvent } from '@ad-astra/shared/types'
 import { getCountryResources } from '@ad-astra/shared/countryResources'
@@ -250,6 +251,7 @@ export default function GamePage() {
   const applyResults = useGameStore(s => s.applyResults)
   const advanceDate = useGameStore(s => s.advanceDate)
   const addPendingAction = useGameStore(s => s.addPendingAction)
+  const consumeFollowUps = useGameStore(s => s.consumeFollowUps)
   const removePendingAction = useGameStore(s => s.removePendingAction)
   const updatePendingAction = useGameStore(s => s.updatePendingAction)
   const config = useConfigStore(s => s.config)
@@ -565,7 +567,7 @@ Actions:
 ${actionList}
 
 Return JSON — one result per action:
-{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>,"stability":<-5..5>},"societyDeltas":{"educationIndex":<-5..5>,"happinessIndex":<-5..5>,"inequalityIndex":<-5..5>,"urbanisationRate":<-5..5>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>}}]}
+{"results":[{"actionId":"<id>","outcome":"success|partial|failure","failureReason":"<why it failed or was resisted — required if outcome is partial or failure>","summary":"<1 sentence using specific names>","fullNarrative":"<2 sentences with specific places/names>","worldReaction":"<1 sentence>","domesticReaction":"<1 sentence — specific public/media reaction>","countryReactions":[{"country":"<neighbour/rival>","stance":"positive|negative|neutral","quote":"<brief quoted reaction>"}],"statDeltas":{"gdp":<USD delta>,"military":<integer, 0 unless military action>,"approval":<-5..5>,"softPower":<integer, 0 unless diplomacy/culture>,"techLevel":<integer, 0 unless tech/research>,"stability":<-5..5>},"societyDeltas":{"educationIndex":<-5..5>,"happinessIndex":<-5..5>,"inequalityIndex":<-5..5>,"urbanisationRate":<-5..5>},"tags":["<tag>"],"focusIso":"<ISO_A3 of the most relevant country — always include>","buildProjects":[{"type":"<infra_type>","name":"<specific real-world name>","city":"<city for point infra>","cities":["<stop1>","<stop2>"]}],"nuclearStrike":["<ISO_A3>"],"bombardment":["<ISO_A3>"],"empireName":"<only if conquest/annexation>","annexedCountry":"<ISO_A3 only if entire sovereign nation is brought under control>","annexedRegion":"<province/state name if only a sub-national region is taken, e.g. Kashmir, Crimea, Tigray>","nationaliseResource":{"type":"<oil|natural_gas|copper|lithium|etc.>","extractionLevel":<1-10>,"exportsAllowed":<true|false>},"foundColony":{"planet":"moon|mars","name":"<specific base name>","lat":<number>,"lng":<number>},"followUps":[{"id":"<slug>","label":"<short action>","tone":"aggressive|diplomatic|conciliatory|neutral","hint":"<1 sentence>"}]}]}
 
 outcome: Assess geopolitical realism honestly — NOT every action succeeds.
 - "success": action proceeds as intended. Full positive stat deltas.
@@ -587,12 +589,20 @@ NATIONALISATION: When the player explicitly nationalises a natural resource (e.g
 
 RAIL STATION UPGRADES: When the player asks to upgrade or expand a specific rail station (e.g. "upgrade Karachi Central to a megastation", "expand Lahore Junction to a major interchange"), set "upgradeRailStation":{"stationName":"Karachi Central","targetLevel":3}. Levels 1-5: 1=small halt, 2=local, 3=regional hub, 4=interchange, 5=megastation. Each level costs more (~$50M, $200M, $800M, $2B, $6B) and contributes more monthly income. Use NEGATIVE statDeltas.gdp for the upgrade cost. The stationName must match an existing station the player owns — do not invent station names.
 
+SMART CITIES: When the player's action is about creating or upgrading a smart city, set "smartCity" (not buildProjects) with one of three targets:
+- target="new_place": a brand-new, generic smart city with no specific existing location (e.g. "build a smart city", "found a new smart city"). Supply "name" with a plausible name (e.g. "Neom-2", "Aurora City"). The engine will prompt the player to click the map to place it. Example: smartCity:{target:"new_place", name:"Neom-2"}.
+- target="existing_pick": a named existing city should be upgraded (e.g. "turn Karachi into a smart city", "make Lahore a smart city"). Supply "name" with the city name. The engine will auto-match the existing city; if no match is found it degrades to new_place. Example: smartCity:{target:"existing_pick", name:"Karachi"}.
+- target="all_major": a nationwide programme (e.g. "turn all major Pakistani cities into smart cities", "nationwide smart city initiative"). No name required. Optionally supply "countryId" as an ISO_A3 to scope; defaults to the player's country. The engine flips is_smart=true on every level>=2 city in that country automatically — no player click. Example: smartCity:{target:"all_major"}.
+Only include smartCity for smart-city-flavoured actions. Never combine smartCity with a redundant buildProjects entry of type "city" for the same action.
+
 Omit buildProjects entirely for non-construction actions or failures.
 nuclearStrike: include ISO_A3 of any country hit by nuclear weapons (omit if none).
 bombardment: include ISO_A3 of any country heavily bombed/invaded (omit if none).
 foundColony: include ONLY when the action explicitly establishes a Moon or Mars base/colony. Set planet to "moon" or "mars", give a specific named base (e.g. "Armstrong Base Gamma"), and choose realistic lat/lng on that body. Omit entirely for Earth actions.
 
-2-3 countryReactions from realistic neighbours/rivals.`
+2-3 countryReactions from realistic neighbours/rivals.
+
+followUps: When a result reasonably invites a player response — e.g. a country rejects a proposal, declares war, condemns an action, makes a counter-offer, a rival escalates, or a crisis unfolds — include 2-4 followUps the player can click to continue the exchange. Examples: rejected negotiation → [Threaten war, Offer larger concessions, Impose sanctions, Walk away]. Coup attempt in neighbour → [Recognise new regime, Condemn, Back the old government, Stay neutral]. Leave empty (or omit) when the action is pure internal admin (building a hospital, domestic reform, infrastructure).`
 
       // Random world event — chance scales with jump period
       const worldEventChance = period === 'year' ? 0.40 : period === 'month' ? 0.10 : 0.03
@@ -1256,6 +1266,9 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
         {/* ── News panel ── */}
         {activeRightPanel === 'news' && newsOpen && <NewsPanel onClose={() => { setNewsOpen(false); setActiveRightPanel(null) }} />}
 
+        {/* ── Unknown-place build prompt ── */}
+        <PendingPlacementPrompt />
+
         {/* ── Full-screen Tech Tree overlay ── */}
         {techTreeOpen && <TechTreeFullscreen onClose={() => { setTechTreeOpen(false); setActiveRightPanel(null) }} />}
 
@@ -1407,6 +1420,37 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
                 <p className="text-xs text-blue-300/70 italic mt-2 leading-relaxed">{timelineResult.worldReaction}</p>
               )}
             </div>
+
+            {/* Follow-up actions — back-and-forth continuation */}
+            {timelineResult.followUps && timelineResult.followUps.length > 0 && timelineIdx !== null && (
+              <div className="px-4 pb-3">
+                <p className="text-[9px] uppercase tracking-widest text-amber-500/70 font-bold mb-1.5">Respond</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {timelineResult.followUps.map(fu => {
+                    const toneClass =
+                      fu.tone === 'aggressive' ? 'bg-red-950/50 border-red-700/50 text-red-200 hover:bg-red-900/60'
+                      : fu.tone === 'diplomatic' ? 'bg-blue-950/50 border-blue-700/50 text-blue-200 hover:bg-blue-900/60'
+                      : fu.tone === 'conciliatory' ? 'bg-emerald-950/50 border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/60'
+                      : 'bg-white/5 border-white/15 text-gray-300 hover:bg-white/10'
+                    return (
+                      <button
+                        key={fu.id}
+                        title={fu.hint}
+                        onClick={() => {
+                          const parent = timelineResult
+                          const text = `${fu.label} — in response to: ${parent.summary}`
+                          addPendingAction(text)
+                          consumeFollowUps(timelineIdx)
+                          setActiveTab('free')
+                        }}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-medium transition-colors ${toneClass}`}>
+                        {fu.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Stat deltas */}
             {Object.entries(timelineResult.statDeltas).filter(([,v]) => v !== 0).length > 0 && (

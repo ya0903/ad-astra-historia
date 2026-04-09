@@ -40,6 +40,8 @@ export interface Infrastructure {
   level: number
   name: string
   nationalised?: boolean
+  /** Smart city flag — cities with this set render in cyan. Only meaningful for type: 'city' | 'capital'. */
+  is_smart?: boolean
 }
 
 export interface RailStation {
@@ -81,6 +83,8 @@ export interface CountryStats {
   culturalReach: number
   /** 0–100. 70 = stable, <40 = unrest, <20 = rebellion risk */
   stability: number
+  /** Total population. Optional — seeded from countryData on first year tick. */
+  population?: number
 }
 
 export interface CountrySectors {
@@ -318,6 +322,19 @@ export const BUILD_MAX_LEVEL: Record<InfrastructureType, number> = {
   // Rail
   rail_line: 5,                   // double-track, electrification
   high_speed_rail: 4,             // new routes, faster trains
+}
+
+export interface PendingPlacement {
+  id: string
+  type: InfrastructureType
+  name: string
+  city?: string
+  countryId: string
+  targetLevel: number
+  date: string // when queued
+  /** When true, resolving this placement drops a smart city directly into
+   *  infrastructureMap (no build queue). Used by smartCity:{target:'new_place'}. */
+  isSmartCity?: boolean
 }
 
 export interface BuildProject {
@@ -599,8 +616,16 @@ export interface NewsItem {
   country?: string              // ISO_A3 of primary country
 }
 
+export interface FollowUp {
+  id: string
+  label: string              // e.g. "Threaten war"
+  tone: 'aggressive' | 'diplomatic' | 'conciliatory' | 'neutral'
+  hint: string               // preview/tooltip
+}
+
 export interface ActionResult {
   actionId: string
+  followUps?: FollowUp[]
   outcome: 'success' | 'partial' | 'failure'
   failureReason?: string        // required when outcome is partial or failure
   summary: string
@@ -639,6 +664,11 @@ export interface ActionResult {
     name: string               // specific base name (e.g. "Chang'e Base Alpha")
     lat: number                // -90 to 90
     lng: number                // -180 to 180
+  }
+  smartCity?: {                // Smart-city initiative — three flavours
+    target: 'all_major' | 'existing_pick' | 'new_place'
+    name?: string              // For 'new_place' (name of the new city) or 'existing_pick' (existing city to match)
+    countryId?: string         // For 'all_major', ISO_A3 to scope to (defaults to player's country)
   }
 }
 
@@ -689,6 +719,9 @@ export interface GameState {
   strategicPassages: Record<string, PassageStatus>
   // Build queue
   buildQueue: BuildProject[]
+  // Pending placements — builds where the AI named a specific city we
+  // don't know. The UI prompts the player to click on the map to place them.
+  pendingPlacements: PendingPlacement[]
   // Research
   researchQueue: ResearchProject[]
   unlockedTechs: TechId[]

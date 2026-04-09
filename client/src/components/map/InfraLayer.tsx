@@ -37,7 +37,11 @@ export default function InfraLayer() {
           name: item.name,
           level: item.level,
           countryId: item.countryId,
-          colour: INFRA_COLOURS[item.type] ?? '#94a3b8',
+          // Smart cities render in cyan so they stand out from ordinary cities.
+          colour: (item.is_smart && (item.type === 'city' || item.type === 'capital'))
+            ? '#22d3ee'
+            : INFRA_COLOURS[item.type] ?? '#94a3b8',
+          is_smart: item.is_smart ? 1 : 0,
         },
       })),
     }
@@ -94,7 +98,12 @@ export default function InfraLayer() {
       minzoom: 4,
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3, 8, 6],
-        'circle-color': ['get', 'colour'],
+        // Smart cities override every other infra colour with a vivid cyan.
+        'circle-color': [
+          'case',
+          ['==', ['get', 'is_smart'], 1], '#22d3ee',
+          ['get', 'colour'],
+        ],
         'circle-opacity': 0.9,
         'circle-stroke-width': 1,
         'circle-stroke-color': '#ffffff',

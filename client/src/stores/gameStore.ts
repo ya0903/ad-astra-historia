@@ -5,7 +5,7 @@ import type {
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
   RailLine, RailType, NewsItem, EraPhase, EconomyState, MilitaryState, PoliticsState,
   SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState, GovernmentType,
-  WorldTickEvent,
+  WorldTickEvent, PendingPlacement,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS, BUILD_COSTS, BUILD_MONTHLY_INCOME, BUILD_MAX_LEVEL } from '@ad-astra/shared/types'
 import { resourceMonthlyIncome, getCountryResources, type ResourceType } from '@ad-astra/shared/countryResources'
@@ -261,6 +261,7 @@ interface GameStoreState {
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
   addTimelineResult: (result: ActionResult) => void
+  consumeFollowUps: (resultIdx: number) => void
   /** Accept a peace_talks proposal with specific demands chosen by the player. */
   /** Player-initiated peace demand: adds a peace_talks proposal to the inbox
    *  targeting an enemy the player is currently fighting. Returns the new
@@ -286,6 +287,9 @@ interface GameStoreState {
   // Build queue
   addBuildProject: (type: InfrastructureType, name: string) => void
   instaBuild: () => void
+  // Pending placements (unknown-city builds that need player click)
+  resolvePendingPlacement: (id: string, lng: number, lat: number) => void
+  cancelPendingPlacement: (id: string) => void
   // Research
   startResearch: (techId: TechId, weeksRequired: number) => void
   instaResearch: () => void
@@ -376,6 +380,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       lastResults: [],
       strategicPassages: conditions.strategicPassages,
       buildQueue: [],
+      pendingPlacements: [],
       researchQueue: [],
       unlockedTechs: isHistorical
         ? (historicalUnlockedTechs as TechId[])
@@ -461,6 +466,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     state: {
       ...saved,
       buildQueue: saved.buildQueue ?? [],
+      pendingPlacements: saved.pendingPlacements ?? [],
       researchQueue: saved.researchQueue ?? [],
       unlockedTechs: saved.unlockedTechs ?? [],
       recentDisasters: saved.recentDisasters ?? [],
@@ -925,6 +931,86 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         }
       }
 
+      // ── National population growth (per-country) ──────────────────────
+      // Each country's population grows based on healthcare/happiness,
+      // education (demographic transition damping), inequality, and
+      // infrastructure density. Runs after other country/stat updates.
+      {
+        const infraByCountry: Record<string, number> = {}
+        for (const inf of s.infrastructureMap ?? []) {
+          infraByCountry[inf.countryId] = (infraByCountry[inf.countryId] ?? 0) + 1
+        }
+        for (const [iso, country] of Object.entries(newCountries)) {
+          let currentPop = country.stats.population
+          if (currentPop == null) {
+            currentPop = MODERN_COUNTRY_DATA[iso]?.population
+          }
+          if (!currentPop || currentPop < 100_000) continue
+
+          const isPlayer = iso === s.playerCountryId
+          const seedRate = MODERN_COUNTRY_DATA[iso]?.populationGrowthRate
+          let rate = isPlayer && newSociety
+            ? newSociety.populationGrowthRate
+            : (seedRate ?? 1.0)
+
+          const happiness = isPlayer && newSociety
+            ? newSociety.happinessIndex
+            : (country.stats.approval ?? 50)
+          const education = isPlayer && newSociety ? newSociety.educationIndex : 50
+          const inequality = isPlayer && newSociety ? newSociety.inequalityIndex : 40
+
+          // Healthcare/happiness bonus: +0.5% per 20 points above 50
+          if (happiness > 50) rate += 0.5 * ((happiness - 50) / 20)
+          // Explicit life-expectancy / morale feedback at the extremes
+          if (happiness > 70) rate += 0.2
+          else if (happiness < 30) rate -= 0.4
+
+          // Education damping (demographic transition): above 60 → -0.2% per 10
+          if (education > 60) rate -= 0.2 * ((education - 60) / 10)
+          // Inequality damping: above 60 → -0.3% per 10
+          if (inequality > 60) rate -= 0.3 * ((inequality - 60) / 10)
+
+          // Infrastructure bonus: +0.1% per 10 items, max +1%
+          const infraCount = infraByCountry[iso] ?? 0
+          rate += Math.min(1.0, Math.floor(infraCount / 10) * 0.1)
+
+          // Clamp to -2%..+5% per year
+          rate = Math.max(-2, Math.min(5, rate))
+
+          const nextPop = Math.round(currentPop * (1 + rate / 100))
+          newCountries[iso] = {
+            ...country,
+            stats: { ...country.stats, population: nextPop },
+          }
+        }
+      }
+
+      // ── City-level flocking ──────────────────────────────────────────
+      // Player cities with lots of supporting infra nearby level up.
+      {
+        const infraMap = s.infrastructureMap ?? []
+        for (const city of infraMap) {
+          if (city.type !== 'city' && city.type !== 'capital') continue
+          if (city.countryId !== s.playerCountryId) continue
+          const currentLevel = city.level ?? 1
+          const maxLevel = Math.min(5, BUILD_MAX_LEVEL[city.type] ?? 5)
+          if (currentLevel >= maxLevel) continue
+          if (upgradedInfraNewLevels.has(city.id)) continue
+          let supporting = 0
+          for (const other of infraMap) {
+            if (other.id === city.id) continue
+            if (other.type === 'city' || other.type === 'capital') continue
+            if (other.countryId !== s.playerCountryId) continue
+            if (Math.abs(other.lat - city.lat) <= 1 && Math.abs(other.lng - city.lng) <= 1) {
+              supporting++
+            }
+          }
+          if (supporting > currentLevel * 5 && Math.random() < 0.25) {
+            upgradedInfraNewLevels.set(city.id, currentLevel + 1)
+          }
+        }
+      }
+
       // Military attrition when at war
       if (newMilitaryState && (s.atWarWith ?? []).length > 0) {
         const attrition = newMilitaryState.attritionRate > 0 ? newMilitaryState.attritionRate : 1
@@ -1250,6 +1336,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     // Add any build projects from AI results
     const RAIL_INFRA = new Set(['rail_line', 'high_speed_rail'])
     const newBuilds: BuildProject[] = []
+    const newPendingPlacements: PendingPlacement[] = []
     const blockedRailNewsItems: NewsItem[] = []
     let totalBuildCost = 0
 
@@ -1346,6 +1433,28 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         if (port) {
           // Override the supplied city/name so the build lands at the coast.
           bp = { ...bp, city: port.name }
+        }
+      }
+
+      // ── Unknown-place detection ────────────────────────────────────────────
+      // If the AI named a specific city we don't know, queue a PendingPlacement
+      // instead of silently dropping the build at the country centre. Skip for
+      // rail (uses cities list), and skip when there's no city hint at all
+      // (generic "build 5 hospitals" → country-centre fallback is fine).
+      if (!RAIL_INFRA.has(bp.type) && bp.city) {
+        const cityHit = getCityCentre(bp.city, targetIso)
+        const nameHit = cityHit ? null : getCityCentre(bp.name, targetIso)
+        if (!cityHit && !nameHit) {
+          newPendingPlacements.push({
+            id: `pp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: bp.type,
+            name: bp.name,
+            city: bp.city,
+            countryId: targetIso,
+            targetLevel: clampLevel(bp.type, bp.targetLevel ?? 1),
+            date: s.currentDate,
+          })
+          return
         }
       }
 
@@ -1508,6 +1617,12 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       }
     }
 
+    // ── Smart city initiative handling ────────────────────────────────────────
+    // Tracks existing-infrastructure IDs that should be flipped to is_smart.
+    const smartCityFlipIds = new Set<string>()
+    // Extra smart cities queued for click-to-place.
+    const extraSmartPendingPlacements: PendingPlacement[] = []
+
     for (const r of results) {
       const targetIso = r.focusIso ?? pid
       // Only queue builds on success or partial outcomes — failures produce nothing
@@ -1515,6 +1630,55 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       const bpList = r.buildProjects?.length ? r.buildProjects : r.buildProject ? [r.buildProject] : []
       for (const bp of bpList) {
         pushBuildProject(bp, targetIso)
+      }
+
+      // ── Smart city initiative ───────────────────────────────────────────
+      if (r.smartCity) {
+        const sc = r.smartCity
+        const scCountry = (sc.countryId ?? targetIso ?? pid).toUpperCase()
+        if (sc.target === 'all_major') {
+          // Flip every level≥2 city/capital in the scoped country.
+          for (const inf of s.infrastructureMap) {
+            if (inf.countryId !== scCountry) continue
+            if (inf.type !== 'city' && inf.type !== 'capital') continue
+            if ((inf.level ?? 1) < 2) continue
+            smartCityFlipIds.add(inf.id)
+          }
+        } else if (sc.target === 'existing_pick') {
+          const wanted = (sc.name ?? '').trim().toLowerCase()
+          let matched: Infrastructure | undefined
+          if (wanted) {
+            matched = s.infrastructureMap.find(inf =>
+              (inf.type === 'city' || inf.type === 'capital') &&
+              inf.countryId === scCountry &&
+              inf.name.toLowerCase().includes(wanted)
+            )
+          }
+          if (matched) {
+            smartCityFlipIds.add(matched.id)
+          } else {
+            // Degrade to new_place — queue a click-to-place pending placement.
+            extraSmartPendingPlacements.push({
+              id: `pp-smart-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              type: 'city',
+              name: sc.name ?? 'Smart City',
+              countryId: scCountry,
+              targetLevel: 1,
+              date: s.currentDate,
+              isSmartCity: true,
+            })
+          }
+        } else if (sc.target === 'new_place') {
+          extraSmartPendingPlacements.push({
+            id: `pp-smart-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            type: 'city',
+            name: sc.name ?? 'Smart City',
+            countryId: scCountry,
+            targetLevel: 1,
+            date: s.currentDate,
+            isSmartCity: true,
+          })
+        }
       }
       // Station upgrade goes to build queue (delayed completion)
       if (r.upgradeRailStation) {
@@ -1704,6 +1868,12 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         pendingActions: [],
         actionHistory: newHistory,
         buildQueue: [...(s.buildQueue ?? []), ...newBuilds],
+        pendingPlacements: [...(s.pendingPlacements ?? []), ...newPendingPlacements, ...extraSmartPendingPlacements],
+        infrastructureMap: smartCityFlipIds.size > 0
+          ? s.infrastructureMap.map(inf =>
+              smartCityFlipIds.has(inf.id) ? { ...inf, is_smart: true } : inf
+            )
+          : s.infrastructureMap,
         ...(applyResultsEconomy ? { economy: applyResultsEconomy } : {}),
         newsItems: [...blockedRailNewsItems, ...actionNewsItems, ...(s.newsItems ?? [])].slice(0, 100),
         warDamage: results.reduce((dmg, r) => {
@@ -2099,6 +2269,15 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     }
   }),
 
+  consumeFollowUps: (resultIdx) => set(store => {
+    if (!store.state) return {}
+    const lastResults = store.state.lastResults ?? []
+    if (resultIdx < 0 || resultIdx >= lastResults.length) return {}
+    const next = lastResults.slice()
+    next[resultIdx] = { ...next[resultIdx], followUps: [] }
+    return { state: { ...store.state, lastResults: next } }
+  }),
+
   timelineOpenSignal: 0,
   bumpTimelineOpen: () => set(s => ({ timelineOpenSignal: (s.timelineOpenSignal ?? 0) + 1 })),
 
@@ -2243,6 +2422,68 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         buildQueue: [],
         infrastructureMap: [...s.infrastructureMap, ...newInfra],
         railLines: [...(s.railLines ?? []), ...newRailLines],
+      },
+    }
+  }),
+
+  resolvePendingPlacement: (id, lng, lat) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const pending = (s.pendingPlacements ?? []).find(p => p.id === id)
+    if (!pending) return {}
+    // Smart cities drop straight into infrastructureMap — no build queue.
+    if (pending.isSmartCity) {
+      const newCity: Infrastructure = {
+        id: `inf-smart-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        countryId: pending.countryId,
+        type: 'city',
+        lat,
+        lng,
+        level: 1,
+        name: pending.name,
+        is_smart: true,
+      }
+      return {
+        state: {
+          ...s,
+          infrastructureMap: [...s.infrastructureMap, newCity],
+          pendingPlacements: (s.pendingPlacements ?? []).filter(p => p.id !== id),
+        },
+      }
+    }
+    const baseWeeks = BUILD_WEEKS[pending.type] ?? 52
+    const weeks = pending.targetLevel > 1
+      ? weeksForLevelRange(pending.type, 0, pending.targetLevel)
+      : baseWeeks
+    const project: BuildProject = {
+      id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type: pending.type,
+      name: pending.targetLevel > 1 ? `${pending.name} (Level ${pending.targetLevel})` : pending.name,
+      weeksRemaining: weeks,
+      totalWeeks: weeks,
+      startDate: s.currentDate,
+      countryId: pending.countryId,
+      lat,
+      lng,
+      startLevel: 0,
+      targetLevel: pending.targetLevel,
+    }
+    return {
+      state: {
+        ...s,
+        buildQueue: [...(s.buildQueue ?? []), project],
+        pendingPlacements: (s.pendingPlacements ?? []).filter(p => p.id !== id),
+      },
+    }
+  }),
+
+  cancelPendingPlacement: (id) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    return {
+      state: {
+        ...s,
+        pendingPlacements: (s.pendingPlacements ?? []).filter(p => p.id !== id),
       },
     }
   }),
