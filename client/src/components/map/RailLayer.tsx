@@ -104,13 +104,33 @@ export default function RailLayer() {
     }
 
     // ── Station dots on top of rail lines ──
-    const stationFeatures = gameState.railLines.flatMap(r =>
-      (r.stations ?? []).map(s => ({
+    // If a rail line has no explicit `stations` array (legacy lines built
+    // before the station pipeline shipped), fall back to synthesising dots
+    // from its waypoints so there's always visible markers on the route.
+    const stationFeatures = gameState.railLines.flatMap(r => {
+      const sts = r.stations ?? []
+      if (sts.length > 0) {
+        return sts.map(s => ({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
+          properties: { name: s.name, level: s.level, city: s.city ?? '' },
+        }))
+      }
+      // Fallback: first + last of waypoints (or from/to coords)
+      const pts: [number, number][] = []
+      if (r.waypoints && r.waypoints.length >= 2) {
+        pts.push(r.waypoints[0] as [number, number])
+        pts.push(r.waypoints[r.waypoints.length - 1] as [number, number])
+      } else if (r.fromCoords && r.toCoords) {
+        pts.push(r.fromCoords as [number, number])
+        pts.push(r.toCoords as [number, number])
+      }
+      return pts.map((p, i) => ({
         type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
-        properties: { name: s.name, level: s.level, city: s.city ?? '' },
+        geometry: { type: 'Point' as const, coordinates: p },
+        properties: { name: i === 0 ? (r.fromCity ?? 'Origin') : (r.toCity ?? 'Terminus'), level: 1, city: '' },
       }))
-    )
+    })
     const stationGeojson = { type: 'FeatureCollection' as const, features: stationFeatures }
     const STATION_SOURCE = 'rail-stations-src'
     const STATION_LAYER = 'rail-stations'
