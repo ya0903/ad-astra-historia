@@ -65,7 +65,20 @@ export default function RailDrawPanel() {
 
   const handleFinalise = () => {
     let finalStations = stations
-    if (finalStations.length < 2 && renderedPath.length >= 2) {
+    // If the user didn't manually enter station mode and place stations,
+    // auto-create a station at EVERY waypoint they clicked during drawing.
+    // Each click during rail drawing represents a place the user wanted a
+    // station — not just an invisible route bend.
+    if (finalStations.length === 0 && waypoints.length >= 2) {
+      finalStations = waypoints.map((wp, i) => ({
+        id: `st-${Date.now()}-${i}`,
+        lng: wp[0],
+        lat: wp[1],
+        name: i === 0 ? 'Origin' : i === waypoints.length - 1 ? 'Terminus' : `Station ${i}`,
+        level: 1,
+      }))
+      for (const s of finalStations) addStation(s)
+    } else if (finalStations.length < 2 && renderedPath.length >= 2) {
       const start: RailStation = {
         id: `st-${Date.now()}-a`,
         lng: renderedPath[0][0],
@@ -80,14 +93,11 @@ export default function RailDrawPanel() {
         name: 'Terminus',
         level: 1,
       }
-      // Use addStation so user sees them; but we also need them in finalStations
-      if (finalStations.length === 0) {
+      addStation(end)
+      finalStations = [...finalStations, end]
+      if (!finalStations.some(s => s.id === start.id)) {
         addStation(start)
-        addStation(end)
-        finalStations = [start, end]
-      } else {
-        addStation(end)
-        finalStations = [...finalStations, end]
+        finalStations = [start, ...finalStations]
       }
     }
     const finalStationsCost = finalStations.reduce((sum, s) => sum + stationBuildCost(s.level), 0)
