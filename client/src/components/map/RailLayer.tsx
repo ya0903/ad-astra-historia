@@ -179,10 +179,13 @@ export default function RailLayer() {
         source: SRC,
         minzoom: 3,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 9, 5],
+          // Small dot that sits inside the existing station marker on the
+          // rail line. Significantly smaller than `rail-stations` (3-10px)
+          // so it reads as a subtle "click me to branch off" indicator.
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1, 9, 2.5],
           'circle-color': '#facc15',
           'circle-stroke-color': '#1a1a1a',
-          'circle-stroke-width': 1,
+          'circle-stroke-width': 0.5,
         },
       })
     }
