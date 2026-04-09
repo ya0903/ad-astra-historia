@@ -611,6 +611,7 @@ export interface ActionResult {
   domesticReaction?: string
   empireName?: string          // if conquest/expansion occurred, suggest a new empire name
   annexedCountry?: string      // ISO_A3 of entire sovereign country brought under control
+  transferTo?: string          // ISO_A3 of the country that RECEIVES the annexed land. Omit or set to the player's own ISO → player gains it. Set to any other ISO → that third country gains it (e.g. "Saudi Arabia conquers Iran" → annexedCountry="IRN", transferTo="SAU").
   annexedRegion?: string       // province/state name when taking sub-national territory (e.g. "Kashmir", "Crimea")
   focusIso?: string            // ISO_A3 to fly map camera to
   nationaliseResource?: {      // when action nationalises a natural resource
@@ -700,6 +701,10 @@ export interface GameState {
   diplomaticInbox?: DiplomaticProposal[]
   // Diplomatic chat history — keyed by foreign country name (matches what UI uses)
   diplomaticChats?: Record<string, DiplomaticChatMessage[]>
+  // Foreign conquests — countries annexed by a non-player state. Each entry
+  // maps a conquered iso to its new owner iso. Drives alternate fill colour
+  // and label remap in CountryLayer.
+  foreignAnnexations?: Array<{ iso: string; newOwner: string }>
   // Diplomacy
   allies?: string[]            // ISO_A3 of allied nations
   atWarWith?: string[]         // ISO_A3 of nations at war with player

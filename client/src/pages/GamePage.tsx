@@ -491,8 +491,8 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
 
 TERRITORY TRANSFERS — YOU MUST SET THE CORRECT FIELDS:
 - If the player demands a sub-national region back (e.g. "demand Kashmir from India", "take Crimea from Russia"): set annexedRegion to the region name AND focusIso to the parent country's ISO_A3.
-- If the player conquers, annexes, dissolves, wipes out, or takes over an entire sovereign nation (e.g. "conquer Israel", "force Israel to relinquish all land", "Israel leaves and gives everything back", "dissolve Israel", "wipe Israel off the map"): set annexedCountry to that country's ISO_A3 (e.g. "ISR") AND focusIso to the same ISO_A3. This is MANDATORY — without annexedCountry the map won't update.
-- If the player liberates / establishes / recognises / hands territory to an existing state: set annexedCountry to the country that gains the land (so it becomes controlled by the player's influence sphere) and focusIso to the same.
+- If the player conquers, annexes, dissolves, wipes out, or takes over an entire sovereign nation (e.g. "conquer Israel", "force Israel to relinquish all land", "dissolve Israel"): set annexedCountry to that country's ISO_A3 (e.g. "ISR") AND focusIso to the same ISO_A3. This is MANDATORY — without annexedCountry the map won't update.
+- transferTo: the ISO_A3 of the country that RECEIVES the conquered land. OMIT (or set to the player's own ISO_A3) if the PLAYER personally takes the land. Set transferTo to a DIFFERENT ISO_A3 when the action specifies a third-party recipient — e.g. "Saudi Arabia conquers Iran" → annexedCountry="IRN", transferTo="SAU"; "Palestine takes all Israeli land" (when player is NOT Palestine) → annexedCountry="ISR", transferTo="PSE"; "help Ukraine absorb Belarus" → annexedCountry="BLR", transferTo="UKR". This is critical — without transferTo the player wrongly gets the land.
 
 If the player's action is nonsensical, still return success with an amusing narrative.\n`
         : ''
@@ -556,26 +556,66 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
 
       // ── Yesman post-processor ───────────────────────────────────────────────
       // When yesman mode is on, scan each action's text for wipeout/annexation
-      // verbs + a country name. If the AI forgot to set annexedCountry, patch
-      // it in so the map actually updates (fixes "Israel relinquishes all
-      // land" returning success without touching borders).
+      // verbs + a country name. Patch annexedCountry if the AI forgot it, and
+      // detect a SECOND country in the sentence to set transferTo when the
+      // land is meant to go to a third party rather than the player.
       if (gameState.yesman) {
         const WIPEOUT_RE = /\b(conquer|annex|wipe out|dissolve|take over|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminate|capitulate)\b/i
-        const countryList = Object.entries(gameState.countries).map(([iso, c]) => ({ iso, name: (c.name ?? '').toLowerCase() }))
+        // Two-country patterns: "X conquers Y", "give Y to X", "Y to X",
+        // "hand X to Y", etc. We use these to pick WHICH country is the
+        // conquered one vs the new owner.
+        const TRANSFER_RE = /\b(?:give[ns]?|hand(?:s|ed)?|transfer(?:s|red)?|cede[ds]?|relinquish(?:es|ed)?|return(?:s|ed)?)\b[^.]*?\bto\b/i
+        const countryList = Object.entries(gameState.countries)
+          .map(([iso, c]) => ({ iso, name: (c.name ?? '').toLowerCase() }))
+          .filter(c => c.name.length >= 3)
+        const findAll = (text: string) => {
+          // Return all countries that appear in text, in order of first
+          // occurrence, longest-match-wins at each position.
+          const hits: Array<{ iso: string; name: string; at: number }> = []
+          for (const c of countryList) {
+            const at = text.indexOf(c.name)
+            if (at >= 0) hits.push({ ...c, at })
+          }
+          // De-dupe: if one country name is a substring of another (e.g. "iran"
+          // inside "iran" – not an issue – but "india" vs "indian ocean"), keep
+          // the longest.
+          hits.sort((a, b) => a.at - b.at || b.name.length - a.name.length)
+          return hits
+        }
         for (const r of clampedResults) {
-          if (r.annexedCountry || r.annexedRegion) continue
           const originalAction = pendingActions.find(a => a.id === r.actionId)
           const text = (originalAction?.text ?? r.summary ?? r.fullNarrative ?? '').toLowerCase()
           if (!WIPEOUT_RE.test(text)) continue
-          // Find any country name mentioned in the text. Prefer longest match.
-          let best: { iso: string; name: string } | null = null
-          for (const c of countryList) {
-            if (!c.name || c.iso === gameState.playerCountryId) continue
-            if (text.includes(c.name) && (!best || c.name.length > best.name.length)) best = c
+          const hits = findAll(text)
+          // Pick annexedCountry = first non-player mention. If we also see a
+          // SECOND non-player mention, that's the transferTo (new owner).
+          const nonPlayer = hits.filter(h => h.iso !== gameState.playerCountryId)
+          if (!r.annexedCountry && nonPlayer[0]) {
+            r.annexedCountry = nonPlayer[0].iso
+            r.focusIso = r.focusIso ?? nonPlayer[0].iso
           }
-          if (best) {
-            r.annexedCountry = best.iso
-            r.focusIso = r.focusIso ?? best.iso
+          if (!r.transferTo && nonPlayer.length >= 2 && r.annexedCountry) {
+            // Heuristic: "X conquers Y" usually means X is the actor. If
+            // the text matches TRANSFER_RE, the country AFTER "to" is the
+            // recipient; otherwise the FIRST country is usually the actor
+            // and the SECOND is the conquered land.
+            const annexIdx = nonPlayer.findIndex(h => h.iso === r.annexedCountry)
+            const other = nonPlayer.find((_, i) => i !== annexIdx)
+            if (other) {
+              if (TRANSFER_RE.test(text)) {
+                // "Y given to X" — X is recipient, Y is conquered
+                r.transferTo = other.iso
+              } else {
+                // "X conquers Y" — first mention is likely the actor/recipient
+                const first = nonPlayer[0]
+                const second = nonPlayer[1]
+                if (first && second) {
+                  r.annexedCountry = second.iso
+                  r.transferTo = first.iso
+                  r.focusIso = second.iso
+                }
+              }
+            }
           }
         }
       }

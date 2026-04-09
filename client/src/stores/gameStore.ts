@@ -368,6 +368,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         : getEraStartUnlocks(conditions.era, playerCountryId),
       recentDisasters: [],
       warDamage: {},
+      foreignAnnexations: [],
       lore: [],
       newsItems: conditions.disputes.map(d => ({
         id: `news-dispute-${d.id}`,
@@ -447,6 +448,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       unlockedTechs: saved.unlockedTechs ?? [],
       recentDisasters: saved.recentDisasters ?? [],
       warDamage: saved.warDamage ?? {},
+      foreignAnnexations: saved.foreignAnnexations ?? [],
       lore: saved.lore ?? [],
       newsItems: saved.newsItems ?? [],
       yesman: saved.yesman ?? false,
@@ -1535,9 +1537,20 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
           : (s.diplomaticInbox ?? []),
         empireName: results.find(r => r.empireName)?.empireName ?? s.empireName,
         controlledCountries: results.reduce((acc, r) => {
-          if (r.annexedCountry && !acc.includes(r.annexedCountry)) return [...acc, r.annexedCountry]
+          if (!r.annexedCountry) return acc
+          // If transferTo is set to a country OTHER than the player, the land
+          // goes to that third country via foreignAnnexations (below) — do
+          // NOT add it to the player's own controlled list.
+          if (r.transferTo && r.transferTo !== pid) return acc
+          if (!acc.includes(r.annexedCountry)) return [...acc, r.annexedCountry]
           return acc
         }, s.controlledCountries ?? []),
+        foreignAnnexations: results.reduce((acc, r) => {
+          if (!r.annexedCountry || !r.transferTo || r.transferTo === pid) return acc
+          // Upsert: newest owner wins if the same iso is annexed twice
+          const filtered = acc.filter(e => e.iso !== r.annexedCountry)
+          return [...filtered, { iso: r.annexedCountry, newOwner: r.transferTo }]
+        }, s.foreignAnnexations ?? []),
         controlledRegions: results.reduce((acc, r) => {
           if (r.annexedRegion && r.focusIso) {
             const entry = { name: r.annexedRegion, adm0_a3: r.focusIso }

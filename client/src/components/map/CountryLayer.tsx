@@ -202,9 +202,13 @@ function injectColours(
   controlledCountries: string[],
   controlledRegions: Array<{ name: string; adm0_a3: string }>,
   provincesGeojson: FeatureCollection | null,
+  foreignAnnexations: Array<{ iso: string; newOwner: string }> = [],
+  countryNamesByIso: Record<string, string> = {},
 ): GeoJSON.FeatureCollection {
   const playerColour = getCountryColour(playerCountryId)
   const controlledSet = new Set(controlledCountries)
+  const foreignOwnerByIso = new Map<string, string>()
+  for (const fa of foreignAnnexations) foreignOwnerByIso.set(fa.iso.toUpperCase(), fa.newOwner.toUpperCase())
 
   // Pre-resolve the province polygons that will be clipped from their parents,
   // grouped by parent country ISO_A3
@@ -237,10 +241,24 @@ function injectColours(
       // the shared COUNTRY_COLOURS table keyed by ISO_A3.
       const preComputed = (p?.fill_colour as string | undefined)
       const base = preComputed ?? getCountryColour(iso)
+      const foreignOwner = foreignOwnerByIso.get(iso.toUpperCase())
       const colour =
         iso === playerCountryId ? lightenColour(base) :
         controlledSet.has(iso) ? tintOccupied(playerColour) :
+        foreignOwner ? getCountryColour(foreignOwner) :
         base
+      // If this country has been conquered by a non-player state, relabel it
+      // with the new owner's name so country-label layers show the new name
+      // instead of the defunct one.
+      let displayName = p?.NAME as string | undefined
+      let displayAdmin = p?.ADMIN as string | undefined
+      if (foreignOwner) {
+        const newName = countryNamesByIso[foreignOwner]
+        if (newName) {
+          displayName = newName
+          displayAdmin = newName
+        }
+      }
 
       // If this parent country has controlled provinces, clip them out of its polygon
       let outputGeometry = f.geometry
@@ -264,7 +282,16 @@ function injectColours(
         }
       }
 
-      return { ...f, geometry: outputGeometry, properties: { ...p, fill_colour: colour } }
+      return {
+        ...f,
+        geometry: outputGeometry,
+        properties: {
+          ...p,
+          fill_colour: colour,
+          ...(displayName ? { NAME: displayName } : {}),
+          ...(displayAdmin ? { ADMIN: displayAdmin } : {}),
+        },
+      }
     }),
   }
 }
@@ -281,12 +308,15 @@ const ANCIENT_ERAS = new Set<string>([
 // pipeline to re-run on every keystroke / tick.
 const EMPTY_ISOS: string[] = []
 const EMPTY_REGIONS: Array<{ name: string; adm0_a3: string }> = []
+const EMPTY_ANNEX: Array<{ iso: string; newOwner: string }> = []
 
 export default function CountryLayer() {
   const map = useMap()
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? EMPTY_ISOS)
   const controlledRegions = useGameStore(s => s.state?.controlledRegions ?? EMPTY_REGIONS)
+  const foreignAnnexations = useGameStore(s => s.state?.foreignAnnexations ?? EMPTY_ANNEX)
+  const countries = useGameStore(s => s.state?.countries)
   const era = useGameStore(s => s.state?.era)
   const hoveredIdRef = useRef<string | number | undefined>(undefined)
   // Raw GeoJSON stored after fetch — Effect 2 re-injects colours when empire changes
@@ -312,7 +342,13 @@ export default function CountryLayer() {
 
         rawGeojsonRef.current = geojson
         provincesGeojsonRef.current = provinces
-        const coloured = injectColours(geojson, playerCountryId, controlledCountries, controlledRegions, provinces)
+        const countryNamesByIso: Record<string, string> = {}
+        if (countries) {
+          for (const [iso, c] of Object.entries(countries)) {
+            if (c && typeof c === 'object' && 'name' in c) countryNamesByIso[iso.toUpperCase()] = (c as { name: string }).name
+          }
+        }
+        const coloured = injectColours(geojson, playerCountryId, controlledCountries, controlledRegions, provinces, foreignAnnexations, countryNamesByIso)
 
         map.addSource('countries', { type: 'geojson', data: coloured })
 
@@ -429,12 +465,20 @@ export default function CountryLayer() {
     if (!map || !playerCountryId || !rawGeojsonRef.current) return
     const src = map.getSource('countries') as maplibregl.GeoJSONSource | undefined
     if (!src) return
+    const countryNamesByIso: Record<string, string> = {}
+    if (countries) {
+      for (const [iso, c] of Object.entries(countries)) {
+        if (c && typeof c === 'object' && 'name' in c) countryNamesByIso[iso.toUpperCase()] = (c as { name: string }).name
+      }
+    }
     src.setData(injectColours(
       rawGeojsonRef.current,
       playerCountryId,
       controlledCountries,
       controlledRegions,
       provincesGeojsonRef.current,
+      foreignAnnexations,
+      countryNamesByIso,
     ))
     const newEmpireOutline = buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current)
     const newEmpireMask = (newEmpireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
@@ -442,7 +486,7 @@ export default function CountryLayer() {
     if (outlineSrc) outlineSrc.setData(newEmpireOutline)
     const borderSrc = map.getSource('country-border-lines') as maplibregl.GeoJSONSource | undefined
     if (borderSrc) borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], newEmpireMask))
-  }, [map, playerCountryId, controlledCountries, controlledRegions])
+  }, [map, playerCountryId, controlledCountries, controlledRegions, foreignAnnexations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }

@@ -110,7 +110,7 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
   }
 
   return (
-    <div>
+    <>
       {!open ? (
         <button
           onClick={handleOpen}
@@ -120,7 +120,27 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
           <span className="text-lg">🎖️</span>
         </button>
       ) : (
-        <div className="relative flex flex-col rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl" style={{ width: panelW, height: panelH }}>
+        <>
+          {/* Placeholder button stays in the flex column so the other right-
+              side panels don't shift when the advisor opens. The advisor
+              itself is fixed-positioned below. */}
+          <button
+            onClick={handleClose}
+            className="w-10 h-10 rounded-full bg-purple-800/70 border border-purple-500/60 shadow-xl flex items-center justify-center"
+            title="Close Intelligence Advisor"
+          >
+            <span className="text-lg">🎖️</span>
+          </button>
+          <div
+            className="fixed flex flex-col rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl"
+            style={{
+              width: panelW,
+              height: Math.min(panelH, typeof window !== 'undefined' ? window.innerHeight - 120 : panelH),
+              right: 64,
+              bottom: 80,
+              zIndex: 30,
+            }}
+          >
           {/* Resize handle — top-left corner drag */}
           <div
             onMouseDown={e => { e.preventDefault(); dragRef.current = { startX: e.clientX, startY: e.clientY, w: panelW, h: panelH } }}
@@ -203,8 +223,9 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
-    </div>
+    </>
   )
 }
