@@ -378,17 +378,11 @@ export default function CountryLayer() {
         //      polygon's western edge (two near-coincident grey lines).
         //   2. India's polygon hole (left by injectColours' difference clip)
         //      tracing a grey ring around the annexed Kashmir province.
-        // Empire outline (the blue glow) wraps ONLY the player's own native
-        // country + annexed sub-national regions. Absorbed full countries
-        // just quietly change fill colour to match — no glow around them.
-        // This matches the player's expectation that "conquered land just
-        // changes colour, nothing else".
-        const empireOutline = buildEmpireOutline(geojson, [playerCountryId], controlledRegions, provinces)
-        // The grey country-border mask however still clips against
-        // [player + ALL controlled countries] so no grey outline is drawn
-        // around absorbed territory either.
-        const fullEmpire = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
-        const empireMask = (fullEmpire.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
+        // Compute the merged empire polygon FIRST so we can use it as a mask
+        // when building country border lines (so India's outer ring doesn't
+        // trace the old PAK↔Kashmir boundary).
+        const empireOutline = buildEmpireOutline(geojson, [playerCountryId, ...controlledCountries], controlledRegions, provinces)
+        const empireMask = (empireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
         const borderLines = buildBorderLines(geojson, [playerCountryId, ...controlledCountries], empireMask)
         map.addSource('country-border-lines', { type: 'geojson', data: borderLines })
 
@@ -490,16 +484,12 @@ export default function CountryLayer() {
       foreignAnnexations,
       countryNamesByIso,
     ))
-    // Glow wraps only the native player country + annexed provinces.
-    const playerOnlyOutline = buildEmpireOutline(rawGeojsonRef.current, [playerCountryId], controlledRegions, provincesGeojsonRef.current)
-    // Mask used to suppress grey borders covers the full empire including
-    // absorbed countries (so no grey line remains around them).
-    const fullEmpireOutline = buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current)
-    const empireMask = (fullEmpireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
+    const newEmpireOutline = buildEmpireOutline(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], controlledRegions, provincesGeojsonRef.current)
+    const newEmpireMask = (newEmpireOutline.features[0] as Feature<Polygon | MultiPolygon> | undefined) ?? null
     const outlineSrc = map.getSource('empire-outline') as maplibregl.GeoJSONSource | undefined
-    if (outlineSrc) outlineSrc.setData(playerOnlyOutline)
+    if (outlineSrc) outlineSrc.setData(newEmpireOutline)
     const borderSrc = map.getSource('country-border-lines') as maplibregl.GeoJSONSource | undefined
-    if (borderSrc) borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], empireMask))
+    if (borderSrc) borderSrc.setData(buildBorderLines(rawGeojsonRef.current, [playerCountryId, ...controlledCountries], newEmpireMask))
   }, [map, playerCountryId, controlledCountries, controlledRegions, foreignAnnexations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
