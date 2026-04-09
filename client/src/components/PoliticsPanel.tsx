@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useGameStore } from '../stores'
+import { useResizablePanel } from '../lib/useResizablePanel'
 
 import type { GovernmentType } from '@ad-astra/shared/types'
 
@@ -43,6 +44,7 @@ interface PoliticsPanelProps { isOpen: boolean; onOpen: () => void; onClose: () 
 
 export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanelProps) {
   const [showGovPicker, setShowGovPicker] = useState(false)
+  const { width, height, handleProps } = useResizablePanel({ w: 288, h: 500 })
   const politics = useGameStore(s => s.state?.politics)
   const playerIso = useGameStore(s => s.state?.playerCountryId ?? '')
   const playerAgencies = useGameStore(s => (s.state?.espionage?.agencies ?? []).filter(a => a.ownerIso === playerIso))
@@ -105,9 +107,12 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
 
       {isOpen && (
         <div
-          className="fixed w-72 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 64, bottom: 80, zIndex: 30 }}
+          className="fixed overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ width, height, right: 64, bottom: 80, zIndex: 30 }}
         >
+          <div {...handleProps}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Internal Politics</span>
             <button onClick={() => { onClose(); setShowGovPicker(false) }} className="text-gray-500 hover:text-white text-xs">✕</button>

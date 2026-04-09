@@ -3,6 +3,7 @@ import { useGameStore } from '../stores'
 import { getCountryResources, resourceMonthlyIncome, type ResourceType } from '@ad-astra/shared/countryResources'
 import { BUILD_MONTHLY_INCOME } from '@ad-astra/shared/types'
 import { formatCurrency, getCurrencyMode, getCurrencyIcon } from '../lib/currency'
+import { useResizablePanel } from '../lib/useResizablePanel'
 
 function Bar({ value, max = 100, colour = '#3b82f6', label }: { value: number; max?: number; colour?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
@@ -32,6 +33,7 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
   const infrastructureMap = useGameStore(s => s.state?.infrastructureMap ?? [])
 
   const [showUsd, setShowUsd] = useState(() => localStorage.getItem('aah-currency-toggle') === 'usd')
+  const { width, height, handleProps } = useResizablePanel({ w: 288, h: 480 })
   const toggleUsd = () => {
     const next = !showUsd
     setShowUsd(next)
@@ -105,9 +107,12 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
 
       {isOpen && (
         <div
-          className="fixed w-72 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 64, bottom: 80, zIndex: 30 }}
+          className="fixed overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ width, height, right: 64, bottom: 80, zIndex: 30 }}
         >
+          <div {...handleProps}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Economy</span>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>

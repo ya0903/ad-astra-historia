@@ -1,5 +1,6 @@
 import { useGameStore } from '../stores'
 import type { MilitaryDoctrine } from '@ad-astra/shared/types'
+import { useResizablePanel } from '../lib/useResizablePanel'
 
 function StrengthBar({ label, value, icon }: { label: string; value: number; icon: string }) {
   const colour = value > 70 ? '#22c55e' : value > 35 ? '#f59e0b' : '#ef4444'
@@ -37,6 +38,7 @@ export default function MilitaryPanel({ isOpen, onOpen, onClose }: MilitaryPanel
     return pid ? s.state?.countries[pid]?.stats : undefined
   })
   const unlockedTechs = useGameStore(s => s.state?.unlockedTechs ?? [])
+  const { width, height, handleProps } = useResizablePanel({ w: 288, h: 520 })
 
   if (!militaryState) return null
 
@@ -67,9 +69,12 @@ export default function MilitaryPanel({ isOpen, onOpen, onClose }: MilitaryPanel
 
       {isOpen && (
         <div
-          className="fixed w-72 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 64, bottom: 80, zIndex: 30 }}
+          className="fixed overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ width, height, right: 64, bottom: 80, zIndex: 30 }}
         >
+          <div {...handleProps}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-white uppercase tracking-wider">Military</span>

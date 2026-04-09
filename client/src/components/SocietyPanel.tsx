@@ -1,4 +1,5 @@
 import { useGameStore } from '../stores'
+import { useResizablePanel } from '../lib/useResizablePanel'
 
 function StatRow({ label, value, format = 'number', colour }: {
   label: string
@@ -44,6 +45,7 @@ interface SocietyPanelProps { isOpen: boolean; onOpen: () => void; onClose: () =
 export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelProps) {
   const society = useGameStore(s => s.state?.society)
   const eraPhase = useGameStore(s => s.state?.eraPhase ?? 'modern')
+  const { width, height, handleProps } = useResizablePanel({ w: 256, h: 500 })
 
   if (!society) return null
 
@@ -63,9 +65,12 @@ export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelPr
 
       {isOpen && (
         <div
-          className="fixed w-64 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 64, bottom: 80, zIndex: 30 }}
+          className="fixed overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ width, height, right: 64, bottom: 80, zIndex: 30 }}
         >
+          <div {...handleProps}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Society</span>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>

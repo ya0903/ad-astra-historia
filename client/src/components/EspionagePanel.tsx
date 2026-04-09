@@ -3,6 +3,7 @@ import { useGameStore } from '../stores'
 import { REAL_AGENCIES } from '@ad-astra/shared/intelAgencies'
 import { prompt as uiPrompt } from './ModalHost'
 import type { IntelMissionType, IntelAgency } from '@ad-astra/shared/types'
+import { useResizablePanel } from '../lib/useResizablePanel'
 
 interface EspionagePanelProps {
   isOpen: boolean
@@ -74,6 +75,7 @@ function AgencyCard({ agency }: { agency: IntelAgency }) {
 
 export default function EspionagePanel({ isOpen, onOpen, onClose }: EspionagePanelProps) {
   const [tab, setTab] = useState<Tab>('overview')
+  const { width, height, handleProps } = useResizablePanel({ w: 320, h: 560 })
   const state = useGameStore(s => s.state)
   const createIntelAgency = useGameStore(s => s.createIntelAgency)
   const startMission = useGameStore(s => s.startMission)
@@ -141,9 +143,12 @@ export default function EspionagePanel({ isOpen, onOpen, onClose }: EspionagePan
 
       {isOpen && (
         <div
-          className="fixed w-80 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
-          style={{ right: 64, bottom: 80, zIndex: 30 }}
+          className="fixed overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ width, height, right: 64, bottom: 80, zIndex: 30 }}
         >
+          <div {...handleProps}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 7L7 1M1 4L4 1" stroke="#60a5fa" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          </div>
           {/* Header */}
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between sticky top-0 bg-[#080f1e]/95 z-10">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Intelligence</span>
