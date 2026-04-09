@@ -261,6 +261,10 @@ interface GameStoreState {
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
   addTimelineResult: (result: ActionResult) => void
+  /** Monotonic counter bumped whenever something wants the timeline panel
+   *  to auto-open to the most recent result. GamePage watches this. */
+  timelineOpenSignal: number
+  bumpTimelineOpen: () => void
   // Diplomatic chat history
   appendDiplomaticChat: (country: string, message: import('@ad-astra/shared/types').DiplomaticChatMessage) => void
   clearDiplomaticChat: (country: string) => void
@@ -1699,6 +1703,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), acceptResult].slice(-50),
       },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
     }
   }),
 
@@ -1719,8 +1724,12 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         ...store.state,
         lastResults: [...(store.state.lastResults ?? []), result].slice(-50),
       },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
     }
   }),
+
+  timelineOpenSignal: 0,
+  bumpTimelineOpen: () => set(s => ({ timelineOpenSignal: (s.timelineOpenSignal ?? 0) + 1 })),
 
   appendDiplomaticChat: (country, message) => set(store => {
     if (!store.state) return {}
@@ -1782,6 +1791,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), declineResult].slice(-50),
       },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
     }
   }),
 

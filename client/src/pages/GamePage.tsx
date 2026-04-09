@@ -284,6 +284,7 @@ export default function GamePage() {
   const [loreOpen, setLoreOpen] = useState(false)
   const [dismissedWorldEvent, setDismissedWorldEvent] = useState<string | null>(null)
   const [timelineIdx, setTimelineIdx] = useState<number | null>(null)
+  const timelineOpenSignal = useGameStore(s => s.timelineOpenSignal)
   const [sidebarWidth, setSidebarWidth] = useState(288) // 288px = w-72
   const [customJump, setCustomJump] = useState('')
   const [showCustomJump, setShowCustomJump] = useState(false)
@@ -334,6 +335,15 @@ export default function GamePage() {
   const researchQueue = gameState.researchQueue ?? []
   const recentDisasters = gameState.recentDisasters ?? []
   const lastResults = gameState.lastResults ?? []
+
+  // When another part of the app (e.g. DiplomacyPanel's Finish button or
+  // acceptProposal) asks the timeline to open, jump to the newest result.
+  useEffect(() => {
+    if (timelineOpenSignal > 0 && lastResults.length > 0) {
+      setTimelineIdx(lastResults.length - 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelineOpenSignal])
 
   // Top economies for advisor context
   const topCountries = Object.values(gameState.countries)
