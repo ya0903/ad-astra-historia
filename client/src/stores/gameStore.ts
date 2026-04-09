@@ -5,7 +5,7 @@ import type {
   BuildProject, ResearchProject, TechId, DisasterEvent, DisasterType, InfrastructureType, LoreEntry,
   RailLine, RailType, NewsItem, EraPhase, EconomyState, MilitaryState, PoliticsState,
   SocietyState, DiplomacyState, ColonyBase, PlanetBody, EspionageState, GovernmentType,
-  WorldTickEvent, PendingPlacement,
+  WorldTickEvent, PendingPlacement, IntelAgency, IntelMission, IntelMissionType,
 } from '@ad-astra/shared/types'
 import { BUILD_WEEKS, BUILD_COSTS, BUILD_MONTHLY_INCOME, BUILD_MAX_LEVEL } from '@ad-astra/shared/types'
 import { resourceMonthlyIncome, getCountryResources, type ResourceType } from '@ad-astra/shared/countryResources'
@@ -311,6 +311,16 @@ interface GameStoreState {
   setSociety: (patch: Partial<SocietyState>) => void
   setDiplomacyState: (patch: Partial<DiplomacyState>) => void
   setEspionage: (patch: Partial<EspionageState>) => void
+  // ── Intelligence agencies ──────────────────────────────────────────────
+  createIntelAgency: (ownerIso: string, name: string) => void
+  setAgencyFunding: (id: string, value: number) => void
+  setAgencyCorruption: (id: string, value: number) => void
+  setAgencyEfficiency: (id: string, value: number) => void
+  startMission: (
+    agencyId: string,
+    type: IntelMissionType,
+    opts: { targetIso?: string; targetName?: string; difficulty: number },
+  ) => void
   addColony: (colony: Omit<ColonyBase, 'id'>) => void
   removeColony: (id: string) => void
   upgradeColony: (id: string) => void
@@ -458,6 +468,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       },
       colonies: [],
       activePlanet: 'earth',
+      espionage: { agencies: [], activeMissions: [], counterIntelLevel: 20 },
     }
     set({ state: newState, error: null })
   },
@@ -487,6 +498,22 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       diplomacyState: saved.diplomacyState ?? undefined,
       colonies: saved.colonies ?? [],
       activePlanet: saved.activePlanet ?? 'earth',
+      espionage: saved.espionage
+        ? {
+            agencies: (saved.espionage as any).agencies ?? [],
+            activeMissions: Array.isArray((saved.espionage as any).activeMissions)
+              && (saved.espionage as any).activeMissions.every((m: any) => typeof m === 'object' && 'agencyId' in m)
+              ? (saved.espionage as any).activeMissions
+              : [],
+            counterIntelLevel: saved.espionage.counterIntelLevel ?? 20,
+            agencyBudget: saved.espionage.agencyBudget,
+            agencyTier: saved.espionage.agencyTier,
+            operativeCount: saved.espionage.operativeCount,
+            networkStrength: saved.espionage.networkStrength,
+            completedMissions: saved.espionage.completedMissions,
+            detectedBy: saved.espionage.detectedBy,
+          }
+        : { agencies: [], activeMissions: [], counterIntelLevel: 20 },
     },
     error: null,
   }),
@@ -1215,6 +1242,118 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       }
     }
 
+    // ── Intelligence missions tick ───────────────────────────────────────────
+    const espIn = s.espionage ?? { agencies: [], activeMissions: [], counterIntelLevel: 20 }
+    let espAgencies = [...espIn.agencies]
+    const espMissions: IntelMission[] = []
+    const espNews: NewsItem[] = []
+    const espTimeline: ActionResult[] = []
+    const MAJOR_POWERS = new Set(['USA','CHN','RUS','GBR','FRA','ISR','DEU','JPN','IND'])
+    const missionExposureAdj: Record<IntelMissionType, number> = {
+      assassination: 20, sabotage: 10, extraction: 10, propaganda: 5,
+      cyber: 0, surveillance: -5, infiltration: -10,
+    }
+    for (const m of espIn.activeMissions) {
+      const wr = m.weeksRemaining - weeksElapsed
+      if (wr > 0) { espMissions.push({ ...m, weeksRemaining: wr }); continue }
+      // Resolve mission
+      const agIdx = espAgencies.findIndex(a => a.id === m.agencyId)
+      if (agIdx < 0) continue
+      const ag = espAgencies[agIdx]
+      const base = ag.efficiency - ag.corruption + (100 - m.difficulty * 8) + (Math.random() * 20 - 10)
+      const success = base > 50
+      espAgencies[agIdx] = {
+        ...ag,
+        successfulMissions: ag.successfulMissions + (success ? 1 : 0),
+        failedMissions: ag.failedMissions + (success ? 0 : 1),
+      }
+      const targetLabel = m.targetName || (m.targetIso && s.countries[m.targetIso]?.name) || m.targetIso || 'unknown target'
+      // Public news of the EVENT only (no attribution)
+      const eventHeadlines: Record<IntelMissionType, (t: string, ok: boolean) => string> = {
+        sabotage: (t, ok) => ok ? `Mysterious sabotage strikes ${t}` : `Foiled sabotage attempt at ${t}`,
+        assassination: (t, ok) => ok ? `${t} targeted in apparent assassination` : `Assassination attempt on ${t} reportedly thwarted`,
+        cyber: (t, ok) => ok ? `Major cyber intrusion reported at ${t}` : `${t} repels cyber intrusion attempt`,
+        infiltration: (t, ok) => ok ? `Security breach uncovered at ${t}` : `${t} detains suspected infiltrators`,
+        surveillance: (t, ok) => ok ? `Covert surveillance suspected around ${t}` : `Surveillance operation exposed near ${t}`,
+        extraction: (t, ok) => ok ? `High-profile defection from ${t}` : `Extraction attempt at ${t} reportedly failed`,
+        propaganda: (t, ok) => ok ? `Disinformation wave spreads around ${t}` : `Propaganda campaign exposed at ${t}`,
+      }
+      espNews.push({
+        id: `news-mis-${m.id}`,
+        date: newDate,
+        headline: eventHeadlines[m.type](targetLabel, success),
+        body: `Reports emerging — circumstances remain unclear. Investigations ongoing.`,
+        category: 'world',
+        importance: success ? 'major' : 'minor',
+        country: m.targetIso,
+      })
+      // Internal timeline entry names the perpetrator
+      espTimeline.push({
+        actionId: `intel-mission-done-${m.id}`,
+        outcome: success ? 'success' : 'failure',
+        summary: `${ag.name}: ${m.type} on ${targetLabel} — ${success ? 'SUCCESS' : 'FAILURE'}`,
+        fullNarrative: `${ag.name} ran a ${m.type} operation against ${targetLabel}. Outcome: ${success ? 'success' : 'failure'}.`,
+        worldReaction: '',
+        statDeltas: {},
+        tags: ['internal', 'intelligence', 'mission'],
+      })
+      // Exposure roll
+      let exposure = 0
+      if (ag.corruption > 20) exposure += (ag.corruption - 20) * 0.5
+      if ((100 - ag.efficiency) > 50) exposure += ((100 - ag.efficiency) - 50) * 0.4
+      if (m.targetIso && MAJOR_POWERS.has(m.targetIso)) exposure += 15
+      exposure += missionExposureAdj[m.type] ?? 0
+      exposure += success ? -10 : 25
+      exposure = Math.max(0, Math.min(95, exposure))
+      if (Math.random() * 100 < exposure) {
+        const ownerName = s.countries[ag.ownerIso]?.name ?? ag.ownerIso
+        espNews.push({
+          id: `news-mis-exp-${m.id}`,
+          date: newDate,
+          headline: `${ownerName} implicated in ${m.type} operation against ${targetLabel}`,
+          body: `Evidence points to ${ag.name} of ${ownerName} as the perpetrator of the recent ${m.type} incident.`,
+          category: 'diplomacy',
+          importance: 'breaking',
+          country: ag.ownerIso,
+        })
+      }
+    }
+    // Rank progression + fundingHighSince tracking
+    espAgencies = espAgencies.map(a => {
+      let next = { ...a }
+      // Track fundingHighSince
+      if (a.funding >= 80 && !a.fundingHighSince) next.fundingHighSince = newDate
+      else if (a.funding < 80 && a.fundingHighSince) next.fundingHighSince = undefined
+      const weeksHigh = next.fundingHighSince
+        ? Math.floor((new Date(newDate).getTime() - new Date(next.fundingHighSince).getTime()) / (7 * 86400000))
+        : 0
+      const netSuccess = next.successfulMissions - next.failedMissions
+      let promoted: 'regional' | 'global' | null = null
+      if (next.rank === 'local' && (netSuccess >= 15 || weeksHigh >= 52)) {
+        next.rank = 'regional'; promoted = 'regional'
+      }
+      if (next.rank === 'regional' && (netSuccess >= 50 || weeksHigh >= 104)) {
+        next.rank = 'global'; promoted = 'global'
+      }
+      if (promoted) {
+        espNews.push({
+          id: `news-intel-rank-${a.id}-${Date.now()}`,
+          date: newDate,
+          headline: `${a.name} recognised as ${promoted} intelligence power`,
+          body: `Analysts now rank ${a.name} among the ${promoted} tier of intelligence services.`,
+          category: 'world',
+          importance: 'major',
+          country: a.ownerIso,
+        })
+      }
+      return next
+    })
+    const newEspionage: EspionageState = {
+      ...espIn,
+      agencies: espAgencies,
+      activeMissions: espMissions,
+    }
+
     return {
       state: {
         ...s,
@@ -1247,7 +1386,9 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
         ],
         unlockedTechs: [...(s.unlockedTechs ?? []), ...completedTechs as any],
         recentDisasters: [...disasters, ...(s.recentDisasters ?? [])].slice(0, 20),
-        newsItems: [...buildCompletionNews, ...delayNews, ...worldNews, ...newNewsItems, ...(s.newsItems ?? [])].slice(0, 200),
+        newsItems: [...buildCompletionNews, ...delayNews, ...worldNews, ...newNewsItems, ...espNews, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), ...espTimeline].slice(-50),
+        espionage: newEspionage,
         worldRelations,
         diplomaticInbox: [...(s.diplomaticInbox ?? []), ...(newProposals ?? [])].slice(-20),
         ...(newControlledCountries !== undefined ? { controlledCountries: newControlledCountries } : {}),
@@ -2740,12 +2881,201 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     return { state: { ...s.state, diplomacyState: { ...s.state.diplomacyState, ...patch } } }
   }),
 
+  createIntelAgency: (ownerIso, name) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const esp = s.espionage ?? { agencies: [], activeMissions: [], counterIntelLevel: 20 }
+    const agency: IntelAgency = {
+      id: `ag-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: name.trim() || 'Unnamed Agency',
+      ownerIso,
+      founded: s.currentDate,
+      funding: 40,
+      corruption: 20,
+      efficiency: 50,
+      rank: 'local',
+      successfulMissions: 0,
+      failedMissions: 0,
+    }
+    const timelineEntry: ActionResult = {
+      actionId: `intel-create-${agency.id}`,
+      outcome: 'success',
+      summary: `${agency.name} established`,
+      fullNarrative: `A new intelligence service — ${agency.name} — has been founded under ${ownerIso}.`,
+      worldReaction: '',
+      statDeltas: {},
+      tags: ['internal', 'intelligence'],
+    }
+    return {
+      state: {
+        ...s,
+        espionage: { ...esp, agencies: [...esp.agencies, agency] },
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
+  setAgencyFunding: (id, value) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const esp = s.espionage; if (!esp) return {}
+    const v = Math.max(0, Math.min(100, value))
+    const agency = esp.agencies.find(a => a.id === id)
+    if (!agency) return {}
+    const oldVal = agency.funding
+    const delta = (v - oldVal) * 0.05
+    const agencies = esp.agencies.map(a => a.id === id ? { ...a, funding: v } : a)
+    // Stability impact on owner country
+    const owner = s.countries[agency.ownerIso]
+    const newCountries = owner
+      ? { ...s.countries, [agency.ownerIso]: { ...owner, stats: { ...owner.stats, stability: Math.max(0, Math.min(100, (owner.stats.stability ?? 70) + delta)) } } }
+      : s.countries
+    const news: NewsItem = {
+      id: `news-intel-fund-${id}-${Date.now()}`,
+      date: s.currentDate,
+      headline: `${agency.name} funding adjusted to ${v}`,
+      body: `Internal memo: budget moved from ${oldVal} to ${v}. Stability impact ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}.`,
+      category: 'government',
+      importance: 'minor',
+      country: agency.ownerIso,
+      internal: true,
+    }
+    const timelineEntry: ActionResult = {
+      actionId: `intel-fund-${id}-${Date.now()}`,
+      outcome: 'success',
+      summary: `Adjusted ${agency.name} funding: ${oldVal}→${v}`,
+      fullNarrative: `Funding for ${agency.name} moved from ${oldVal} to ${v}.`,
+      worldReaction: '',
+      statDeltas: {},
+      tags: ['internal', 'intelligence'],
+    }
+    return {
+      state: {
+        ...s,
+        espionage: { ...esp, agencies },
+        countries: newCountries,
+        newsItems: [news, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
+  setAgencyCorruption: (id, value) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const esp = s.espionage; if (!esp) return {}
+    const v = Math.max(0, Math.min(100, value))
+    const agency = esp.agencies.find(a => a.id === id)
+    if (!agency) return {}
+    const agencies = esp.agencies.map(a => a.id === id ? { ...a, corruption: v } : a)
+    const news: NewsItem = {
+      id: `news-intel-corr-${id}-${Date.now()}`,
+      date: s.currentDate,
+      headline: `${agency.name} corruption level noted: ${v}`,
+      category: 'government', importance: 'minor', country: agency.ownerIso, internal: true,
+    }
+    const timelineEntry: ActionResult = {
+      actionId: `intel-corr-${id}-${Date.now()}`,
+      outcome: 'success',
+      summary: `${agency.name} corruption → ${v}`,
+      fullNarrative: `Corruption index for ${agency.name} is now ${v}.`,
+      worldReaction: '', statDeltas: {}, tags: ['internal', 'intelligence'],
+    }
+    return {
+      state: {
+        ...s,
+        espionage: { ...esp, agencies },
+        newsItems: [news, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
+  setAgencyEfficiency: (id, value) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const esp = s.espionage; if (!esp) return {}
+    const v = Math.max(0, Math.min(100, value))
+    const agency = esp.agencies.find(a => a.id === id)
+    if (!agency) return {}
+    const agencies = esp.agencies.map(a => a.id === id ? { ...a, efficiency: v } : a)
+    const news: NewsItem = {
+      id: `news-intel-eff-${id}-${Date.now()}`,
+      date: s.currentDate,
+      headline: `${agency.name} efficiency now ${v}`,
+      category: 'government', importance: 'minor', country: agency.ownerIso, internal: true,
+    }
+    const timelineEntry: ActionResult = {
+      actionId: `intel-eff-${id}-${Date.now()}`,
+      outcome: 'success',
+      summary: `${agency.name} efficiency → ${v}`,
+      fullNarrative: `Operational efficiency for ${agency.name} is now ${v}.`,
+      worldReaction: '', statDeltas: {}, tags: ['internal', 'intelligence'],
+    }
+    return {
+      state: {
+        ...s,
+        espionage: { ...esp, agencies },
+        newsItems: [news, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
+  startMission: (agencyId, type, opts) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const esp = s.espionage; if (!esp) return {}
+    const agency = esp.agencies.find(a => a.id === agencyId)
+    if (!agency) return {}
+    // Auto-adjust difficulty by target GDP
+    let difficulty = opts.difficulty
+    if (opts.targetIso) {
+      const targetGdp = s.countries[opts.targetIso]?.stats.gdp ?? 0
+      if (targetGdp < 50e9) difficulty -= 1
+      else if (targetGdp > 2e12) difficulty += 2
+    }
+    difficulty = Math.max(1, Math.min(10, difficulty))
+    const totalWeeks = Math.max(2, Math.round(4 + difficulty * 2))
+    const mission: IntelMission = {
+      id: `mis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      agencyId,
+      type,
+      targetIso: opts.targetIso,
+      targetName: opts.targetName,
+      startDate: s.currentDate,
+      weeksRemaining: totalWeeks,
+      totalWeeks,
+      difficulty,
+    }
+    const target = opts.targetName || opts.targetIso || 'unknown target'
+    const timelineEntry: ActionResult = {
+      actionId: `intel-mission-start-${mission.id}`,
+      outcome: 'success',
+      summary: `Mission launched: ${type} on ${target}`,
+      fullNarrative: `${agency.name} has launched a ${type} operation against ${target}. Estimated duration ${totalWeeks} weeks; difficulty ${difficulty}.`,
+      worldReaction: '',
+      statDeltas: {},
+      tags: ['internal', 'intelligence', 'mission'],
+    }
+    return {
+      state: {
+        ...s,
+        espionage: { ...esp, activeMissions: [...esp.activeMissions, mission] },
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
   setEspionage: (patch) => set(s => {
     if (!s.state) return {}
     const current = s.state.espionage ?? {
-      agencyBudget: 0, agencyTier: 1, operativeCount: 0,
-      networkStrength: {}, activeMissions: [], completedMissions: [],
-      detectedBy: [], counterIntelLevel: 20,
+      agencies: [], activeMissions: [], counterIntelLevel: 20,
     }
     return { state: { ...s.state, espionage: { ...current, ...patch } } }
   }),

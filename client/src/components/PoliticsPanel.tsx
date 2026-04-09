@@ -44,6 +44,8 @@ interface PoliticsPanelProps { isOpen: boolean; onOpen: () => void; onClose: () 
 export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanelProps) {
   const [showGovPicker, setShowGovPicker] = useState(false)
   const politics = useGameStore(s => s.state?.politics)
+  const playerIso = useGameStore(s => s.state?.playerCountryId ?? '')
+  const playerAgencies = useGameStore(s => (s.state?.espionage?.agencies ?? []).filter(a => a.ownerIso === playerIso))
   const setPolitics = useGameStore(s => s.setPolitics)
   const playerStats = useGameStore(s => {
     const pid = s.state?.playerCountryId
@@ -129,6 +131,17 @@ export default function PoliticsPanel({ isOpen, onOpen, onClose }: PoliticsPanel
             <div className="space-y-2.5">
               <Meter label="Unrest" value={politics.unrestLevel} colour={unrestColour} />
               <Meter label="Corruption" value={politics.corruption} colour={corruptionColour} />
+              {playerAgencies.length > 0 && (() => {
+                const totalFunding = playerAgencies.reduce((s, a) => s + a.funding, 0) || 1
+                const intelCorruption = playerAgencies.reduce((s, a) => s + a.corruption * a.funding, 0) / totalFunding
+                const intelEfficiency = playerAgencies.reduce((s, a) => s + a.efficiency * a.funding, 0) / totalFunding
+                return (
+                  <>
+                    <Meter label="Intel Corruption" value={intelCorruption} colour="#f59e0b" />
+                    <Meter label="Intel Efficiency" value={intelEfficiency} colour="#60a5fa" />
+                  </>
+                )
+              })()}
             </div>
 
             {/* Censorship slider */}

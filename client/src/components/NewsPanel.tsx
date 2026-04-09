@@ -67,7 +67,7 @@ function NewsCard({ item, expanded, onToggle }: { item: NewsItem; expanded: bool
 }
 
 export default function NewsPanel({ onClose }: NewsPanelProps) {
-  const newsItems = useGameStore(s => s.state?.newsItems ?? [])
+  const newsItems = useGameStore(s => (s.state?.newsItems ?? []).filter(n => n.internal !== true))
   const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 

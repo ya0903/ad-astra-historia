@@ -614,6 +614,7 @@ export interface NewsItem {
   category: NewsCategory
   importance: NewsImportance
   country?: string              // ISO_A3 of primary country
+  internal?: boolean            // if true, not shown in public news panel
 }
 
 export interface FollowUp {
@@ -891,13 +892,45 @@ export interface EspionageMission {
   outcome?: string
 }
 
+export interface IntelAgency {
+  id: string
+  name: string
+  ownerIso: string
+  founded: string
+  funding: number      // 0-100
+  corruption: number   // 0-100
+  efficiency: number   // 0-100
+  rank: 'local' | 'regional' | 'global'
+  successfulMissions: number
+  failedMissions: number
+  fundingHighSince?: string
+}
+
+export type IntelMissionType =
+  | 'infiltration' | 'sabotage' | 'assassination'
+  | 'cyber' | 'surveillance' | 'extraction' | 'propaganda'
+
+export interface IntelMission {
+  id: string
+  agencyId: string
+  type: IntelMissionType
+  targetIso?: string
+  targetName?: string
+  startDate: string
+  weeksRemaining: number
+  totalWeeks: number
+  difficulty: number    // 1-10
+}
+
 export interface EspionageState {
-  agencyBudget: number       // annual budget in USD
-  agencyTier: number         // 1–5 (tier 1 = global reach like CIA/Mossad)
-  operativeCount: number     // number of trained operatives
-  networkStrength: Record<string, number>  // ISO A3 → 0-100 spy network penetration
-  activeMissions: EspionageMission[]
-  completedMissions: EspionageMission[]
-  detectedBy: string[]       // ISO A3 of countries that have identified you as a threat
-  counterIntelLevel: number  // 0–100 domestic counter-intelligence
+  agencies: IntelAgency[]
+  activeMissions: IntelMission[]
+  counterIntelLevel: number
+  // ── Legacy fields kept optional for save-file back-compat ──
+  agencyBudget?: number
+  agencyTier?: number
+  operativeCount?: number
+  networkStrength?: Record<string, number>
+  completedMissions?: EspionageMission[]
+  detectedBy?: string[]
 }
