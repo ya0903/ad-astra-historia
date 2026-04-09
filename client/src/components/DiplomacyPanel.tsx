@@ -434,12 +434,24 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
             </div>
           )}
 
-          {/* ── Active war fronts — demand terms ── */}
-          {atWarWith.length > 0 && (
+          {/* ── Active war fronts — demand terms ──
+              Includes both formal wars (atWarWith) AND any country the
+              player has inflicted damage on this session (warDamageScore),
+              so conquest-style one-shot actions also surface here. */}
+          {(() => {
+            const fronts = new Set<string>([
+              ...atWarWith,
+              ...Object.keys(warDamageScore).filter(iso => (warDamageScore[iso] ?? 0) > 0),
+            ])
+            return fronts.size > 0
+          })() && (
             <div className="mb-3">
-              <p className="text-[10px] text-red-400 mb-2 uppercase tracking-wider font-semibold">⚔ Active Wars ({atWarWith.length})</p>
+              <p className="text-[10px] text-red-400 mb-2 uppercase tracking-wider font-semibold">⚔ War Fronts ({new Set([...atWarWith, ...Object.keys(warDamageScore).filter(iso => (warDamageScore[iso] ?? 0) > 0)]).size})</p>
               <div className="space-y-1.5">
-                {atWarWith.map(iso => {
+                {Array.from(new Set([
+                  ...atWarWith,
+                  ...Object.keys(warDamageScore).filter(iso => (warDamageScore[iso] ?? 0) > 0),
+                ])).map(iso => {
                   const enemy = countries[iso]
                   const name = enemy?.name ?? iso
                   const dmg = warDamageScore[iso] ?? 0
@@ -459,6 +471,8 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                             if (newId) {
                               setNegotiating(newId)
                               setDemand({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
+                            } else {
+                              window.alert(`You are not formally at war with ${countries[iso]?.name ?? iso}. Use the action input to declare war first.`)
                             }
                           }}
                           disabled={alreadyPending}

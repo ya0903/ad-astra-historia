@@ -1813,7 +1813,10 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     if (!store.state) return null
     const s = store.state
     const atWar = s.atWarWith ?? []
-    if (!atWar.includes(enemyIso)) return null
+    const hasDamage = ((s.warDamageScore ?? {})[enemyIso] ?? 0) > 0
+    // Allow demands against either formal war targets OR any country
+    // we've inflicted damage on (e.g. after a one-shot conquest action).
+    if (!atWar.includes(enemyIso) && !hasDamage) return null
     const enemyName = s.countries[enemyIso]?.name ?? enemyIso
     const playerName = s.countries[s.playerCountryId]?.name ?? s.playerCountryId
     const id = `player-demand-${enemyIso}-${Date.now()}`

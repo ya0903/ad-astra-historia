@@ -159,6 +159,8 @@ function repairJson(raw: string): string {
   return s
 }
 
+const WIPEOUT_KEYWORDS = /\b(conquer|annex|wipe out|dissolve|take over|invade|occupy|capture|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminate|capitulate)\b/i
+
 function sanitiseDeltas(result: ActionResult, pending: { id: string; text: string }[]): ActionResult {
   const action = pending.find(p => p.id === result.actionId)
   const text = action?.text ?? ''
@@ -167,11 +169,20 @@ function sanitiseDeltas(result: ActionResult, pending: { id: string; text: strin
   const isMilitary = MILITARY_KEYWORDS.test(text)
   const isDiplomacy = DIPLOMACY_KEYWORDS.test(text)
   const isTech = TECH_KEYWORDS.test(text)
+  // Conquest, annexation, invasions and wipe-outs should NEVER yield a
+  // positive GDP delta — wars cost money and integration is slow. The AI
+  // often returns large positive GDP on these actions; clamp them to ≤ 0.
+  const isConquest = WIPEOUT_KEYWORDS.test(text)
+    || !!result.annexedCountry
+    || (result.nuclearStrike?.length ?? 0) > 0
+    || (result.bombardment?.length ?? 0) > 0
 
   return {
     ...result,
     statDeltas: {
-      gdp: d.gdp != null ? clamp(d.gdp, -30e9, 30e9) : 0,
+      gdp: d.gdp != null
+        ? (isConquest ? clamp(d.gdp, -30e9, 0) : clamp(d.gdp, -30e9, 30e9))
+        : 0,
       military: isMilitary ? clamp(d.military ?? 0, -5, 5) : 0,
       approval: clamp(d.approval ?? 0, -5, 5),
       softPower: isDiplomacy ? clamp(d.softPower ?? 0, -3, 3) : 0,
@@ -519,7 +530,7 @@ DEDUPLICATION: Before adding a buildProject, CHECK the existing infrastructure l
 
 EXCEPTION FOR EMBASSIES: when the type is "embassy", the city must be in the FOREIGN HOST country (e.g. an embassy of Pakistan in Washington has city "Washington"); also include "hostCountry": "<ISO_A3 of the host country>" so the embassy is correctly placed. Only one embassy per country per city.
 
-GDP DELTAS: statDeltas.gdp represents the IMMEDIATE financial impact — usually NEGATIVE or ZERO for construction actions (you're spending money, not earning it). Do NOT give large positive gdp deltas for building things — the engine adds a recurring monthly income stream from completed infrastructure automatically. If a country signs a trade deal or receives foreign investment, positive gdp is appropriate (small: $500M-$5B).
+GDP DELTAS: statDeltas.gdp represents the IMMEDIATE financial impact — usually NEGATIVE or ZERO for construction actions (you're spending money, not earning it). Do NOT give large positive gdp deltas for building things — the engine adds a recurring monthly income stream from completed infrastructure automatically. If a country signs a trade deal or receives foreign investment, positive gdp is appropriate (small: $500M-$5B). CONQUEST / ANNEXATION / WAR / INVASION actions must ALWAYS have statDeltas.gdp ≤ 0 (wars cost money; integrating conquered land is expensive). Never return positive GDP for "conquer X", "annex Y", "bombard Z", "invade Q" or similar.
 
 NATIONALISATION: When the player explicitly nationalises a natural resource (e.g. "nationalise the oil industry", "take state control of copper mines", "ban private lithium extraction"), set "nationaliseResource":{"type":"oil","extractionLevel":3,"exportsAllowed":true}. The type MUST be one of the resources listed in the player's "Natural resources:" context line — if the player's country has no significant deposit of that resource, the action should fail or only give a tiny benefit. extractionLevel 1-3 = small operation, 4-6 = major state industry, 7-10 = full national monopoly (costs more upfront in gdp deltas but generates huge recurring monthly income). exportsAllowed=true doubles the recurring income but may anger rivals. Once nationalised, the resource generates monthly GDP automatically — do NOT add fake gdp deltas for nationalisation. If the player asks to RAISE the extraction level of an already-nationalised resource, set extractionLevel to the NEW desired level and the engine will upgrade it.
 
