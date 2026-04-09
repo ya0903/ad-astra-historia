@@ -2700,33 +2700,23 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     const st = s.state
     const player = st.countries[st.playerCountryId]
     if (!player) return {}
-    // Push to build queue instead of railLines — gets a build period based on length
     const lengthKm = rail.lengthKm ?? 100
-    const totalWeeks = Math.max(26, Math.round(26 * (1 + lengthKm / 500)))
-    const buildProject: BuildProject = {
-      id: `bp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      type: rail.type === 'domestic_hsr' ? 'high_speed_rail' : 'rail_line',
-      name: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'}`,
-      weeksRemaining: totalWeeks,
-      totalWeeks,
-      startDate: st.currentDate,
+    // Add the rail immediately to state.railLines so stations are visible
+    // right away, and charge the full cost from player GDP (not just debt).
+    const newRail: import('@ad-astra/shared/types').RailLine = {
+      ...rail,
+      id: `rail-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       countryId: st.playerCountryId,
-      fromCity: rail.fromCity,
-      toCity: rail.toCity,
-      fromCoords: rail.fromCoords,
-      toCoords: rail.toCoords,
-      cities: rail.stations?.map(stn => stn.name),
-      waypoints: rail.waypoints,
-      pendingRailLine: rail,
     }
-    const newEconomy = st.economy
-      ? { ...st.economy, debt: st.economy.debt + totalCost }
-      : st.economy
+    const newPlayer = {
+      ...player,
+      stats: { ...player.stats, gdp: Math.max(0, player.stats.gdp - totalCost) },
+    }
     const newsItem: NewsItem = {
-      id: `news-rail-${buildProject.id}`,
+      id: `news-rail-${newRail.id}`,
       date: st.currentDate,
-      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Construction Begins`,
-      body: `Groundbreaking on ${lengthKm.toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations. Total cost: $${(totalCost / 1e9).toFixed(2)}B. Expected completion in ${(totalWeeks / 52).toFixed(1)} years.`,
+      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Opens`,
+      body: `A ${lengthKm.toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations has been inaugurated. Construction cost: $${(totalCost / 1e9).toFixed(2)}B.`,
       category: 'economy',
       importance: 'major',
       country: st.playerCountryId,
@@ -2734,8 +2724,8 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     return {
       state: {
         ...st,
-        buildQueue: [...(st.buildQueue ?? []), buildProject],
-        economy: newEconomy,
+        railLines: [...(st.railLines ?? []), newRail],
+        countries: { ...st.countries, [st.playerCountryId]: newPlayer },
         newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
       },
     }
