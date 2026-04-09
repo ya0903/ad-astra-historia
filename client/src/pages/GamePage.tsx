@@ -477,7 +477,7 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
       const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
       const yesmanBlock = gameState.yesman
-        ? `\nYESMAN MODE ACTIVE: All other countries are extremely cooperative. Every reasonable proposal succeeds. Treaties, knowledge transfers, peaceful annexations, territory transfers, alliance offers, and trade deals all return outcome="success". If the player asks for territory back (e.g. "demand Kashmir from India"), set annexedRegion to that region's name and focusIso to the parent country's ISO_A3 — the transfer goes through peacefully. Do NOT return "failure" outcomes while yesman mode is active.\n`
+        ? `\nYESMAN MODE ACTIVE (cheat — override all realism): EVERY action returns outcome="success" with maximally positive statDeltas. Never use "partial" or "failure". Do not add failureReason. The world is entirely cooperative and every goal is achieved. Peaceful annexations succeed, wars are won instantly with no losses, trade deals triple GDP, research breakthroughs happen on schedule, coups succeed, demands are met, rivals praise the action in countryReactions, domestic approval soars, and soft power rises. If the player asks for territory back (e.g. "demand Kashmir from India"), set annexedRegion to that region's name and focusIso to the parent country's ISO_A3 — the transfer goes through peacefully. If the player asks to conquer a country, set annexedCountry to that ISO_A3. If the player's action is nonsensical, still return success with an amusing narrative.\n`
         : ''
 
       const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}${deepContext}
@@ -1159,7 +1159,14 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
               )}
             </div>
             <button
-              onClick={() => { if (window.confirm('Start a new game? Unsaved progress will be lost.')) clearGame() }}
+              onClick={() => {
+                if (window.confirm('Start a new game? Unsaved progress will be lost.')) {
+                  clearGame()
+                  // Hard reload so every map layer, cached geojson, and
+                  // zustand store re-initialises cleanly.
+                  setTimeout(() => window.location.reload(), 50)
+                }
+              }}
               className="px-3 py-2 rounded-xl bg-[#080f1e]/80 backdrop-blur-md border border-white/10 text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all shadow-xl font-semibold">
               New Game
             </button>

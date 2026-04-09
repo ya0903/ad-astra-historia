@@ -59,6 +59,19 @@ export default function RailDrawOverlay() {
   const playerCountryId = useGameStore(s => s.state?.playerCountryId)
   const allies = useGameStore(s => s.state?.allies ?? [])
   const controlledCountries = useGameStore(s => s.state?.controlledCountries ?? [])
+  const railLines = useGameStore(s => s.state?.railLines ?? [])
+
+  // Collect all existing stations across the player's rail network, so a new
+  // line being drawn can snap to one as its starting point or a later waypoint.
+  const existingStations = useMemo(() => {
+    const out: { lng: number; lat: number; name: string }[] = []
+    for (const r of railLines) {
+      if (r.countryId !== playerCountryId) continue
+      if (!r.stations) continue
+      for (const stn of r.stations) out.push({ lng: stn.lng, lat: stn.lat, name: stn.name })
+    }
+    return out
+  }, [railLines, playerCountryId])
 
   const renderedPath = useMemo<LngLat[]>(
     () => interpolatePath(tool, waypoints as LngLat[]),
@@ -96,6 +109,30 @@ export default function RailDrawOverlay() {
     const handler = (e: maplibregl.MapMouseEvent) => {
       const { lng, lat } = e.lngLat
       if (mode === 'drawing') {
+        // ── Auto-close loop: if the user clicks near the first waypoint
+        // (within 25 km) and there are already ≥3 waypoints, snap the click
+        // to the first waypoint so the path closes cleanly.
+        if (waypoints.length >= 3) {
+          const first = waypoints[0]
+          const d = lineLengthKm([[first[0], first[1]], [lng, lat]])
+          if (d < 25) {
+            addWaypoint(first[0], first[1])
+            return
+          }
+        }
+        // ── Snap to existing station: if the click is within 25 km of any
+        // station on an existing rail line, snap the new waypoint to that
+        // station so the new line physically connects to the network.
+        let best: { lng: number; lat: number } | null = null
+        let bestD = Infinity
+        for (const stn of existingStations) {
+          const d = lineLengthKm([[stn.lng, stn.lat], [lng, lat]])
+          if (d < 25 && d < bestD) { bestD = d; best = stn }
+        }
+        if (best) {
+          addWaypoint(best.lng, best.lat)
+          return
+        }
         addWaypoint(lng, lat)
       } else if (mode === 'stationing') {
         if (renderedPath.length < 2) return

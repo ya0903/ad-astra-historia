@@ -10,7 +10,7 @@ import type {
 import { BUILD_WEEKS, BUILD_COSTS, BUILD_MONTHLY_INCOME, BUILD_MAX_LEVEL } from '@ad-astra/shared/types'
 import { resourceMonthlyIncome, getCountryResources, type ResourceType } from '@ad-astra/shared/countryResources'
 import type { Infrastructure } from '@ad-astra/shared/types'
-import { getCountryCentre, getCityCentre, isCoordInCountry } from '../lib/mapFly'
+import { getCountryCentre, getCityCentre, isCoordInCountry, getPortLocation, isLandlocked } from '../lib/mapFly'
 import { getEraStartUnlocks } from '@ad-astra/shared/eraTechPresets'
 import { TECH_TREE, ANCIENT_TECH_TREE, INDUSTRIAL_TECH_TREE, ANCIENT_ERAS, checkEraPhaseTransition } from '@ad-astra/shared/techTree'
 import { HISTORICAL_ERAS, getNextEra, type AnyEraId } from '@ad-astra/shared/eraConfig'
@@ -1168,6 +1168,57 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         }
       }
 
+      // ── Military bases, nuclear silos, defence systems: only on friendly soil ──
+      // The AI occasionally picks enemy targets ("build base in Israel" when at
+      // war with Israel) which makes no sense. Force these to land the player
+      // actually controls: self, allies, or controlled countries.
+      if (bp.type === 'military_base' || bp.type === 'nuclear_silo' || bp.type === 'defence_system') {
+        if (!friendlyCountries.has(targetIso)) {
+          // Keep the city hint if any of the friendly countries actually contain it
+          let redirected = pid
+          if (bp.city) {
+            for (const iso of friendlyCountries) {
+              if (getCityCentre(bp.city, iso)) { redirected = iso; break }
+            }
+          }
+          targetIso = redirected
+        }
+      }
+
+      // ── Ports: must be on the coast. Snap to a known port city in the
+      // target country, or abort if the country is landlocked. ──
+      if (bp.type === 'port') {
+        if (isLandlocked(targetIso)) {
+          // Try to redirect to player's country or any friendly country with a coast
+          let redirected: string | null = null
+          if (!isLandlocked(pid)) redirected = pid
+          else {
+            for (const iso of friendlyCountries) {
+              if (!isLandlocked(iso)) { redirected = iso; break }
+            }
+          }
+          if (!redirected) {
+            // No coastline available anywhere friendly — silently drop the build.
+            blockedRailNewsItems.push({
+              id: `news-port-block-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              date: s.currentDate,
+              headline: `Port Construction Cancelled — No Coastal Access`,
+              body: `Engineers report that ${bp.name} cannot be built: no coastal territory is available in your sphere of influence.`,
+              category: 'economy',
+              importance: 'minor',
+              country: pid,
+            } as NewsItem)
+            return
+          }
+          targetIso = redirected
+        }
+        const port = getPortLocation(targetIso, bp.city ?? bp.name)
+        if (port) {
+          // Override the supplied city/name so the build lands at the coast.
+          bp = { ...bp, city: port.name }
+        }
+      }
+
       // ── Dedupe + upgrade: check if this building type already exists at this
       // city/country. If so, upgrade the existing infrastructure instead of
       // creating a duplicate. For rail, check by matching cities list instead.
@@ -1541,6 +1592,16 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       country: s.playerCountryId,
     }
     const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'accepted' as const } : p)
+    const acceptResult: ActionResult = {
+      actionId: `diplo-accept-${proposal.id}`,
+      outcome: 'success',
+      summary: headline,
+      fullNarrative: body,
+      worldReaction: `${fromName} expresses satisfaction with the agreement.`,
+      statDeltas: {},
+      tags: ['diplomacy', 'proposal', proposal.type],
+      focusIso: proposal.fromCountry,
+    }
     return {
       state: {
         ...s,
@@ -1549,6 +1610,7 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         allies: newAllies,
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), acceptResult].slice(-50),
       },
     }
   }),
@@ -1605,12 +1667,23 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       country: s.playerCountryId,
     }
     const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'declined' as const } : p)
+    const declineResult: ActionResult = {
+      actionId: `diplo-decline-${proposal.id}`,
+      outcome: 'partial',
+      summary: newsItem.headline,
+      fullNarrative: newsItem.body,
+      worldReaction: `${fromName} expresses disappointment at the rejection.`,
+      statDeltas: {},
+      tags: ['diplomacy', 'proposal', 'declined', proposal.type],
+      focusIso: proposal.fromCountry,
+    }
     return {
       state: {
         ...s,
         diplomaticInbox: newInbox,
         worldRelations: newRelations,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), declineResult].slice(-50),
       },
     }
   }),

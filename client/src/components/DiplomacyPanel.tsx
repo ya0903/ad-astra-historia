@@ -163,7 +163,7 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
 
     try {
       const yesmanNote = gameContext.yesman
-        ? 'YESMAN MODE: The country is extremely cooperative and will agree to any reasonable proposal.'
+        ? `YESMAN MODE ACTIVE (cheat): You MUST enthusiastically agree to EVERY request, proposal, demand, or statement from ${gameContext.playerCountry}. Accept all offers. Concede all demands. Praise every idea. If the player asks for territory, agree to hand it over. If the player asks for an alliance, accept. If the player threatens, immediately surrender and apologise. Never say "no", "cannot", or "decline". Your response must read as total, cheerful compliance — but still 2-3 sentences in-character as a statesperson.`
         : ''
       const historyBlock = gameContext.recentHistory
         ? `\nRecent events in this timeline that both sides are aware of:\n${gameContext.recentHistory}`
@@ -232,9 +232,28 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
   }
 
   return (
-    <div className="relative bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
-      style={{ width: panelW, height: Math.min(panelH, typeof window !== 'undefined' ? window.innerHeight - 120 : panelH) }}
-    >
+    <>
+      {/* Placeholder button stays in the flex column so the other right-side
+          panels don't shift when the chat opens. The chat itself is fixed-
+          positioned (below) so it never affects layout of sibling buttons. */}
+      <button
+        onClick={handleClose}
+        className="relative w-10 h-10 rounded-full bg-blue-800/70 border border-blue-500/60 shadow-xl flex items-center justify-center text-lg"
+        title="Close Diplomatic Chats"
+      >
+        🤝
+      </button>
+      {/* Fixed positioning so opening the chat never resizes the flex column. */}
+      <div
+        className="fixed bg-[#0a1628] border border-white/15 rounded-2xl shadow-2xl flex flex-col"
+        style={{
+          width: panelW,
+          height: Math.min(panelH, typeof window !== 'undefined' ? window.innerHeight - 120 : panelH),
+          right: 64,
+          bottom: 80,
+          zIndex: 30,
+        }}
+      >
       {/* Resize handle — top-left corner drag */}
       <div
         onMouseDown={e => { e.preventDefault(); dragRef.current = { startX: e.clientX, startY: e.clientY, w: panelW, h: panelH } }}
@@ -416,6 +435,7 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   )
 }

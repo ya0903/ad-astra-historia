@@ -470,6 +470,80 @@ export function getCountryCentre(iso: string): [number, number] | null {
   return e ? [e[0], e[1]] : null
 }
 
+// ── Port cities ──────────────────────────────────────────────────────────────
+// Known major coastal cities per ISO_A3, for sensible port placement when the
+// AI says "build ports" without specifying where. First entry is the default.
+const PORT_CITIES: Record<string, Array<{ name: string; lng: number; lat: number }>> = {
+  PAK: [{ name: 'Karachi', lng: 67.0, lat: 24.9 }, { name: 'Gwadar', lng: 62.3, lat: 25.1 }],
+  IND: [{ name: 'Mumbai', lng: 72.9, lat: 19.1 }, { name: 'Chennai', lng: 80.3, lat: 13.1 }, { name: 'Kolkata', lng: 88.4, lat: 22.6 }, { name: 'Kochi', lng: 76.3, lat: 9.9 }],
+  CHN: [{ name: 'Shanghai', lng: 121.5, lat: 31.2 }, { name: 'Shenzhen', lng: 114.1, lat: 22.5 }, { name: 'Tianjin', lng: 117.2, lat: 39.1 }, { name: 'Qingdao', lng: 120.4, lat: 36.1 }],
+  USA: [{ name: 'Los Angeles', lng: -118.3, lat: 33.7 }, { name: 'New York', lng: -74.0, lat: 40.7 }, { name: 'Houston', lng: -95.0, lat: 29.7 }, { name: 'Seattle', lng: -122.3, lat: 47.6 }],
+  GBR: [{ name: 'Liverpool', lng: -3.0, lat: 53.4 }, { name: 'Southampton', lng: -1.4, lat: 50.9 }, { name: 'Felixstowe', lng: 1.3, lat: 52.0 }],
+  JPN: [{ name: 'Yokohama', lng: 139.6, lat: 35.4 }, { name: 'Kobe', lng: 135.2, lat: 34.7 }, { name: 'Osaka', lng: 135.5, lat: 34.6 }],
+  KOR: [{ name: 'Busan', lng: 129.1, lat: 35.1 }, { name: 'Incheon', lng: 126.6, lat: 37.5 }],
+  DEU: [{ name: 'Hamburg', lng: 10.0, lat: 53.5 }, { name: 'Bremerhaven', lng: 8.6, lat: 53.5 }],
+  FRA: [{ name: 'Marseille', lng: 5.4, lat: 43.3 }, { name: 'Le Havre', lng: 0.1, lat: 49.5 }],
+  ITA: [{ name: 'Genoa', lng: 8.9, lat: 44.4 }, { name: 'Naples', lng: 14.3, lat: 40.8 }],
+  ESP: [{ name: 'Valencia', lng: -0.4, lat: 39.5 }, { name: 'Barcelona', lng: 2.2, lat: 41.4 }, { name: 'Algeciras', lng: -5.4, lat: 36.1 }],
+  NLD: [{ name: 'Rotterdam', lng: 4.5, lat: 51.9 }, { name: 'Amsterdam', lng: 4.9, lat: 52.4 }],
+  TUR: [{ name: 'Istanbul', lng: 29.0, lat: 41.0 }, { name: 'Izmir', lng: 27.1, lat: 38.4 }],
+  EGY: [{ name: 'Alexandria', lng: 29.9, lat: 31.2 }, { name: 'Port Said', lng: 32.3, lat: 31.3 }],
+  SAU: [{ name: 'Jeddah', lng: 39.2, lat: 21.5 }, { name: 'Dammam', lng: 50.1, lat: 26.4 }],
+  IRN: [{ name: 'Bandar Abbas', lng: 56.3, lat: 27.2 }, { name: 'Chabahar', lng: 60.6, lat: 25.3 }],
+  ARE: [{ name: 'Dubai', lng: 55.3, lat: 25.3 }, { name: 'Abu Dhabi', lng: 54.4, lat: 24.5 }],
+  ISR: [{ name: 'Haifa', lng: 35.0, lat: 32.8 }, { name: 'Ashdod', lng: 34.6, lat: 31.8 }],
+  BRA: [{ name: 'Santos', lng: -46.3, lat: -24.0 }, { name: 'Rio de Janeiro', lng: -43.2, lat: -22.9 }],
+  ARG: [{ name: 'Buenos Aires', lng: -58.4, lat: -34.6 }],
+  AUS: [{ name: 'Sydney', lng: 151.2, lat: -33.9 }, { name: 'Melbourne', lng: 144.9, lat: -37.8 }, { name: 'Fremantle', lng: 115.7, lat: -32.1 }],
+  ZAF: [{ name: 'Durban', lng: 31.0, lat: -29.9 }, { name: 'Cape Town', lng: 18.4, lat: -33.9 }],
+  NGA: [{ name: 'Lagos', lng: 3.4, lat: 6.5 }],
+  KEN: [{ name: 'Mombasa', lng: 39.7, lat: -4.0 }],
+  TZA: [{ name: 'Dar es Salaam', lng: 39.3, lat: -6.8 }],
+  MAR: [{ name: 'Casablanca', lng: -7.6, lat: 33.6 }, { name: 'Tangier', lng: -5.8, lat: 35.8 }],
+  GRC: [{ name: 'Piraeus', lng: 23.6, lat: 37.9 }, { name: 'Thessaloniki', lng: 23.0, lat: 40.6 }],
+  PRT: [{ name: 'Lisbon', lng: -9.1, lat: 38.7 }, { name: 'Porto', lng: -8.7, lat: 41.2 }],
+  RUS: [{ name: 'St Petersburg', lng: 30.3, lat: 59.9 }, { name: 'Vladivostok', lng: 131.9, lat: 43.1 }, { name: 'Murmansk', lng: 33.1, lat: 68.9 }],
+  CAN: [{ name: 'Vancouver', lng: -123.1, lat: 49.3 }, { name: 'Halifax', lng: -63.6, lat: 44.6 }],
+  MEX: [{ name: 'Veracruz', lng: -96.1, lat: 19.2 }, { name: 'Manzanillo', lng: -104.3, lat: 19.1 }],
+  IDN: [{ name: 'Jakarta', lng: 106.8, lat: -6.2 }, { name: 'Surabaya', lng: 112.7, lat: -7.3 }],
+  VNM: [{ name: 'Ho Chi Minh City', lng: 106.7, lat: 10.8 }, { name: 'Haiphong', lng: 106.7, lat: 20.9 }],
+  THA: [{ name: 'Bangkok', lng: 100.5, lat: 13.7 }, { name: 'Laem Chabang', lng: 100.9, lat: 13.1 }],
+  PHL: [{ name: 'Manila', lng: 121.0, lat: 14.6 }, { name: 'Cebu', lng: 123.9, lat: 10.3 }],
+  MYS: [{ name: 'Port Klang', lng: 101.4, lat: 3.0 }, { name: 'Penang', lng: 100.3, lat: 5.4 }],
+  SGP: [{ name: 'Singapore', lng: 103.8, lat: 1.3 }],
+  BGD: [{ name: 'Chittagong', lng: 91.8, lat: 22.3 }],
+  LKA: [{ name: 'Colombo', lng: 79.9, lat: 6.9 }],
+  OMN: [{ name: 'Muscat', lng: 58.6, lat: 23.6 }, { name: 'Salalah', lng: 54.1, lat: 17.0 }],
+  QAT: [{ name: 'Doha', lng: 51.5, lat: 25.3 }],
+  KWT: [{ name: 'Kuwait City', lng: 48.0, lat: 29.4 }],
+  YEM: [{ name: 'Aden', lng: 45.0, lat: 12.8 }],
+}
+
+/**
+ * Returns a sensible coastal city for a port build, given a country ISO_A3.
+ * If a hint name is supplied, the matching port city is returned; otherwise
+ * the country's primary port city is used. Returns null for landlocked
+ * countries so callers can abort the build rather than placing a port inland.
+ */
+export function getPortLocation(iso: string, hint?: string): { name: string; lng: number; lat: number } | null {
+  const list = PORT_CITIES[iso.toUpperCase()]
+  if (!list || list.length === 0) return null
+  if (hint) {
+    const lower = hint.toLowerCase()
+    for (const p of list) {
+      if (lower.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(lower)) return p
+    }
+  }
+  return list[0]
+}
+
+export function isLandlocked(iso: string): boolean {
+  // If we don't have a port city on file, treat as landlocked for placement
+  // purposes. Covers AFG, NPL, BTN, BOL, PRY, AUT, CHE, CZE, SVK, HUN, BLR,
+  // MDA, ARM, AZE, UZB, TKM, KGZ, TJK, MNG, ZWE, MWI, BWA, UGA, RWA, ETH, etc.
+  return !PORT_CITIES[iso.toUpperCase()]
+}
+
 export function flyToLocation(map: maplibregl.Map, isoOrName: string) {
   const key = isoOrName.trim().toUpperCase()
   const entry = COUNTRY_CENTRES[key]
