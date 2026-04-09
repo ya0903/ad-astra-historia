@@ -83,8 +83,24 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
   const appendDiplomaticChat = useGameStore(s => s.appendDiplomaticChat)
   const clearDiplomaticChat = useGameStore(s => s.clearDiplomaticChat)
   const addTimelineResult = useGameStore(s => s.addTimelineResult)
+  const acceptPeaceWithDemands = useGameStore(s => s.acceptPeaceWithDemands)
+  const initiatePeaceDemand = useGameStore(s => s.initiatePeaceDemand)
   const chatHistory = useGameStore(s => s.state?.diplomaticChats ?? {})
+
+  // ── Peace demands modal state ──
+  const [negotiating, setNegotiating] = useState<string | null>(null) // proposalId
+  const [demand, setDemand] = useState<{
+    annex: boolean
+    transferTo: string
+    reparationsB: number
+    demilitarise: boolean
+    ceasefireOnly: boolean
+  }>({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
   const countries = useGameStore(s => s.state?.countries ?? {})
+  const atWarWith = useGameStore(s => s.state?.atWarWith ?? [])
+  const warDamageScore = useGameStore(s => s.state?.warDamageScore ?? {})
+  const deathToll = useGameStore(s => s.state?.deathToll ?? {})
+  const diplomaticInbox = useGameStore(s => s.state?.diplomaticInbox ?? [])
   const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
 
   // Compute reachable country names for the current era. Returns null when
@@ -371,17 +387,86 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                       </div>
                       <p className="text-[11px] text-gray-300 mb-2 leading-snug">{p.message}</p>
                       <div className="flex gap-1.5">
+                        {p.type === 'peace_talks' ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                setNegotiating(p.id)
+                                setDemand({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
+                              }}
+                              className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-amber-700/70 hover:bg-amber-600/80 text-white transition-colors"
+                            >
+                              ⚖ Negotiate Terms
+                            </button>
+                            <button
+                              onClick={() => declineProposal(p.id)}
+                              className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-900/50 hover:bg-red-800/60 text-white transition-colors"
+                            >
+                              ✗ Fight On
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => acceptProposal(p.id)}
+                              className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-700/60 hover:bg-emerald-600/70 text-white transition-colors"
+                            >
+                              ✓ Accept
+                            </button>
+                            <button
+                              onClick={() => declineProposal(p.id)}
+                              className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-900/50 hover:bg-red-800/60 text-white transition-colors"
+                            >
+                              ✗ Decline
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="border-t border-white/8 my-3" />
+            </div>
+          )}
+
+          {/* ── Active war fronts — demand terms ── */}
+          {atWarWith.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] text-red-400 mb-2 uppercase tracking-wider font-semibold">⚔ Active Wars ({atWarWith.length})</p>
+              <div className="space-y-1.5">
+                {atWarWith.map(iso => {
+                  const enemy = countries[iso]
+                  const name = enemy?.name ?? iso
+                  const dmg = warDamageScore[iso] ?? 0
+                  const deaths = deathToll[iso] ?? 0
+                  const deathsStr = deaths > 1_000_000 ? `${(deaths / 1e6).toFixed(1)}M` : deaths > 1_000 ? `${Math.round(deaths / 1_000)}k` : `${deaths}`
+                  const alreadyPending = diplomaticInbox.some(p => p.fromCountry === iso && p.type === 'peace_talks' && p.status === 'pending')
+                  return (
+                    <div key={iso} className="rounded-lg bg-red-950/20 border border-red-700/30 p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-red-300">{name}</span>
+                        <span className="text-[9px] text-gray-500">⚔ {dmg} dmg · ☠ {deathsStr}</span>
+                      </div>
+                      <div className="flex gap-1.5">
                         <button
-                          onClick={() => acceptProposal(p.id)}
-                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-700/60 hover:bg-emerald-600/70 text-white transition-colors"
+                          onClick={() => {
+                            const newId = initiatePeaceDemand(iso)
+                            if (newId) {
+                              setNegotiating(newId)
+                              setDemand({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
+                            }
+                          }}
+                          disabled={alreadyPending}
+                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-amber-700/60 hover:bg-amber-600/70 text-white disabled:opacity-40 transition-colors"
                         >
-                          ✓ Accept
+                          ⚖ Demand Terms
                         </button>
                         <button
-                          onClick={() => declineProposal(p.id)}
-                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-900/50 hover:bg-red-800/60 text-white transition-colors"
+                          onClick={() => startTalks(name)}
+                          className="px-2 py-1 rounded text-[10px] font-semibold bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
                         >
-                          ✗ Decline
+                          💬 Talk
                         </button>
                       </div>
                     </div>
@@ -495,6 +580,142 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
         </>
       )}
       </div>
+
+      {/* ── Peace Terms modal ────────────────────────────────────────────── */}
+      {negotiating && (() => {
+        const proposal = pendingProposals.find(p => p.id === negotiating)
+        if (!proposal) return null
+        const loserIso = proposal.fromCountry
+        const loserName = countries[loserIso]?.name ?? loserIso
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setNegotiating(null)}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              className="w-[420px] max-w-[90vw] rounded-2xl bg-[#0a1628] border border-amber-700/40 shadow-2xl p-5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">⚖</span>
+                <div>
+                  <p className="text-sm font-bold text-amber-300">Peace Terms — {loserName}</p>
+                  <p className="text-[10px] text-gray-500">Dictate the terms of surrender</p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 text-xs">
+                {/* Ceasefire only */}
+                <label className="flex items-start gap-2 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={demand.ceasefireOnly}
+                    onChange={e => setDemand(d => ({ ...d, ceasefireOnly: e.target.checked, annex: e.target.checked ? false : d.annex, transferTo: e.target.checked ? '' : d.transferTo }))}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="text-gray-200 font-semibold">Simple ceasefire</p>
+                    <p className="text-[10px] text-gray-500">End the war with no territory changes.</p>
+                  </div>
+                </label>
+
+                {/* Annex */}
+                {!demand.ceasefireOnly && (
+                  <label className="flex items-start gap-2 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={demand.annex}
+                      onChange={e => setDemand(d => ({ ...d, annex: e.target.checked, transferTo: e.target.checked ? '' : d.transferTo }))}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-gray-200 font-semibold">Annex {loserName}</p>
+                      <p className="text-[10px] text-gray-500">Full territorial absorption into your empire.</p>
+                    </div>
+                  </label>
+                )}
+
+                {/* Transfer */}
+                {!demand.ceasefireOnly && !demand.annex && (
+                  <div className="p-2 rounded-lg bg-white/[0.03]">
+                    <p className="text-gray-200 font-semibold mb-1">Transfer territory to</p>
+                    <select
+                      value={demand.transferTo}
+                      onChange={e => setDemand(d => ({ ...d, transferTo: e.target.value }))}
+                      className="w-full bg-[#050b16] border border-white/10 rounded px-2 py-1.5 text-xs text-white"
+                    >
+                      <option value="">— select a country —</option>
+                      {Object.entries(countries)
+                        .filter(([iso]) => iso !== loserIso)
+                        .sort((a, b) => (a[1].name ?? a[0]).localeCompare(b[1].name ?? b[0]))
+                        .map(([iso, c]) => (
+                          <option key={iso} value={iso}>{c.name ?? iso}</option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-gray-500 mt-1">Hand all {loserName} territory to a third state (e.g. liberate to Palestine, gift to an ally).</p>
+                  </div>
+                )}
+
+                {/* Reparations */}
+                {!demand.ceasefireOnly && (
+                  <div className="p-2 rounded-lg bg-white/[0.03]">
+                    <p className="text-gray-200 font-semibold mb-1">War reparations (billions USD)</p>
+                    <input
+                      type="number"
+                      min={0}
+                      max={500}
+                      step={1}
+                      value={demand.reparationsB}
+                      onChange={e => setDemand(d => ({ ...d, reparationsB: Math.max(0, Number(e.target.value)) }))}
+                      className="w-full bg-[#050b16] border border-white/10 rounded px-2 py-1.5 text-xs text-white"
+                    />
+                  </div>
+                )}
+
+                {/* Demilitarise */}
+                {!demand.ceasefireOnly && (
+                  <label className="flex items-start gap-2 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={demand.demilitarise}
+                      onChange={e => setDemand(d => ({ ...d, demilitarise: e.target.checked }))}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-gray-200 font-semibold">Force demilitarisation</p>
+                      <p className="text-[10px] text-gray-500">Halve the loser's military capacity.</p>
+                    </div>
+                  </label>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setNegotiating(null)}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    acceptPeaceWithDemands(negotiating, {
+                      annex: demand.annex && !demand.ceasefireOnly,
+                      transferTo: demand.transferTo && !demand.ceasefireOnly ? demand.transferTo : undefined,
+                      reparations: demand.reparationsB > 0 && !demand.ceasefireOnly ? demand.reparationsB * 1e9 : undefined,
+                      demilitarise: demand.demilitarise && !demand.ceasefireOnly,
+                      ceasefireOnly: demand.ceasefireOnly,
+                    })
+                    setNegotiating(null)
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold transition-colors"
+                >
+                  Sign Treaty
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }

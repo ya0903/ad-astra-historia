@@ -554,12 +554,11 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
         throw new Error('AI returned no results. Try again or use fewer actions at once.')
       }
 
-      // ── Yesman post-processor ───────────────────────────────────────────────
-      // When yesman mode is on, scan each action's text for wipeout/annexation
-      // verbs + a country name. Patch annexedCountry if the AI forgot it, and
-      // detect a SECOND country in the sentence to set transferTo when the
-      // land is meant to go to a third party rather than the player.
-      if (gameState.yesman) {
+      // ── Conquest / transfer post-processor ────────────────────────────────
+      // Runs unconditionally (not just in yesman mode) so the AI's failure to
+      // set annexedCountry / transferTo doesn't lose the player's intent. Only
+      // kicks in when the action text uses an explicit wipeout verb.
+      {
         const WIPEOUT_RE = /\b(conquer|annex|wipe out|dissolve|take over|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminate|capitulate)\b/i
         // Two-country patterns: "X conquers Y", "give Y to X", "Y to X",
         // "hand X to Y", etc. We use these to pick WHICH country is the

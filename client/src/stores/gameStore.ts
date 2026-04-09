@@ -261,6 +261,18 @@ interface GameStoreState {
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
   addTimelineResult: (result: ActionResult) => void
+  /** Accept a peace_talks proposal with specific demands chosen by the player. */
+  /** Player-initiated peace demand: adds a peace_talks proposal to the inbox
+   *  targeting an enemy the player is currently fighting. Returns the new
+   *  proposal id so the caller can open the demands modal. */
+  initiatePeaceDemand: (enemyIso: string) => string | null
+  acceptPeaceWithDemands: (proposalId: string, demands: {
+    annex?: boolean
+    transferTo?: string
+    reparations?: number // in USD
+    demilitarise?: boolean
+    ceasefireOnly?: boolean
+  }) => void
   /** Monotonic counter bumped whenever something wants the timeline panel
    *  to auto-open to the most recent result. GamePage watches this. */
   timelineOpenSignal: number
@@ -300,7 +312,7 @@ interface GameStoreState {
 }
 
 
-export const useGameStore = create<GameStoreState>()(persist((set) => ({
+export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
   state: null,
   isLoading: false,
   isJumping: false,
@@ -368,6 +380,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         : getEraStartUnlocks(conditions.era, playerCountryId),
       recentDisasters: [],
       warDamage: {},
+      warDamageScore: {},
+      deathToll: {},
       foreignAnnexations: [],
       lore: [],
       newsItems: conditions.disputes.map(d => ({
@@ -448,6 +462,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       unlockedTechs: saved.unlockedTechs ?? [],
       recentDisasters: saved.recentDisasters ?? [],
       warDamage: saved.warDamage ?? {},
+      warDamageScore: saved.warDamageScore ?? {},
+      deathToll: saved.deathToll ?? {},
       foreignAnnexations: saved.foreignAnnexations ?? [],
       lore: saved.lore ?? [],
       newsItems: saved.newsItems ?? [],
@@ -1473,36 +1489,99 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
       ? { ...s.economy, debt: s.economy.debt + totalBuildCost }
       : s.economy
 
-    // ── War surrender / white-flag ──
-    // Tally how much damage each enemy has taken from the player across all
-    // historical actions. A nuclear strike = 100, a bombardment = 25. Once
-    // an enemy has ≥100 damage and we're currently at war with them, spawn
-    // a one-time peace_talks proposal offering unconditional surrender.
-    const damageByIso: Record<string, number> = {}
+    // ── War endurance, damage accumulation, death toll ──
+    // Endurance scales with the country's military stat + GDP (a proxy for
+    // population/economic depth). Vatican City or Liechtenstein have tiny
+    // endurance; USA or China have enormous endurance. Defensive
+    // infrastructure (military_base, defence_system, nuclear_silo) built
+    // in that country adds to its endurance. Dictates how many bombardment
+    // or nuclear points are needed before the surrender proposal spawns.
+    const enduranceFor = (iso: string): number => {
+      const c = s.countries[iso]
+      if (!c) return 100
+      const mil = c.stats?.military ?? 50
+      const gdpBn = (c.stats?.gdp ?? 0) / 1e9
+      // log-ish GDP weight so super-economies don't dominate entirely
+      const gdpFactor = Math.log10(Math.max(1, gdpBn + 1)) * 40 // up to ~160
+      const milFactor = mil * 1.5
+      let base = 80 + milFactor + gdpFactor
+      // Defensive infrastructure bonus for this country's own infra
+      const defensiveTypes = new Set(['military_base', 'defence_system', 'nuclear_silo'])
+      const defensiveBonus = (s.infrastructureMap ?? [])
+        .filter(i => i.countryId === iso && defensiveTypes.has(i.type))
+        .reduce((sum, i) => sum + 20 * (i.level ?? 1), 0)
+      base += defensiveBonus
+      return Math.round(base)
+    }
+
+    // Damage multiplier: a country with heavy defences absorbs less damage
+    // per strike. Player's own civilian targeting willingness (via
+    // militaryDoctrine 'offensive' or 'blitzkrieg') amplifies death toll.
+    const damageMultiplierFor = (iso: string): number => {
+      const defensiveTypes = new Set(['military_base', 'defence_system'])
+      const n = (s.infrastructureMap ?? [])
+        .filter(i => i.countryId === iso && defensiveTypes.has(i.type))
+        .reduce((sum, i) => sum + (i.level ?? 1), 0)
+      // Each defensive level shaves 5% off incoming damage, capped at 60%
+      return Math.max(0.4, 1 - 0.05 * n)
+    }
+
+    // Civilian targeting willingness: offensive / blitzkrieg doctrines are
+    // willing to hit population centres. Defensive / guerrilla minimise
+    // civilian deaths. This modifies the death count per bombardment.
+    const civilianModifier = ((): number => {
+      const doc = s.militaryState?.doctrine
+      if (doc === 'offensive' || doc === 'blitzkrieg') return 2.5
+      if (doc === 'nuclear_deterrence') return 1.8
+      if (doc === 'defensive' || doc === 'guerrilla') return 0.5
+      return 1.0
+    })()
+
+    // Accumulate numeric war damage score and deaths per enemy from this tick
+    const newDamageScore: Record<string, number> = { ...(s.warDamageScore ?? {}) }
+    const newDeathToll: Record<string, number> = { ...(s.deathToll ?? {}) }
+    for (const r of results) {
+      for (const iso of r.nuclearStrike ?? []) {
+        const mult = damageMultiplierFor(iso)
+        newDamageScore[iso] = (newDamageScore[iso] ?? 0) + Math.round(120 * mult)
+        // Nuclear strike: 50k-500k deaths scaled by target GDP (population
+        // proxy) and civilian targeting willingness.
+        const popProxy = Math.max(1, Math.log10(Math.max(1, ((s.countries[iso]?.stats?.gdp ?? 1e9) / 1e9) + 1)))
+        const deaths = Math.round(120_000 * popProxy * civilianModifier * mult)
+        newDeathToll[iso] = (newDeathToll[iso] ?? 0) + deaths
+      }
+      for (const iso of r.bombardment ?? []) {
+        const mult = damageMultiplierFor(iso)
+        newDamageScore[iso] = (newDamageScore[iso] ?? 0) + Math.round(30 * mult)
+        const popProxy = Math.max(1, Math.log10(Math.max(1, ((s.countries[iso]?.stats?.gdp ?? 1e9) / 1e9) + 1)))
+        const deaths = Math.round(3_500 * popProxy * civilianModifier * mult)
+        newDeathToll[iso] = (newDeathToll[iso] ?? 0) + deaths
+      }
+    }
+
+    // ── Surrender proposal: spawn when an enemy crosses its endurance ──
     const existingPeaceTalks = new Set(
       (s.diplomaticInbox ?? [])
         .filter(p => p.type === 'peace_talks')
         .map(p => p.fromCountry),
     )
-    const allResults = [...(s.lastResults ?? []), ...results]
-    for (const r of allResults) {
-      for (const iso of r.nuclearStrike ?? []) damageByIso[iso] = (damageByIso[iso] ?? 0) + 100
-      for (const iso of r.bombardment ?? []) damageByIso[iso] = (damageByIso[iso] ?? 0) + 25
-    }
     const atWar = new Set(s.atWarWith ?? [])
     const surrenderProposals: import('@ad-astra/shared/types').DiplomaticProposal[] = []
-    for (const [iso, dmg] of Object.entries(damageByIso)) {
+    for (const [iso, dmg] of Object.entries(newDamageScore)) {
       if (!atWar.has(iso)) continue
       if (existingPeaceTalks.has(iso)) continue
-      if (dmg < 100) continue
+      const threshold = enduranceFor(iso)
+      if (dmg < threshold) continue
       const enemyName = s.countries[iso]?.name ?? iso
       const playerName = player.name
+      const deaths = newDeathToll[iso] ?? 0
+      const deathsStr = deaths > 1_000_000 ? `${(deaths / 1_000_000).toFixed(1)}M` : deaths > 1_000 ? `${Math.round(deaths / 1_000)}k` : `${deaths}`
       surrenderProposals.push({
         id: `peace-${iso}-${Date.now()}`,
         date: s.currentDate,
         fromCountry: iso,
         type: 'peace_talks',
-        message: `🏳️ ${enemyName} raises the white flag. After catastrophic losses, the ${enemyName} government formally sues for peace with ${playerName} and offers unconditional surrender on any reasonable terms. Accepting ends the war and gives you a diplomatic victory.`,
+        message: `🏳️ ${enemyName} sues for peace. After ${deathsStr} casualties and devastating damage, the ${enemyName} government formally offers terms to ${playerName}. Accept to open the demands panel where you can annex territory, transfer land to an ally, impose reparations, force demilitarisation, or simply end the war.`,
         status: 'pending' as const,
       })
     }
@@ -1535,6 +1614,8 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         diplomaticInbox: surrenderProposals.length > 0
           ? [...(s.diplomaticInbox ?? []), ...surrenderProposals].slice(-30)
           : (s.diplomaticInbox ?? []),
+        warDamageScore: newDamageScore,
+        deathToll: newDeathToll,
         empireName: results.find(r => r.empireName)?.empireName ?? s.empireName,
         controlledCountries: results.reduce((acc, r) => {
           if (!r.annexedCountry) return acc
@@ -1715,6 +1796,149 @@ export const useGameStore = create<GameStoreState>()(persist((set) => ({
         countries: newPlayer && player ? { ...s.countries, [s.playerCountryId]: newPlayer } : s.countries,
         newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
         lastResults: [...(s.lastResults ?? []), acceptResult].slice(-50),
+      },
+      timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
+    }
+  }),
+
+  initiatePeaceDemand: (enemyIso) => {
+    const store = get()
+    if (!store.state) return null
+    const s = store.state
+    const atWar = s.atWarWith ?? []
+    if (!atWar.includes(enemyIso)) return null
+    const enemyName = s.countries[enemyIso]?.name ?? enemyIso
+    const playerName = s.countries[s.playerCountryId]?.name ?? s.playerCountryId
+    const id = `player-demand-${enemyIso}-${Date.now()}`
+    const proposal: import('@ad-astra/shared/types').DiplomaticProposal = {
+      id,
+      date: s.currentDate,
+      fromCountry: enemyIso,
+      type: 'peace_talks',
+      message: `⚔️ ${playerName} demands terms from ${enemyName}. You are dictating the peace: annex, transfer to an ally, extract reparations, demilitarise, or simply end the war.`,
+      status: 'pending' as const,
+    }
+    set(st => {
+      if (!st.state) return {}
+      return {
+        state: {
+          ...st.state,
+          diplomaticInbox: [...(st.state.diplomaticInbox ?? []), proposal].slice(-30),
+        },
+      }
+    })
+    return id
+  },
+
+  acceptPeaceWithDemands: (proposalId, demands) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const inbox = s.diplomaticInbox ?? []
+    const proposal = inbox.find(p => p.id === proposalId)
+    if (!proposal || proposal.type !== 'peace_talks') return {}
+    const loser = proposal.fromCountry
+    const loserCountry = s.countries[loser]
+    const player = s.countries[s.playerCountryId]
+    if (!player) return {}
+    const loserName = loserCountry?.name ?? loser
+    const playerName = player.name
+
+    // Build a list of human-readable demand descriptions for the news / timeline
+    const demandsList: string[] = []
+    let newControlledCountries = s.controlledCountries ?? []
+    let newForeignAnnex = s.foreignAnnexations ?? []
+    let newPlayerStats = { ...player.stats }
+    let transferTargetName = ''
+
+    // Territory
+    if (demands.annex) {
+      if (!newControlledCountries.includes(loser)) {
+        newControlledCountries = [...newControlledCountries, loser]
+      }
+      demandsList.push(`${playerName} annexes ${loserName}`)
+    } else if (demands.transferTo && demands.transferTo !== s.playerCountryId) {
+      newForeignAnnex = [
+        ...newForeignAnnex.filter(e => e.iso !== loser),
+        { iso: loser, newOwner: demands.transferTo },
+      ]
+      transferTargetName = s.countries[demands.transferTo]?.name ?? demands.transferTo
+      demandsList.push(`${loserName} territory transferred to ${transferTargetName}`)
+    } else if (demands.transferTo === s.playerCountryId) {
+      if (!newControlledCountries.includes(loser)) {
+        newControlledCountries = [...newControlledCountries, loser]
+      }
+      demandsList.push(`${playerName} annexes ${loserName}`)
+    }
+
+    // Reparations — add USD to player GDP, remove from loser's (if present)
+    if (demands.reparations && demands.reparations > 0) {
+      newPlayerStats.gdp = newPlayerStats.gdp + demands.reparations
+      demandsList.push(`${loserName} pays $${(demands.reparations / 1e9).toFixed(1)}B in reparations`)
+    }
+
+    // Demilitarisation — halve loser's military stat
+    const newCountries = { ...s.countries }
+    if (loserCountry && demands.demilitarise) {
+      newCountries[loser] = {
+        ...loserCountry,
+        stats: { ...loserCountry.stats, military: Math.max(5, Math.round(loserCountry.stats.military * 0.5)) },
+      }
+      demandsList.push(`${loserName} forced to demilitarise`)
+    }
+    newCountries[s.playerCountryId] = { ...player, stats: newPlayerStats }
+
+    // Clean up war state regardless of demands selected
+    const newAtWar = (s.atWarWith ?? []).filter(iso => iso !== loser)
+    const newWarDamage = { ...(s.warDamage ?? {}) }
+    delete newWarDamage[loser]
+    const newDamageScore = { ...(s.warDamageScore ?? {}) }
+    delete newDamageScore[loser]
+    const newRelations = { ...(s.worldRelations ?? {}) }
+    const relKey = [s.playerCountryId, loser].sort().join('-')
+    newRelations[relKey] = Math.max(0, (newRelations[relKey] ?? 0) + 30)
+
+    const headline = demands.ceasefireOnly
+      ? `${playerName}-${loserName} Ceasefire Signed — War Ends`
+      : `${loserName} Accepts ${playerName}'s Peace Terms`
+    const body = demandsList.length > 0
+      ? `After devastating losses, ${loserName} agrees to ${playerName}'s terms: ${demandsList.join('; ')}.`
+      : `After devastating losses, ${loserName} and ${playerName} sign a ceasefire ending the war.`
+
+    const newsItem: NewsItem = {
+      id: `news-peace-${proposal.id}`,
+      date: s.currentDate,
+      headline,
+      body,
+      category: 'diplomacy',
+      importance: 'breaking',
+      country: s.playerCountryId,
+    }
+    const timelineEntry: ActionResult = {
+      actionId: `peace-demands-${proposal.id}`,
+      outcome: 'success',
+      summary: headline,
+      fullNarrative: body,
+      worldReaction: `The international community reacts to the peace settlement. Relations shift across the region.`,
+      statDeltas: {},
+      tags: ['diplomacy', 'peace', 'war_end', ...(demands.annex ? ['annexation'] : []), ...(demands.transferTo ? ['transfer'] : [])],
+      focusIso: loser,
+      ...(demands.annex ? { annexedCountry: loser } : {}),
+      ...(demands.transferTo && demands.transferTo !== s.playerCountryId ? { annexedCountry: loser, transferTo: demands.transferTo } : {}),
+    }
+    const newInbox = inbox.map(p => p.id === proposalId ? { ...p, status: 'accepted' as const } : p)
+    return {
+      state: {
+        ...s,
+        diplomaticInbox: newInbox,
+        countries: newCountries,
+        controlledCountries: newControlledCountries,
+        foreignAnnexations: newForeignAnnex,
+        atWarWith: newAtWar,
+        warDamage: newWarDamage,
+        warDamageScore: newDamageScore,
+        worldRelations: newRelations,
+        newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+        lastResults: [...(s.lastResults ?? []), timelineEntry].slice(-50),
       },
       timelineOpenSignal: (store.timelineOpenSignal ?? 0) + 1,
     }

@@ -705,6 +705,13 @@ export interface GameState {
   // maps a conquered iso to its new owner iso. Drives alternate fill colour
   // and label remap in CountryLayer.
   foreignAnnexations?: Array<{ iso: string; newOwner: string }>
+  // War damage accumulated per enemy (scaled numeric value). Used to drive
+  // the surrender threshold. Replaces the older 'bombed' | 'nuked' flag
+  // (warDamage) which stays as a visual indicator only.
+  warDamageScore?: Record<string, number>
+  // Cumulative deaths caused to each country by player actions. Displayed
+  // on the country card; also affects international relations.
+  deathToll?: Record<string, number>
   // Diplomacy
   allies?: string[]            // ISO_A3 of allied nations
   atWarWith?: string[]         // ISO_A3 of nations at war with player
