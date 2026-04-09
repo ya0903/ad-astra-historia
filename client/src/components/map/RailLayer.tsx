@@ -112,8 +112,8 @@ export default function RailLayer() {
       }))
     )
     const stationGeojson = { type: 'FeatureCollection' as const, features: stationFeatures }
-    const STATION_SOURCE = 'rail-stations'
-    const STATION_LAYER = 'rail-station-dots'
+    const STATION_SOURCE = 'rail-stations-src'
+    const STATION_LAYER = 'rail-stations'
     if (map.getSource(STATION_SOURCE)) {
       (map.getSource(STATION_SOURCE) as maplibregl.GeoJSONSource).setData(stationGeojson)
     } else {
@@ -124,12 +124,16 @@ export default function RailLayer() {
         source: STATION_SOURCE,
         minzoom: 3,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['get', 'level'], 1, 3, 3, 6, 5, 10],
-          'circle-color': '#ffffff',
-          'circle-stroke-color': ['interpolate', ['linear'], ['get', 'level'], 1, '#94a3b8', 3, '#60a5fa', 5, '#22d3ee'],
-          'circle-stroke-width': ['interpolate', ['linear'], ['get', 'level'], 1, 0.5, 3, 1.5, 5, 3],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 3.5],
+          'circle-color': '#facc15',
+          'circle-stroke-color': '#1a1a1a',
+          'circle-stroke-width': 0.5,
         },
       })
+    }
+
+    if (map.getLayer(STATION_LAYER)) {
+      map.setLayoutProperty(STATION_LAYER, 'visibility', drawMode === 'idle' ? 'visible' : 'none')
     }
 
     const railLayerIds = ['rail-line-domestic_hsr', 'rail-line-cross_continent', 'rail-line-undersea_tunnel']
@@ -147,60 +151,21 @@ export default function RailLayer() {
       railTypes.forEach(t => {
         if (map.getSource(`rail-${t}`)) map.removeSource(`rail-${t}`)
       })
-      if (map.getLayer('rail-station-dots')) map.removeLayer('rail-station-dots')
-      if (map.getSource('rail-stations')) map.removeSource('rail-stations')
+      if (map.getLayer('rail-stations')) map.removeLayer('rail-stations')
+      if (map.getSource('rail-stations-src')) map.removeSource('rail-stations-src')
       popupRef.current?.remove()
     }
-  }, [map, gameState])
+  }, [map, gameState, drawMode])
 
-  // ── Clickable yellow dots to start a new rail line from existing stations ──
+  // ── Click handler: clicking a station starts a new rail line from it ──
   useEffect(() => {
-    if (!map || !gameState) return
-    const playerCountryId = gameState.playerCountryId
-    const SRC = 'rail-start-dots-src'
-    const LYR = 'rail-start-dots-layer'
-
-    const features = gameState.railLines
-      .filter(r => r.countryId === playerCountryId)
-      .flatMap(r => (r.stations ?? []).map(s => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
-        properties: { name: s.name, lng: s.lng, lat: s.lat },
-      })))
-    const data = { type: 'FeatureCollection' as const, features }
-
-    if (map.getSource(SRC)) {
-      (map.getSource(SRC) as maplibregl.GeoJSONSource).setData(data)
-    } else {
-      map.addSource(SRC, { type: 'geojson', data })
-      map.addLayer({
-        id: LYR,
-        type: 'circle',
-        source: SRC,
-        minzoom: 3,
-        paint: {
-          // Small dot that sits inside the existing station marker on the
-          // rail line. Significantly smaller than `rail-stations` (3-10px)
-          // so it reads as a subtle "click me to branch off" indicator.
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1, 9, 2.5],
-          'circle-color': '#facc15',
-          'circle-stroke-color': '#1a1a1a',
-          'circle-stroke-width': 0.5,
-        },
-      })
-    }
-
-    // Toggle visibility based on draw mode
-    if (map.getLayer(LYR)) {
-      map.setLayoutProperty(LYR, 'visibility', drawMode === 'idle' ? 'visible' : 'none')
-    }
+    if (!map) return
+    const LYR = 'rail-stations'
 
     const onClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       const f = e.features?.[0]
-      if (!f) return
-      const props = f.properties as { lng: number; lat: number }
-      const lng = typeof props.lng === 'number' ? props.lng : Number(props.lng)
-      const lat = typeof props.lat === 'number' ? props.lat : Number(props.lat)
+      if (!f || f.geometry.type !== 'Point') return
+      const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates
       const store = useRailDrawStore.getState()
       store.startDrawing('domestic_hsr')
       useRailDrawStore.getState().addWaypoint(lng, lat)
@@ -217,10 +182,8 @@ export default function RailLayer() {
       map.off('click', LYR, onClick)
       map.off('mouseenter', LYR, onEnter)
       map.off('mouseleave', LYR, onLeave)
-      if (map.getLayer(LYR)) map.removeLayer(LYR)
-      if (map.getSource(SRC)) map.removeSource(SRC)
     }
-  }, [map, gameState, drawMode])
+  }, [map])
 
   return null
 }

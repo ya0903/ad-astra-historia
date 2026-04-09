@@ -56,19 +56,39 @@ export default function OrgPanel({ isOpen, onOpen, onClose }: OrgPanelProps = {}
 
   const { organisations, disputes, nonStateActors } = gameState
 
+  if (!open) {
+    return (
+      <button
+        onClick={handleOpen}
+        className="w-10 h-10 rounded-full bg-[#0d1f3c]/90 border border-white/20 flex items-center justify-center hover:bg-blue-900/80 transition-colors"
+        title="Organisations & Conflicts"
+      >
+        <span className="text-lg">🌐</span>
+      </button>
+    )
+  }
+
   return (
-    <div>
-      {!open ? (
-        <button
-          onClick={handleOpen}
-          className="w-10 h-10 rounded-full bg-[#0d1f3c]/90 border border-white/20 flex items-center justify-center hover:bg-blue-900/80 transition-colors"
-          title="Organisations & Conflicts"
-        >
-          <span className="text-lg">🌐</span>
-        </button>
-      ) : (
-        <div className="rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl overflow-hidden flex flex-col"
-          style={{ width: panelW, height: panelH }}>
+    <>
+      {/* Placeholder button keeps the right-column layout stable while the
+          real panel floats in a fixed container. */}
+      <button
+        onClick={handleClose}
+        className="w-10 h-10 rounded-full bg-blue-900/80 border border-blue-500/60 flex items-center justify-center"
+        title="Close Organisations & Conflicts"
+      >
+        <span className="text-lg">🌐</span>
+      </button>
+      <div
+        className="fixed rounded-2xl bg-[#0a1628] border border-white/15 shadow-2xl overflow-hidden flex flex-col"
+        style={{
+          width: panelW,
+          height: Math.min(panelH, typeof window !== 'undefined' ? window.innerHeight - 120 : panelH),
+          right: 64,
+          bottom: 80,
+          zIndex: 30,
+        }}
+      >
           {/* Resize handle — top-left corner */}
           <div onMouseDown={onResizeStart}
             className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize opacity-0 hover:opacity-100 z-10"
@@ -136,8 +156,7 @@ export default function OrgPanel({ isOpen, onOpen, onClose }: OrgPanelProps = {}
               ))}
             </section>
           </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   )
 }

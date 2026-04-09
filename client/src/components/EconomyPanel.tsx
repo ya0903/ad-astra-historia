@@ -91,7 +91,7 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
   }
 
   return (
-    <div className="relative">
+    <>
       {/* Toggle button */}
       <button
         onClick={() => isOpen ? onClose() : onOpen()}
@@ -104,7 +104,10 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-11 right-0 w-72 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+        <div
+          className="fixed w-72 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ right: 380, bottom: 80, zIndex: 30 }}
+        >
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Economy</span>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>
@@ -263,6 +266,6 @@ export default function EconomyPanel({ isOpen, onOpen, onClose }: EconomyPanelPr
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

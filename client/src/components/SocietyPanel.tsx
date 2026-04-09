@@ -50,7 +50,7 @@ export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelPr
   const inequalityColour = society.inequalityIndex < 30 ? '#22c55e' : society.inequalityIndex < 60 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div className="relative">
+    <>
       <button
         onClick={() => isOpen ? onClose() : onOpen()}
         className={`w-9 h-9 rounded-full border flex items-center justify-center text-base transition-colors shadow-lg ${
@@ -62,7 +62,10 @@ export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelPr
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-11 right-0 w-64 bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+        <div
+          className="fixed w-64 max-h-[calc(100vh-120px)] overflow-y-auto bg-[#080f1e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
+          style={{ right: 380, bottom: 80, zIndex: 30 }}
+        >
           <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider">Society</span>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs">✕</button>
@@ -115,6 +118,6 @@ export default function SocietyPanel({ isOpen, onOpen, onClose }: SocietyPanelPr
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
