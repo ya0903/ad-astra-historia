@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useGameStore } from '../stores'
 import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
+import { HISTORICAL_TECH_TREES } from '@ad-astra/shared/historicalEraTechTrees'
 
 // ── Command parser ────────────────────────────────────────────────────────────
 // Supported commands:
@@ -19,6 +20,7 @@ import { TECH_TREE, ANCIENT_TECH_TREE } from '@ad-astra/shared/techTree'
 //   god                           max all stats
 //   instabuild                    complete all build queue instantly
 //   instaresearch                 complete all research instantly
+//   unlockall                     unlock every tech across every era
 //   yesman                        toggle yesman mode (countries auto-accept)
 //   unlocktech <tech_id>          unlock a tech immediately
 //   listtech                      list all tech IDs for current era
@@ -49,6 +51,7 @@ const HELP = `Available commands:
   god                             max out everything
   instabuild                      finish all builds instantly
   instaresearch                   complete all research instantly
+  unlockall                       unlock every tech across every era
   yesman                          toggle auto-diplomacy accept
   unlocktech <tech_id>            unlock a tech immediately
   listtech                        list tech IDs available this era
@@ -136,6 +139,23 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
     if (parts[0] === 'instaresearch') {
       instaResearch()
       push('All research projects completed instantly.', 'ok')
+      return
+    }
+
+    if (parts[0] === 'unlockall' || parts[0] === 'unlockalltech') {
+      // Union of modern, ancient, industrial and every historical-era tree.
+      const historicalIds = Object.values(HISTORICAL_TECH_TREES)
+        .flat()
+        .map(n => n.id as unknown as import('@ad-astra/shared/types').TechId)
+      const allIds = new Set<import('@ad-astra/shared/types').TechId>([
+        ...ALL_TECH_IDS as Set<import('@ad-astra/shared/types').TechId>,
+        ...historicalIds,
+      ])
+      const existing = new Set(gameState.unlockedTechs ?? [])
+      for (const id of allIds) existing.add(id)
+      cheatPatch({ unlockedTechs: Array.from(existing) as import('@ad-astra/shared/types').TechId[] })
+      instaResearch() // clears the research queue too
+      push(`Unlocked all ${existing.size} techs across every era.`, 'ok')
       return
     }
 
@@ -402,6 +422,7 @@ export default function CheatMenu({ onClose }: { onClose: () => void }) {
           { label: '+500 RP',      cmd: 'rp 500', toggled: false },
           { label: 'Insta Build',  cmd: 'instabuild', toggled: false },
           { label: 'Insta Research',cmd: 'instaresearch', toggled: false },
+          { label: 'Unlock All Tech', cmd: 'unlockall', toggled: false },
           { label: gameState?.yesman ? 'Yesman: ON' : 'Yesman: OFF', cmd: 'yesman', toggled: !!gameState?.yesman },
           { label: 'God',          cmd: 'god', toggled: false },
         ].map(btn => (
