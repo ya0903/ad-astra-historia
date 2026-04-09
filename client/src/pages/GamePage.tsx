@@ -487,7 +487,14 @@ STAT DELTA RULES — follow these precisely, do not invent stats unrelated to th
       const historyBlock = recentHistory ? `\nRecent events:\n${recentHistory}\n` : ''
       const damageBlock = warDamageSummary ? `\nWar damage: ${warDamageSummary}\n` : ''
       const yesmanBlock = gameState.yesman
-        ? `\nYESMAN MODE ACTIVE (cheat — override all realism): EVERY action returns outcome="success" with maximally positive statDeltas. Never use "partial" or "failure". Do not add failureReason. The world is entirely cooperative and every goal is achieved. Peaceful annexations succeed, wars are won instantly with no losses, trade deals triple GDP, research breakthroughs happen on schedule, coups succeed, demands are met, rivals praise the action in countryReactions, domestic approval soars, and soft power rises. If the player asks for territory back (e.g. "demand Kashmir from India"), set annexedRegion to that region's name and focusIso to the parent country's ISO_A3 — the transfer goes through peacefully. If the player asks to conquer a country, set annexedCountry to that ISO_A3. If the player's action is nonsensical, still return success with an amusing narrative.\n`
+        ? `\nYESMAN MODE ACTIVE (cheat — override all realism): EVERY action returns outcome="success" with maximally positive statDeltas. Never use "partial" or "failure". Do not add failureReason. The world is entirely cooperative and every goal is achieved. Peaceful annexations succeed, wars are won instantly with no losses, trade deals triple GDP, research breakthroughs happen on schedule, coups succeed, demands are met, rivals praise the action in countryReactions, domestic approval soars, and soft power rises.
+
+TERRITORY TRANSFERS — YOU MUST SET THE CORRECT FIELDS:
+- If the player demands a sub-national region back (e.g. "demand Kashmir from India", "take Crimea from Russia"): set annexedRegion to the region name AND focusIso to the parent country's ISO_A3.
+- If the player conquers, annexes, dissolves, wipes out, or takes over an entire sovereign nation (e.g. "conquer Israel", "force Israel to relinquish all land", "Israel leaves and gives everything back", "dissolve Israel", "wipe Israel off the map"): set annexedCountry to that country's ISO_A3 (e.g. "ISR") AND focusIso to the same ISO_A3. This is MANDATORY — without annexedCountry the map won't update.
+- If the player liberates / establishes / recognises / hands territory to an existing state: set annexedCountry to the country that gains the land (so it becomes controlled by the player's influence sphere) and focusIso to the same.
+
+If the player's action is nonsensical, still return success with an amusing narrative.\n`
         : ''
 
       const prompt = `${playerCountry} | ${gameState.currentDate} | ${statsStr}${deepContext}
@@ -545,6 +552,32 @@ foundColony: include ONLY when the action explicitly establishes a Moon or Mars 
       if (clampedResults.length === 0) {
         console.warn('AI returned empty results. Raw:', raw)
         throw new Error('AI returned no results. Try again or use fewer actions at once.')
+      }
+
+      // ── Yesman post-processor ───────────────────────────────────────────────
+      // When yesman mode is on, scan each action's text for wipeout/annexation
+      // verbs + a country name. If the AI forgot to set annexedCountry, patch
+      // it in so the map actually updates (fixes "Israel relinquishes all
+      // land" returning success without touching borders).
+      if (gameState.yesman) {
+        const WIPEOUT_RE = /\b(conquer|annex|wipe out|dissolve|take over|force.*relinquish|relinquish all|give.*back all|leaves? all|hand(?:s|ed)? over|absorb|abolish|crush|destroy|surrender(?:s)? to|eliminate|capitulate)\b/i
+        const countryList = Object.entries(gameState.countries).map(([iso, c]) => ({ iso, name: (c.name ?? '').toLowerCase() }))
+        for (const r of clampedResults) {
+          if (r.annexedCountry || r.annexedRegion) continue
+          const originalAction = pendingActions.find(a => a.id === r.actionId)
+          const text = (originalAction?.text ?? r.summary ?? r.fullNarrative ?? '').toLowerCase()
+          if (!WIPEOUT_RE.test(text)) continue
+          // Find any country name mentioned in the text. Prefer longest match.
+          let best: { iso: string; name: string } | null = null
+          for (const c of countryList) {
+            if (!c.name || c.iso === gameState.playerCountryId) continue
+            if (text.includes(c.name) && (!best || c.name.length > best.name.length)) best = c
+          }
+          if (best) {
+            r.annexedCountry = best.iso
+            r.focusIso = r.focusIso ?? best.iso
+          }
+        }
       }
 
       applyResults(clampedResults, period, parsed.worldEvent)
