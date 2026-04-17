@@ -64,6 +64,8 @@ export interface RailLine {
   type: RailType
   stations?: RailStation[]        // stops along the line (in order)
   lengthKm?: number               // total length in km, computed at creation
+  underConstruction?: boolean     // true while in build queue, false/undefined when complete
+  buildProjectId?: string         // id of the build queue entry (set during construction)
 }
 
 export interface LandUseRegion {

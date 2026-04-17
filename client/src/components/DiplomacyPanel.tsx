@@ -102,6 +102,8 @@ export default function DiplomacyPanel({ gameContext, isOpen, onOpen, onClose }:
     ceasefireOnly: boolean
   }>({ annex: true, transferTo: '', reparationsB: 0, demilitarise: false, ceasefireOnly: false })
   const countries = useGameStore(s => s.state?.countries ?? {})
+  const allies = useGameStore(s => s.state?.allies ?? [])
+  const dissolveAlliance = useGameStore(s => s.dissolveAlliance)
   const atWarWith = useGameStore(s => s.state?.atWarWith ?? [])
   const warDamageScore = useGameStore(s => s.state?.warDamageScore ?? {})
   const deathToll = useGameStore(s => s.state?.deathToll ?? {})
@@ -433,6 +435,45 @@ Return ONLY the spoken diplomatic response. No labels, no narration.`
                             </button>
                           </>
                         )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="border-t border-white/8 my-3" />
+            </div>
+          )}
+
+          {/* ── Active Alliances ── */}
+          {allies.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] text-emerald-400 mb-2 uppercase tracking-wider font-semibold">🛡️ Active Alliances ({allies.length})</p>
+              <div className="space-y-1.5">
+                {allies.map(iso => {
+                  const allyName = countries[iso]?.name ?? iso
+                  return (
+                    <div key={iso} className="rounded-lg bg-emerald-950/20 border border-emerald-700/30 p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-emerald-300">{allyName}</span>
+                        <span className="text-[9px] text-gray-500">🛡️ Allied</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => startTalks(allyName)}
+                          className="flex-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-800/50 hover:bg-emerald-700/60 text-white transition-colors"
+                        >💬 Discuss</button>
+                        <button
+                          onClick={async () => {
+                            const ok = await uiConfirm({
+                              title: `Dissolve alliance with ${allyName}?`,
+                              body: 'This will end your mutual defence pact and damage relations.',
+                              okLabel: 'Dissolve',
+                              tone: 'danger',
+                            })
+                            if (ok) dissolveAlliance(iso)
+                          }}
+                          className="px-2 py-1 rounded text-[10px] font-semibold bg-red-900/40 hover:bg-red-800/50 text-red-300 transition-colors"
+                        >✗ Leave</button>
                       </div>
                     </div>
                   )

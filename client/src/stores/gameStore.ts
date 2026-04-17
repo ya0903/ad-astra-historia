@@ -258,6 +258,7 @@ interface GameStoreState {
   // Diplomatic inbox
   acceptProposal: (proposalId: string) => void
   declineProposal: (proposalId: string) => void
+  dissolveAlliance: (allyIso: string) => void
   // News
   addNewsItem: (item: import('@ad-astra/shared/types').NewsItem) => void
   addTimelineResult: (result: ActionResult) => void
@@ -737,19 +738,28 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       })
 
     // Convert completed rail builds into RailLine map features.
-    // For builds with pendingRailLine (player-drawn), use that exact data.
-    // Otherwise fall back to the legacy from/to coords approach.
-    const newRailLines: RailLine[] = completedBuilds
-      .filter(b => RAIL_INFRA_TYPES.has(b.type) && (b.pendingRailLine || (b.fromCoords && b.toCoords)))
-      .map(b => {
-        if (b.pendingRailLine) {
-          return {
-            ...b.pendingRailLine,
-            id: `rail-${b.id}`,
-            countryId: b.countryId ?? s.playerCountryId,
-          }
-        }
-        return {
+    // Player-drawn rails are already in state.railLines with underConstruction=true;
+    // completing the build flips that flag. Collect their buildProjectIds.
+    const completedRailBuildIds = new Set<string>()
+    // Legacy builds (AI-generated, no existing rail) still create new RailLines.
+    const newRailLines: RailLine[] = []
+    for (const b of completedBuilds) {
+      if (!RAIL_INFRA_TYPES.has(b.type)) continue
+      // Player-drawn rail already exists — mark as complete via buildProjectId
+      const existingRail = (s.railLines ?? []).find(r => r.buildProjectId === b.id)
+      if (existingRail) {
+        completedRailBuildIds.add(b.id)
+        continue
+      }
+      // Legacy path: create a new RailLine from build data
+      if (b.pendingRailLine) {
+        newRailLines.push({
+          ...b.pendingRailLine,
+          id: `rail-${b.id}`,
+          countryId: b.countryId ?? s.playerCountryId,
+        })
+      } else if (b.fromCoords && b.toCoords) {
+        newRailLines.push({
           id: `rail-${b.id}`,
           countryId: b.countryId ?? s.playerCountryId,
           fromCity: b.fromCity ?? '',
@@ -758,8 +768,9 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
           toCoords: b.toCoords!,
           waypoints: b.waypoints,
           type: (b.type === 'high_speed_rail' ? 'domestic_hsr' : 'domestic_hsr') as RailType,
-        }
-      })
+        })
+      }
+    }
 
     // Apply pending station upgrades from completed build projects
     const stationUpgradesByName = new Map<string, number>()
@@ -891,10 +902,22 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
 
     // News for completed builds — reports the NEW monthly income they'll add
     const buildCompletionNews: NewsItem[] = completedBuilds.map(cb => {
+      const isRail = RAIL_INFRA_TYPES.has(cb.type)
       const level = cb.targetLevel ?? 1
       const monthly = monthlyIncomeFor(cb.type, level)
       const isUpgrade = !!cb.existingInfraId
       const incomeStr = monthly >= 1e9 ? `$${(monthly / 1e9).toFixed(2)}B` : `$${(monthly / 1e6).toFixed(0)}M`
+      if (isRail) {
+        return {
+          id: `news-build-${cb.id}`,
+          date: newDate,
+          headline: `${cb.name} Rail Line Opens`,
+          body: `The ${cb.type === 'high_speed_rail' ? 'high-speed rail' : 'rail'} line is now operational after ${Math.round(cb.totalWeeks / 52)} years of construction.`,
+          category: 'economy' as any,
+          importance: 'major' as any,
+          country: s.playerCountryId,
+        }
+      }
       return {
         id: `news-build-${cb.id}`,
         date: newDate,
@@ -1370,17 +1393,25 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
           ...newInfra,
         ],
         railLines: [
-          // Apply pending station upgrades to existing rail lines
+          // Apply pending station upgrades + flip underConstruction for completed rail builds
           ...(s.railLines ?? []).map(rail => {
-            if (rail.countryId !== s.playerCountryId || !rail.stations || stationUpgradesByName.size === 0) return rail
-            let changed = false
-            const newStations = rail.stations.map(stn => {
-              const lvl = stationUpgradesByName.get(stn.name.toLowerCase())
-              if (lvl == null || lvl <= stn.level) return stn
-              changed = true
-              return { ...stn, level: lvl }
-            })
-            return changed ? { ...rail, stations: newStations } : rail
+            let updated = rail
+            // Flip underConstruction when build completes
+            if (rail.underConstruction && rail.buildProjectId && completedRailBuildIds.has(rail.buildProjectId)) {
+              updated = { ...updated, underConstruction: false, buildProjectId: undefined }
+            }
+            // Apply station upgrades
+            if (updated.countryId === s.playerCountryId && updated.stations && stationUpgradesByName.size > 0) {
+              let changed = false
+              const newStations = updated.stations.map(stn => {
+                const lvl = stationUpgradesByName.get(stn.name.toLowerCase())
+                if (lvl == null || lvl <= stn.level) return stn
+                changed = true
+                return { ...stn, level: lvl }
+              })
+              if (changed) updated = { ...updated, stations: newStations }
+            }
+            return updated
           }),
           ...newRailLines,
         ],
@@ -1604,33 +1635,41 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       // creating a duplicate. For rail, check by matching cities list instead.
       const isRail = RAIL_INFRA.has(bp.type)
       if (!isRail) {
-        // Dedupe by type + country + shared name prefix (first significant word).
-        // If any existing infrastructure of the same type in this country shares
-        // the first word of the new build's name, treat it as an upgrade.
-        const stopWords = new Set(['the', 'a', 'an', 'new', 'old', 'north', 'south', 'east', 'west', 'national', 'central'])
-        const firstWord = (str: string) => {
-          const words = str.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
-          return words.find(w => !stopWords.has(w) && w.length > 2) ?? words[0] ?? ''
+        // Match by: (1) shared name keyword, (2) same type in same country for
+        // unique-per-country types, or (3) same type near same coordinates.
+        const stopWords = new Set(['the', 'a', 'an', 'new', 'old', 'north', 'south', 'east', 'west', 'national', 'central', 'level', 'upgrade'])
+        const keywords = (str: string) =>
+          str.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w))
+        const newWords = keywords(bp.city ?? bp.name)
+        const bpNameWords = keywords(bp.name)
+        const allNewWords = [...new Set([...newWords, ...bpNameWords])]
+
+        const nameMatch = (existingName: string) => {
+          const existingWords = keywords(existingName)
+          return allNewWords.some(nw => existingWords.some(ew =>
+            ew === nw || ew.startsWith(nw) || nw.startsWith(ew)
+          ))
         }
-        const newKey = firstWord(bp.city ?? bp.name)
-        const sharesPrefix = (existingName: string) => {
-          const existingKey = firstWord(existingName)
-          if (!newKey || !existingKey) return false
-          return existingKey === newKey || existingKey.startsWith(newKey) || newKey.startsWith(existingKey)
-        }
-        const existing = s.infrastructureMap.find(inf =>
-          inf.countryId === targetIso
-          && inf.type === bp.type
-          && sharesPrefix(inf.name)
+
+        // Types that are unique per country — only one capital, one nuclear plant, etc.
+        const UNIQUE_TYPES = new Set(['capital', 'nuclear_plant', 'space_centre', 'financial_institution'])
+
+        // Find existing infrastructure of same type in the same country
+        const sameTypeInCountry = s.infrastructureMap.filter(inf =>
+          inf.countryId === targetIso && inf.type === bp.type
         )
-        // Also skip if a build project of the same type + city is already queued
+
+        // Match: name keyword overlap, unique type, or only one of this type exists
+        const existing = sameTypeInCountry.find(inf => nameMatch(inf.name))
+          ?? (UNIQUE_TYPES.has(bp.type) ? sameTypeInCountry[0] : undefined)
+          ?? (sameTypeInCountry.length === 1 ? sameTypeInCountry[0] : undefined)
+
+        // Also skip if a build project of the same type + country is already queued
         const alreadyQueued = (s.buildQueue ?? []).concat(newBuilds).find(q =>
-          q.countryId === targetIso
-          && q.type === bp.type
-          && sharesPrefix(q.name)
+          q.countryId === targetIso && q.type === bp.type
+          && (nameMatch(q.name) || UNIQUE_TYPES.has(bp.type))
         )
         if (alreadyQueued) {
-          // Silently skip — can't double-build the same thing while already building
           return
         }
         if (existing) {
@@ -2504,6 +2543,34 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     }
   }),
 
+  dissolveAlliance: (allyIso) => set(store => {
+    if (!store.state) return {}
+    const s = store.state
+    const newAllies = (s.allies ?? []).filter(iso => iso !== allyIso)
+    const newRelations = { ...(s.worldRelations ?? {}) }
+    const key = [s.playerCountryId, allyIso].sort().join('-')
+    newRelations[key] = Math.max(-100, (newRelations[key] ?? 0) - 20)
+    const allyName = s.countries[allyIso]?.name ?? allyIso
+    const playerName = s.countries[s.playerCountryId]?.name ?? s.playerCountryId
+    const newsItem: NewsItem = {
+      id: `news-dissolve-alliance-${allyIso}-${Date.now()}`,
+      date: s.currentDate,
+      headline: `${playerName} Dissolves Alliance with ${allyName}`,
+      body: `The mutual defence pact between ${playerName} and ${allyName} has been formally terminated. Relations have deteriorated significantly.`,
+      category: 'diplomacy',
+      importance: 'major',
+      country: s.playerCountryId,
+    }
+    return {
+      state: {
+        ...s,
+        allies: newAllies,
+        worldRelations: newRelations,
+        newsItems: [newsItem, ...(s.newsItems ?? [])].slice(0, 200),
+      },
+    }
+  }),
+
   setEmpireName: (name) => set(store => {
     if (!store.state) return {}
     return { state: { ...store.state, empireName: name } }
@@ -2701,22 +2768,45 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
     const player = st.countries[st.playerCountryId]
     if (!player) return {}
     const lengthKm = rail.lengthKm ?? 100
-    // Add the rail immediately to state.railLines so stations are visible
-    // right away, and charge the full cost from player GDP (not just debt).
+    const buildId = `bp-rail-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const railId = `rail-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+    // Add the rail immediately so stations are visible, but mark as under construction.
+    // A build queue entry tracks the actual construction time.
     const newRail: import('@ad-astra/shared/types').RailLine = {
       ...rail,
-      id: `rail-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id: railId,
       countryId: st.playerCountryId,
+      underConstruction: true,
+      buildProjectId: buildId,
     }
+
+    // Build queue entry — uses HSR weeks scaled by length
+    const isHsr = rail.type === 'domestic_hsr'
+    const baseWeeks = isHsr ? 260 : 104
+    const kmFactor = Math.max(0.3, Math.min(2.0, lengthKm / 500))
+    const weeks = Math.round(baseWeeks * kmFactor)
+
+    const buildProject: BuildProject = {
+      id: buildId,
+      type: isHsr ? 'high_speed_rail' : 'rail_line',
+      name: `${rail.fromCity} → ${rail.toCity}`,
+      weeksRemaining: weeks,
+      totalWeeks: weeks,
+      startDate: st.currentDate,
+      countryId: st.playerCountryId,
+      pendingRailLine: rail,
+    }
+
     const newPlayer = {
       ...player,
       stats: { ...player.stats, gdp: Math.max(0, player.stats.gdp - totalCost) },
     }
     const newsItem: NewsItem = {
-      id: `news-rail-${newRail.id}`,
+      id: `news-rail-${railId}`,
       date: st.currentDate,
-      headline: `${rail.fromCity} → ${rail.toCity} ${rail.type === 'domestic_hsr' ? 'HSR' : 'Rail'} Opens`,
-      body: `A ${lengthKm.toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations has been inaugurated. Construction cost: $${(totalCost / 1e9).toFixed(2)}B.`,
+      headline: `${rail.fromCity} → ${rail.toCity} ${isHsr ? 'HSR' : 'Rail'} Construction Begins`,
+      body: `A ${lengthKm.toFixed(0)}km rail line with ${rail.stations?.length ?? 0} stations has begun construction. Estimated ${Math.round(weeks / 52)} years. Cost: $${(totalCost / 1e9).toFixed(2)}B.`,
       category: 'economy',
       importance: 'major',
       country: st.playerCountryId,
@@ -2725,6 +2815,7 @@ export const useGameStore = create<GameStoreState>()(persist((set, get) => ({
       state: {
         ...st,
         railLines: [...(st.railLines ?? []), newRail],
+        buildQueue: [...(st.buildQueue ?? []), buildProject],
         countries: { ...st.countries, [st.playerCountryId]: newPlayer },
         newsItems: [newsItem, ...(st.newsItems ?? [])].slice(0, 200),
       },

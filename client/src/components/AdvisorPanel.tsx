@@ -31,9 +31,36 @@ interface Props {
   isOpen?: boolean
   onOpen?: () => void
   onClose?: () => void
+  onPushAction?: (text: string) => void
 }
 
-export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: Props) {
+/** Try to split an advisor response into individual ideas/suggestions.
+ *  Handles numbered lists (1. ...), bullet lists (- ...), and paragraph breaks. */
+function splitIntoBubbles(text: string): string[] {
+  // Try numbered list first (1. ... 2. ... etc.)
+  const numbered = text.split(/\n\s*\d+[\.\)]\s+/).filter(s => s.trim())
+  if (numbered.length >= 2) return numbered.map(s => s.trim())
+  // Try bullet list (- ... or * ...)
+  const bullets = text.split(/\n\s*[-*•]\s+/).filter(s => s.trim())
+  if (bullets.length >= 2) return bullets.map(s => s.trim())
+  // Try double newlines (paragraphs)
+  const paras = text.split(/\n\n+/).filter(s => s.trim())
+  if (paras.length >= 2) return paras.map(s => s.trim())
+  // Single block
+  return [text.trim()]
+}
+
+/** Extract just the actionable part from an advisor bubble (strip explanatory text after the first sentence). */
+function extractAction(text: string): string {
+  // If it starts with a bold marker like **Build X** — extract that
+  const boldMatch = text.match(/^\*\*(.+?)\*\*/)
+  if (boldMatch) return boldMatch[1]
+  // Take first sentence
+  const firstSentence = text.match(/^(.+?[.!?])(?:\s|$)/)
+  return firstSentence ? firstSentence[1] : text.slice(0, 100)
+}
+
+export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose, onPushAction }: Props) {
   const [localOpen, setLocalOpen] = useState(false)
   const open = isOpen !== undefined ? isOpen : localOpen
   const handleOpen = () => { if (onOpen) onOpen(); else setLocalOpen(true) }
@@ -181,17 +208,33 @@ export default function AdvisorPanel({ gameContext, isOpen, onOpen, onClose }: P
                 </div>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-blue-700/60 text-white'
-                    : 'bg-white/10 text-gray-100'
-                }`}>
-                  {msg.content}
+            {messages.map((msg, i) => {
+              if (msg.role === 'user') {
+                return (
+                  <div key={i} className="flex justify-end">
+                    <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-blue-700/60 text-white">
+                      {msg.content}
+                    </div>
+                  </div>
+                )
+              }
+              // Split assistant responses into individual idea bubbles
+              const bubbles = splitIntoBubbles(msg.content)
+              return bubbles.map((bubble, bi) => (
+                <div key={`${i}-${bi}`} className="flex justify-start group/bubble">
+                  <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-white/10 text-gray-100 relative">
+                    {bubble}
+                    {onPushAction && (
+                      <button
+                        onClick={() => onPushAction(extractAction(bubble))}
+                        title="Push to action queue"
+                        className="absolute -right-1 -top-1 w-5 h-5 rounded-full bg-purple-700 border border-purple-400/60 text-[9px] text-white flex items-center justify-center opacity-0 group-hover/bubble:opacity-100 transition-opacity hover:bg-purple-600"
+                      >→</button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            })}
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-white/10 rounded-lg px-3 py-2 text-xs text-gray-400 animate-pulse">Analysing…</div>

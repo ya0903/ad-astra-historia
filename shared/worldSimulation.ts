@@ -382,65 +382,85 @@ export function worldTick(
     }
   }
 
-  // Step 3 — Internal events
+  // Step 3 — Internal events (higher probabilities for a livelier world)
   for (const iso of isos) {
     const c = countries[iso]
     const p = getPersonality(iso, era)
-    const { stability, approval, gdp } = c.stats
+    const { stability, approval, gdp, military } = c.stats
 
-    // Coup attempt: stability < 25, base 2% + modifier
+    // Coup attempt: stability < 25, base 4% + modifier
     if (stability < 25) {
-      const coupChance = 0.02 + (25 - stability) / 500 + p.unpredictability / 400
+      const coupChance = 0.04 + (25 - stability) / 300 + p.unpredictability / 300
       if (roll(coupChance)) {
-        // 30% chance coup succeeds
         const eventType: WorldTickEventType = roll(0.3) ? 'coup_success' : 'coup_attempt'
         events.push(makeInternalEvent(eventType, iso, date))
       }
     }
 
-    // Protests: approval < 35, base 3% + modifier
-    if (approval < 35) {
-      const protestChance = 0.03 + (35 - approval) / 500
+    // Protests: approval < 40, base 5% + modifier
+    if (approval < 40) {
+      const protestChance = 0.05 + (40 - approval) / 400
       if (roll(protestChance)) {
-        // Sometimes leads to crackdown
         const eventType: WorldTickEventType = roll(0.35) ? 'crackdown' : 'protests_erupt'
         events.push(makeInternalEvent(eventType, iso, date))
       }
     }
 
-    // Economic boom: stability > 75, large GDP, 0.8%
-    if (stability > 75 && gdp > 500_000_000_000) {
-      if (roll(0.008)) {
+    // Economic boom: stability > 65, moderate GDP, 2%
+    if (stability > 65 && gdp > 200_000_000_000) {
+      if (roll(0.02)) {
         events.push(makeInternalEvent('economic_boom', iso, date))
       }
     }
 
-    // Economic crisis: stability < 40, 1% + unpredictability modifier
-    if (stability < 40) {
-      const crisisChance = 0.01 + p.unpredictability / 1000
+    // Economic crisis: stability < 45, 2% + unpredictability modifier
+    if (stability < 45) {
+      const crisisChance = 0.02 + p.unpredictability / 500
       if (roll(crisisChance)) {
         events.push(makeInternalEvent('economic_crisis', iso, date))
       }
     }
 
-    // Separatist movement: stability < 20, 1.5%
-    if (stability < 20) {
-      if (roll(0.015)) {
+    // Separatist movement: stability < 25, 2.5%
+    if (stability < 25) {
+      if (roll(0.025)) {
         events.push(makeInternalEvent('separatist_movement', iso, date))
       }
     }
 
-    // Election: democracies ~0.5%
+    // Election: democracies ~1.5% (roughly once per year)
     const govType = MODERN_COUNTRY_DATA[iso]?.governmentType ?? ''
     const isDemocratic = ['democracy', 'federal_republic', 'republic', 'constitutional_monarchy'].includes(govType)
-    if (isDemocratic && roll(0.005)) {
+    if (isDemocratic && roll(0.015)) {
       events.push(makeInternalEvent('election_held', iso, date))
     }
 
-    // Humanitarian crisis: stability < 30, 0.8%
-    if (stability < 30) {
-      if (roll(0.008)) {
+    // Leadership change: non-democracies, 0.5%
+    if (!isDemocratic && roll(0.005)) {
+      events.push(makeInternalEvent('leadership_change', iso, date))
+    }
+
+    // Humanitarian crisis: stability < 35, 1.5%
+    if (stability < 35) {
+      if (roll(0.015)) {
         events.push(makeInternalEvent('humanitarian_crisis', iso, date))
+      }
+    }
+
+    // Reform: moderate stability + high approval, 1%
+    if (stability > 50 && approval > 60 && roll(0.01)) {
+      events.push(makeInternalEvent('reform_passed', iso, date))
+    }
+
+    // Military powers build up: high military + moderate aggression, 0.8%
+    if (military > 60 && p.aggression > 40 && roll(0.008)) {
+      // Pick a neighboring country for military exercise
+      const neighbors = isos.filter(other => other !== iso && geoPoliticalCompatibility(iso, other) > 0.5)
+      if (neighbors.length > 0) {
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)]
+        events.push(makeEvent('military_exercise', iso, target, date, -3, countries))
+        const key = relationKey(iso, target)
+        relationDeltas[key] = (relationDeltas[key] ?? 0) - 3
       }
     }
   }
@@ -484,10 +504,10 @@ export function worldTick(
 
   events.push(...chainEvents)
 
-  // Step 5 — Cap at 8 events, sorted by importance (breaking first)
+  // Step 5 — Cap at 12 events, sorted by importance (breaking first)
   const importanceOrder: Record<NewsImportance, number> = { breaking: 0, major: 1, minor: 2 }
   events.sort((a, b) => importanceOrder[a.importance] - importanceOrder[b.importance])
-  const capped = events.slice(0, 8)
+  const capped = events.slice(0, 12)
 
   return { events: capped, relationDeltas, proposalsForPlayer }
 }
@@ -653,6 +673,17 @@ function getInternalStatChanges(type: WorldTickEventType, country: string): Worl
         { country, field: 'stability', delta: -8 },
         { country, field: 'approval', delta: -8 },
         { country, field: 'softPower', delta: -5 },
+      ]
+    case 'reform_passed':
+      return [
+        { country, field: 'approval', delta: 8 },
+        { country, field: 'stability', delta: 3 },
+        { country, field: 'softPower', delta: 3 },
+      ]
+    case 'leadership_change':
+      return [
+        { country, field: 'stability', delta: -5 },
+        { country, field: 'approval', delta: -3 },
       ]
     default:
       return []

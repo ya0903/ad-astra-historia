@@ -6,6 +6,7 @@ import {
 } from '@ad-astra/shared/railDrawing'
 import type { RailLine, RailStation, RailType } from '@ad-astra/shared/types'
 import { formatCurrency } from '../lib/currency'
+import { isCoordInCountry } from '../lib/mapFly'
 
 function interpolatePath(tool: string, waypoints: LngLat[]): LngLat[] {
   if (waypoints.length < 2) return waypoints
@@ -47,6 +48,12 @@ export default function RailDrawPanel() {
   const [editText, setEditText] = useState('')
 
   const commitDrawnRail = useGameStore(s => s.commitDrawnRail)
+  const allies = useGameStore(s => s.state?.allies ?? [])
+  const playerCountryId = useGameStore(s => s.state?.playerCountryId ?? '')
+
+  // Cross-continental rail requires at least one alliance
+  const isCrossCont = railType === 'cross_continent'
+  const needsAlliance = isCrossCont && allies.length === 0
 
   const renderedPath = useMemo<LngLat[]>(
     () => interpolatePath(tool, waypoints as LngLat[]),
@@ -175,6 +182,11 @@ export default function RailDrawPanel() {
               ⚠ Route exits your or friendly territory
             </div>
           )}
+          {needsAlliance && (
+            <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1.5">
+              ⚠ Cross-continental rail requires at least one military alliance. Form an alliance via diplomacy first.
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-2">
@@ -189,7 +201,7 @@ export default function RailDrawPanel() {
             >Cancel</button>
             <button
               onClick={enterStationMode}
-              disabled={waypoints.length < 2 || !borderValid}
+              disabled={waypoints.length < 2 || !borderValid || needsAlliance}
               className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-700/70 border border-purple-400 text-white hover:bg-purple-600/80 disabled:opacity-30 disabled:cursor-not-allowed"
             >Confirm → Place Stations</button>
           </div>

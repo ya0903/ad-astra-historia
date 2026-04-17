@@ -257,7 +257,9 @@ export default function GamePage() {
   const updatePendingAction = useGameStore(s => s.updatePendingAction)
   const config = useConfigStore(s => s.config)
   const mapInstance = useMapStore(s => s.map)
-  const breakingNewsCount = useGameStore(s => (s.state?.newsItems ?? []).filter(n => n.importance === 'breaking').length)
+  const totalNewsCount = useGameStore(s => (s.state?.newsItems ?? []).length)
+  const [lastSeenNewsCount, setLastSeenNewsCount] = useState(0)
+  const unreadNewsCount = Math.max(0, totalNewsCount - lastSeenNewsCount)
   const activePlanet = useGameStore(s => s.state?.activePlanet ?? 'earth')
   const setActivePlanet = useGameStore(s => s.setActivePlanet)
   const unlockedTechs = useGameStore(s => s.state?.unlockedTechs ?? [])
@@ -791,8 +793,14 @@ followUps: When a result reasonably invites a player response — e.g. a country
       const playerName = player?.name ?? gameState.playerCountryId
       const newsContext = (gameState.newsItems ?? []).slice(0, 8).map(n => `- ${n.headline}`).join('\n')
       const statsLine = `GDP $${((stats?.gdp ?? 0) / 1e9).toFixed(0)}B · Military ${stats?.military ?? 0} · Approval ${stats?.approval ?? 0} · Stability ${stats?.stability ?? 70} · Tech ${stats?.techLevel ?? 0}`
-      const system = `You are a strategic advisor for ${playerName} in ${gameState.era} (${gameState.currentDate}). Suggest 4 specific, actionable moves the player could take this turn based on the current world state. Each action should be 1 short sentence (under 15 words). Mix categories: economy, military, diplomacy, infrastructure, tech, culture. Ground suggestions in the actual world events listed below — react to what's happening. Be specific (use real country names, real cities, real proposals).`
-      const userPrompt = `Current state: ${statsLine}\nRecent world events:\n${newsContext || '(no recent events)'}\n\nReturn ONLY a JSON array of 4 strings, no commentary. Example: ["Sign trade agreement with India", "Build deep-water port at Gwadar", "Open embassy in Tokyo", "Increase R&D spending on quantum computing"]`
+      // If there are existing queued actions, ask AI to generate new *different* ones
+      const existingActions = pendingActions.map(a => a.text)
+      const count = Math.max(1, 4 - existingActions.length)
+      const avoidClause = existingActions.length > 0
+        ? `\nThe player already has these queued: ${existingActions.map(a => `"${a}"`).join(', ')}. Do NOT repeat or overlap with them — suggest entirely different actions.`
+        : ''
+      const system = `You are a strategic advisor for ${playerName} in ${gameState.era} (${gameState.currentDate}). Suggest ${count} specific, actionable moves the player could take this turn based on the current world state. Each action should be 1 short sentence (under 15 words). Mix categories: economy, military, diplomacy, infrastructure, tech, culture. Ground suggestions in the actual world events listed below — react to what's happening. Be specific (use real country names, real cities, real proposals).${avoidClause}`
+      const userPrompt = `Current state: ${statsLine}\nRecent world events:\n${newsContext || '(no recent events)'}\n\nReturn ONLY a JSON array of ${count} strings, no commentary. Example: ["Sign trade agreement with India", "Build deep-water port at Gwadar", "Open embassy in Tokyo", "Increase R&D spending on quantum computing"]`
       const reply = await callAI(config, system, [{ role: 'user', content: userPrompt }])
       const match = reply.match(/\[[\s\S]*\]/)
       if (!match) throw new Error('No JSON array found in AI response')
@@ -1575,6 +1583,7 @@ followUps: When a result reasonably invites a player response — e.g. a country
             isOpen={activeRightPanel === 'advisor'}
             onOpen={() => openRightPanel('advisor')}
             onClose={() => setActiveRightPanel(null)}
+            onPushAction={(text) => addPendingAction(text)}
           />
           <DiplomacyPanel
             gameContext={{
@@ -1593,7 +1602,7 @@ followUps: When a result reasonably invites a player response — e.g. a country
           />
           {/* News button */}
           <button
-            onClick={() => { openRightPanel('news'); setNewsOpen(o => !o) }}
+            onClick={() => { openRightPanel('news'); setNewsOpen(o => !o); setLastSeenNewsCount(totalNewsCount) }}
             title="World News"
             className={`relative w-10 h-10 rounded-full border shadow-xl flex items-center justify-center text-base transition-all ${
               activeRightPanel === 'news'
@@ -1601,9 +1610,9 @@ followUps: When a result reasonably invites a player response — e.g. a country
                 : 'bg-[#0d1f3c] border-white/20 text-gray-400 hover:text-white hover:border-white/30'
             }`}>
             📰
-            {breakingNewsCount > 0 && activeRightPanel !== 'news' && (
+            {unreadNewsCount > 0 && activeRightPanel !== 'news' && (
               <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
-                {breakingNewsCount > 9 ? '9+' : breakingNewsCount}
+                {unreadNewsCount > 9 ? '9+' : unreadNewsCount}
               </span>
             )}
           </button>

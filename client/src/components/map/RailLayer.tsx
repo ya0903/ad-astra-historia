@@ -33,54 +33,75 @@ export default function RailLayer() {
     railTypes.forEach(railType => {
       const sourceId = `rail-${railType}`
       const layerId = `rail-line-${railType}`
+      const constructionLayerId = `rail-line-${railType}-construction`
 
-      const lines = gameState.railLines.filter(r => r.type === railType)
+      const allLines = gameState.railLines.filter(r => r.type === railType)
+      const completedLines = allLines.filter(r => !r.underConstruction)
+      const constructionLines = allLines.filter(r => r.underConstruction)
+
+      const toFeature = (r: typeof allLines[0]) => ({
+        type: 'Feature' as const,
+        id: r.id,
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: r.waypoints ?? [r.fromCoords, r.toCoords],
+        },
+        properties: {
+          id: r.id,
+          type: r.type,
+          fromCity: r.fromCity,
+          toCity: r.toCity,
+          underConstruction: !!r.underConstruction,
+          label: r.waypoints && r.waypoints.length > 2
+            ? `${r.fromCity} → … → ${r.toCity}`
+            : `${r.fromCity} → ${r.toCity}`,
+        },
+      })
 
       const geojson: FeatureCollection = {
         type: 'FeatureCollection',
-        features: lines.map(r => ({
-          type: 'Feature',
-          id: r.id,
-          geometry: {
-            type: 'LineString',
-            coordinates: r.waypoints ?? [r.fromCoords, r.toCoords],
-          },
-          properties: {
-            id: r.id,
-            type: r.type,
-            fromCity: r.fromCity,
-            toCity: r.toCity,
-            label: r.waypoints && r.waypoints.length > 2
-              ? `${r.fromCity} → … → ${r.toCity}`
-              : `${r.fromCity} → ${r.toCity}`,
-          },
-        })),
+        features: completedLines.map(toFeature),
+      }
+      const constructionGeojson: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: constructionLines.map(toFeature),
       }
 
+      // Completed rail lines
       if (map.getSource(sourceId)) {
         (map.getSource(sourceId) as maplibregl.GeoJSONSource).setData(geojson)
-        return
+      } else {
+        map.addSource(sourceId, { type: 'geojson', data: geojson })
+        const paint: maplibregl.LineLayerSpecification['paint'] = {
+          'line-color': RAIL_COLOURS[railType],
+          'line-width': RAIL_WIDTH[railType],
+          'line-opacity': 0.85,
+        }
+        if (RAIL_DASH[railType]) {
+          paint['line-dasharray'] = RAIL_DASH[railType] as number[]
+        }
+        map.addLayer({ id: layerId, type: 'line', source: sourceId, minzoom: 3, paint })
       }
 
-      map.addSource(sourceId, { type: 'geojson', data: geojson })
-
-      const paint: maplibregl.LineLayerSpecification['paint'] = {
-        'line-color': RAIL_COLOURS[railType],
-        'line-width': RAIL_WIDTH[railType],
-        'line-opacity': 0.85,
+      // Under-construction rail lines (dashed, dimmer)
+      const conSrcId = `${sourceId}-construction`
+      if (map.getSource(conSrcId)) {
+        (map.getSource(conSrcId) as maplibregl.GeoJSONSource).setData(constructionGeojson)
+      } else {
+        map.addSource(conSrcId, { type: 'geojson', data: constructionGeojson })
+        map.addLayer({
+          id: constructionLayerId,
+          type: 'line',
+          source: conSrcId,
+          minzoom: 3,
+          paint: {
+            'line-color': RAIL_COLOURS[railType],
+            'line-width': RAIL_WIDTH[railType],
+            'line-opacity': 0.5,
+            'line-dasharray': [4, 4],
+          },
+        })
       }
-
-      if (RAIL_DASH[railType]) {
-        paint['line-dasharray'] = RAIL_DASH[railType] as number[]
-      }
-
-      map.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        minzoom: 3,
-        paint,
-      })
     })
 
     // Hover for all rail types
@@ -142,13 +163,12 @@ export default function RailLayer() {
         id: STATION_LAYER,
         type: 'circle',
         source: STATION_SOURCE,
-        minzoom: 0,
+        minzoom: 4,
         paint: {
-          // Bigger so they're actually visible on top of the 2px rail line
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 6, 5, 9, 7],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 6, 3.5, 9, 5],
           'circle-color': '#facc15',
           'circle-stroke-color': '#0a1020',
-          'circle-stroke-width': 1.2,
+          'circle-stroke-width': 1,
         },
       })
     }
@@ -161,6 +181,8 @@ export default function RailLayer() {
     }
 
     const railLayerIds = ['rail-line-domestic_hsr', 'rail-line-cross_continent', 'rail-line-undersea_tunnel']
+    const constructionLayerIds = railLayerIds.map(id => `${id}-construction`)
+    const allRailLayerIds = [...railLayerIds, ...constructionLayerIds]
     railLayerIds.forEach(id => {
       map.on('mousemove', id, onMouseMove)
       map.on('mouseleave', id, onMouseLeave)
@@ -170,10 +192,13 @@ export default function RailLayer() {
       railLayerIds.forEach(id => {
         map.off('mousemove', id, onMouseMove)
         map.off('mouseleave', id, onMouseLeave)
+      })
+      allRailLayerIds.forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id)
       })
       railTypes.forEach(t => {
         if (map.getSource(`rail-${t}`)) map.removeSource(`rail-${t}`)
+        if (map.getSource(`rail-${t}-construction`)) map.removeSource(`rail-${t}-construction`)
       })
       if (map.getLayer('rail-stations')) map.removeLayer('rail-stations')
       if (map.getSource('rail-stations-src')) map.removeSource('rail-stations-src')
